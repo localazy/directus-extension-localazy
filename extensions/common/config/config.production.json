@@ -1,0 +1,7 @@
+{
+  "LOCALAZY_API_URL": "https://api.localazy.com",
+  "LOCALAZY_PLUGIN_CONNECTOR_API_URL":"https://plugins.localazy.com/generic-connector",
+  "LOCALAZY_OAUTH_URL": "https://localazy.com/oauth/authorize",
+  "LOCALAZY_OAUTH_APP_CLIENT_ID": "17395331802135509664",
+  "APP_MODE": "production"
+}

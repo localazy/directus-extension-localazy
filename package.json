@@ -1,0 +1,36 @@
+{
+	"name": "localazy-directus-monorepo",
+	"description": "A monorepo for Localazy Directus extensions",
+	"version": "1.0.0",
+	"keywords": [
+		"directus",
+		"directus-extension",
+		"directus translation",
+		"directus localization",
+    "localazy"
+	],
+	"type": "module",
+	"scripts": {
+		"build": "npm run set-production-config && npm run build:module && npm run build:hook",
+		"build:module": "cd ./extensions/module && ./node_modules/.bin/directus-extension build --no-minify",
+		"build:hook": "cd ./extensions/sync-hook && ./node_modules/.bin/directus-extension build --no-minify",
+		"dev": "docker-compose -f ./development/docker-compose.yml up -d && nodemon --config nodemon.json",
+		"lint": "eslint --ext .ts,.vue src",
+		"prepare": "npm run build",
+		"set-production-config": "npm run set-config -- --mode=production",
+		"set-config": "npx ts-node --esm ./scripts/set-config.ts",
+    "copy-dist": "npx ts-node --esm ./scripts/copy-dist-to-hook.ts && ./scripts/copy-dist-to-module.ts"
+	},
+	"devDependencies": {
+		"@localazy/conventional-changelog-preset": "github:localazy/conventional-changelog-preset",
+		"@types/node": "^20.12.11",
+		"@typescript-eslint/eslint-plugin": "^6.2.0",
+		"@typescript-eslint/parser": "^6.2.0",
+		"@vue/eslint-config-airbnb": "^7.0.0",
+		"eslint": "^8.44.0",
+		"eslint-import-resolver-typescript": "^3.5.5",
+		"eslint-plugin-vue": "^9.15.1",
+		"nodemon": "^3.0.1",
+		"typescript": "^5.4.5"
+	}
+}

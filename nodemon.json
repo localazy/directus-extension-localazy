@@ -1,0 +1,10 @@
+{
+  "watch": ["extensions"],
+  "ignore": ["**/dist/**", "extensions/common/config/*"],
+  "ext": "ts,js,json,vue",
+  "exec": "npm run build",
+  "verbose": false,
+  "events": {
+    "restart": "npm run copy-dist && docker-compose -f ./development/docker-compose.yml restart directus"
+  }
+}
