@@ -13,16 +13,15 @@
   "files": [
     "dist"
   ],
-	"directus:extension": {
-		"type": "hook",
-		"path": "dist/index.js",
-		"source": "src/index.ts",
-		"host": "^10.10.0"
-	},
+  "directus:extension": {
+    "type": "hook",
+    "path": "dist/index.js",
+    "source": "src/index.ts",
+    "host": "^10.10.0"
+  },
   "scripts": {
     "build": "directus-extension build",
-    "lint": "eslint --ext .ts,.vue src",
-    "prepare": "npm run build"
+    "lint": "eslint --ext .ts,.vue src"
   },
   "dependencies": {
     "@localazy/api-client": "^2.1.5",
@@ -31,7 +30,7 @@
   "devDependencies": {
     "@directus/extensions-sdk": "^11.0.4",
     "@types/lodash": "^4.17.1",
-		"@types/node": "^20.12.11",
+    "@types/node": "^20.12.11",
     "typescript": "^5.4.5"
   }
 }

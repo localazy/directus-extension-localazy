@@ -1,0 +1,44 @@
+name: QA checks
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    name: Lint & build package
+    runs-on: [ self-hosted, Linux ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.18
+
+      - name: Install deps
+        run: |
+          npm ci
+
+          cd extensions/common
+          npm ci
+
+          cd ../module
+          npm ci
+
+          cd ../sync-hook
+          npm ci
+
+      - name: Build & lint
+        run: |
+          npm run set-production-config
+
+          cd extensions/module
+          npm run lint
+          npm run build
+
+          cd ../sync-hook
+          npm run lint
+          npm run build

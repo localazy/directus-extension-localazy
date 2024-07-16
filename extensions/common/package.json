@@ -1,15 +1,15 @@
 {
-	"name": "localazy-directus-common",
-	"description": "Please enter a description for your extension",
-	"version": "1.0.0",
-	"keywords": [],
-	"type": "module",
-	"dependencies": {
-		"@localazy/api-client": "^2.1.5",
-		"@localazy/generic-connector-client": "^0.2.3",
-		"@localazy/languages": "^0.1.6"
-	},
-	"devDependencies": {
-		"@directus/types": "^11.1.1"
-	}
+  "name": "localazy-directus-common",
+  "description": "Please enter a description for your extension",
+  "version": "1.0.1",
+  "keywords": [],
+  "type": "module",
+  "dependencies": {
+    "@localazy/api-client": "^2.1.5",
+    "@localazy/generic-connector-client": "^0.2.3",
+    "@localazy/languages": "^0.1.6"
+  },
+  "devDependencies": {
+    "@directus/types": "^11.1.1"
+  }
 }

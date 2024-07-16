@@ -21,8 +21,7 @@
 	},
   "scripts": {
     "build": "directus-extension build",
-    "lint": "eslint --ext .ts,.vue src",
-    "prepare": "npm run build"
+    "lint": "eslint --ext .ts,.vue src"
   },
   "dependencies": {
     "@localazy/api-client": "^2.1.5",
