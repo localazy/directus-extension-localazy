@@ -23,10 +23,10 @@
 		"forceConsistentCasingInFileNames": true,
 		"allowSyntheticDefaultImports": true,
 		"isolatedModules": true,
-		"rootDir": "lib",
+		"rootDir": ".",
     "types": [
       "node"
     ]
 	},
-	"include": ["lib/**/*.ts"]
+	"include": ["extensions/**/*.ts", "extensions/**/*.vue"]
 }

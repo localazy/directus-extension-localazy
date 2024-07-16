@@ -30,12 +30,10 @@ services:
       # Always make sure your volumes matches the storage root when using
       # local driver
       - ./uploads:/directus/uploads
-      # - ./modules:/directus/extensions/modules
-      - ./extensions/directus-extension-localazy:/directus/extensions/directus-extension-localazy
       # Make sure to also mount the volume when using SQLite
       # - ./database:/directus/database
       # If you want to load extensions from the host
-      # - ./extensions:/directus/extensions
+      - ./extensions:/directus/extensions
     networks:
       - directus
     depends_on:
