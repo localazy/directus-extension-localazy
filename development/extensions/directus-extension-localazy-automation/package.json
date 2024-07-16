@@ -1,12 +1,12 @@
 {
-  "name": "@localazy/directus-extension-localazy",
-  "description": "The official Localazy module extension for Directus",
-  "icon": "translate",
+  "name": "@localazy/directus-extension-localazy-automation",
+  "description": "The official Localazy hook extension for Directus to automate synchronization of content",
+  "icon": "cloud_sync",
   "version": "1.0.1",
   "keywords": [
     "directus",
     "directus-extension",
-    "directus-extension-module",
+    "directus-extension-hook",
     "localazy"
   ],
   "type": "module",
@@ -14,7 +14,7 @@
     "dist"
   ],
   "directus:extension": {
-    "type": "module",
+    "type": "hook",
     "path": "dist/index.js",
     "source": "src/index.ts",
     "host": "^10.10.0"
@@ -25,17 +25,12 @@
   },
   "dependencies": {
     "@localazy/api-client": "^2.1.5",
-    "@localazy/generic-connector-client": "^0.2.3",
-    "@localazy/languages": "^0.1.6",
-    "@vueuse/core": "^10.2.1",
-    "pinia": "^2.1.4"
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@directus/constants": "^11.0.4",
     "@directus/extensions-sdk": "^11.0.4",
-    "@types/lodash": "^4.14.195",
-    "sass": "^1.63.6",
-    "typescript": "^5.4.5",
-    "vue": "^3.4.27"
+    "@types/lodash": "^4.17.1",
+    "@types/node": "^20.12.11",
+    "typescript": "^5.4.5"
   }
 }
