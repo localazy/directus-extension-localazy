@@ -1,3 +1,12 @@
+## 1.0.4 (2024-07-17)
+### 🔀 Pull Requests
+
+- [Fix CI release #6](https://github.com/localazy/directus-extension-localazy/pull/6)
+
+### 🧰 Other Commits
+
+- Fix CI release ([86ca00a](https://github.com/localazy/directus-extension-localazy/commit/86ca00a)) ([#6](https://github.com/localazy/directus-extension-localazy/pull/6))
+
 ## 1.0.3 (2024-07-17)
 ### 🔀 Pull Requests
 
