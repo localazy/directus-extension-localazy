@@ -1,7 +1,7 @@
 {
   "name": "localazy-directus-common",
   "description": "Please enter a description for your extension",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "keywords": [],
   "type": "module",
   "dependencies": {
