@@ -47,6 +47,6 @@ jobs:
           app-key: ${{ secrets.AUTH_APP_KEY }}
           run-after-install: npm run set-production-config
           monorepo-public-npm-token: ${{ secrets.NPM_AUTH_TOKEN_PUBLIC }}
-          monorepo-public-npm: |
+          monorepo-public-npm-publish: |
             'extensions/module'
             'extensions/sync-hook'
