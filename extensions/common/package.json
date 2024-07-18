@@ -7,9 +7,11 @@
   "dependencies": {
     "@localazy/api-client": "^2.1.5",
     "@localazy/generic-connector-client": "^0.2.3",
-    "@localazy/languages": "^0.1.6"
+    "@localazy/languages": "^0.1.6",
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@directus/types": "^11.1.1"
+    "@directus/types": "^11.1.1",
+    "@types/lodash": "^4.17.7"
   }
 }
