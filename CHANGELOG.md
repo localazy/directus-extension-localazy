@@ -1,3 +1,17 @@
+## 1.0.5 (2024-07-18)
+### 🔀 Pull Requests
+
+- [Bug fixes #8](https://github.com/localazy/directus-extension-localazy/pull/8)
+
+### 🐛 Bug Fixes
+
+- Allow json resolution. ([6d1e36b](https://github.com/localazy/directus-extension-localazy/commit/6d1e36b)) ([#8](https://github.com/localazy/directus-extension-localazy/pull/8))
+- Increase delay of upsert operations. ([6d1e36b](https://github.com/localazy/directus-extension-localazy/commit/6d1e36b)) ([#8](https://github.com/localazy/directus-extension-localazy/pull/8))
+
+### 🧰 Other Commits
+
+- Install lodash to common module. ([6d1e36b](https://github.com/localazy/directus-extension-localazy/commit/6d1e36b)) ([#8](https://github.com/localazy/directus-extension-localazy/pull/8))
+
 ## 1.0.4 (2024-07-17)
 ### 🔀 Pull Requests
 
