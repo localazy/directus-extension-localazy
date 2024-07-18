@@ -161,7 +161,7 @@ export const useDirectusLocalazyAdapter = () => {
     });
     add(async () => upsertTranslationStrings(Array.from(contentItems.translationStrings.values())));
 
-    await execute({ delayBetween: 50 });
+    await execute({ delayBetween: 150 });
   }
 
   return {

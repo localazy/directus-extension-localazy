@@ -15,7 +15,7 @@
 > Enhance your experience of [Directus Extension Localazy](https://github.com/localazy/directus-extension-localazy) by automating synchronization of your content whenever you make a change in Directus. No more manual uploading.
 
 ## 📄 Prerequisites
-- Installed & enabled [Directus Extension Localazy](https://github.com/localazy/directus-extension-localazy)
+- Installed & enabled [Directus Extension Localazy](https://github.com/localazy/directus-extension-localazy/tree/main/extensions/module)
 - Directus `^10.10.0`+
 
 

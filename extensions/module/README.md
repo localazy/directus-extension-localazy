@@ -44,7 +44,7 @@ npm install @localazy/directus-extension-localazy
 - [Articles about the Localazy API](https://localazy.com/tags/api) -->
 
 ## Automatically Upload Content
-To automatically synchronize your content from Directus to Localazy, see [Directus Extension Localazy Automation](https://github.com/localazy/directus-extension-localazy-automation)
+To automatically synchronize your content from Directus to Localazy, see [Directus Extension Localazy Automation](https://github.com/localazy/directus-extension-localazy/blob/main/extensions/sync-hook)
 
 ## 🛟 Support
 
