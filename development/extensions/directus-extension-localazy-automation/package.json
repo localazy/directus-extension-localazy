@@ -2,13 +2,22 @@
   "name": "@localazy/directus-extension-localazy-automation",
   "description": "The official Localazy hook extension for Directus to automate synchronization of content",
   "icon": "cloud_sync",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "keywords": [
     "directus",
     "directus-extension",
     "directus-extension-hook",
     "localazy"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/localazy/directus-extension-localazy",
+    "directory": "extensions/sync-hook"
+  },
+  "homepage": "https://github.com/localazy/directus-extension-localazy#readme",
+  "bugs": {
+    "url": "https://github.com/localazy/directus-extension-localazy/issues"
+  },
   "type": "module",
   "files": [
     "dist"

@@ -9,6 +9,15 @@
     "directus-extension-module",
     "localazy"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/localazy/directus-extension-localazy",
+    "directory": "extensions/module"
+  },
+  "homepage": "https://github.com/localazy/directus-extension-localazy#readme",
+  "bugs": {
+    "url": "https://github.com/localazy/directus-extension-localazy/issues"
+  },
   "type": "module",
   "files": [
     "dist"
