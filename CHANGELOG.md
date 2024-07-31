@@ -1,3 +1,9 @@
+## 1.0.6 (2024-07-31)
+
+### 📚 Documentation
+
+- Update package.json npm data. ([335b345](https://github.com/localazy/directus-extension-localazy/commit/335b345))
+
 ## 1.0.5 (2024-07-18)
 ### 🔀 Pull Requests
 
