@@ -11,11 +11,12 @@
   ],
   "type": "module",
   "scripts": {
-    "build": "npm run set-production-config && npm run build:module && npm run build:hook",
+    "build": "npm run build-scripts && npm run build:module && npm run build:hook",
     "build:module": "cd ./extensions/module && ./node_modules/.bin/directus-extension build --no-minify",
     "build:hook": "cd ./extensions/sync-hook && ./node_modules/.bin/directus-extension build --no-minify",
     "dev": "node ./scripts/assure-config.mjs && docker-compose -f ./development/docker-compose.yml up -d && nodemon --config nodemon.json",
     "lint": "eslint --ext .ts,.vue src",
+    "build-scripts": "npm run set-production-config && node ./scripts/copy-license.mjs",
     "set-production-config": "npm run set-config -- --mode=production",
     "set-config": "node ./scripts/set-config.mjs",
     "copy-dist": "node ./scripts/copy-dist-to-module.mjs && node ./scripts/copy-dist-to-hook.mjs"
