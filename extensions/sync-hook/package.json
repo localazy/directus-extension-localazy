@@ -2,7 +2,7 @@
   "name": "@localazy/directus-extension-localazy-automation",
   "description": "The official Localazy hook extension for Directus to automate synchronization of content",
   "icon": "cloud_sync",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "keywords": [
     "directus",
     "directus-extension",

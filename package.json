@@ -1,7 +1,7 @@
 {
   "name": "directus-extension-localazy",
   "description": "A monorepo for Localazy Directus extensions",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "keywords": [
     "directus",
     "directus-extension",

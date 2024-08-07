@@ -1,3 +1,9 @@
+## 1.0.7 (2024-08-07)
+
+### 📚 Documentation
+
+- Add MIT license. ([3ca4c65](https://github.com/localazy/directus-extension-localazy/commit/3ca4c65))
+
 ## 1.0.6 (2024-07-31)
 
 ### 📚 Documentation
