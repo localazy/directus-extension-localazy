@@ -1,3 +1,13 @@
+## 1.0.9 (2024-08-26)
+### 🔀 Pull Requests
+
+- [Fix release #17](https://github.com/localazy/directus-extension-localazy/pull/17)
+
+### 🧰 Other Commits
+
+- Fix invalid package.json ([7713e5d](https://github.com/localazy/directus-extension-localazy/commit/7713e5d)) ([#17](https://github.com/localazy/directus-extension-localazy/pull/17))
+- Update monorepo CI ([7713e5d](https://github.com/localazy/directus-extension-localazy/commit/7713e5d)) ([#17](https://github.com/localazy/directus-extension-localazy/pull/17))
+
 ## 1.0.8 (2024-08-26)
 ### 🔀 Pull Requests
 
