@@ -1,7 +1,7 @@
 /* eslint-disable class-methods-use-this */
-import { getLocalazyLanguages } from '@localazy/languages';
 import { Language, Project } from '@localazy/api-client';
 import { uniqWith } from 'lodash';
+import { getLocalazyLanguages } from '../functions/localazy-languages';
 import { DirectusApi } from '../interfaces/directus-api';
 import { CreateMissingLanguagesInDirectus } from '../enums/create-missing-languages-in-directus';
 import { Settings } from '../models/collections-data/settings';

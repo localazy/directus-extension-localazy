@@ -1,6 +1,6 @@
 {
   "watch": ["extensions"],
-  "ignore": ["**/dist/**", "extensions/common/config/*"],
+  "ignore": ["**/dist/**", "extensions/common/config/*", "extensions/common/functions/localazy-languages.ts"],
   "ext": "ts,js,json,vue",
   "exec": "npm run build && npm run copy-dist",
   "verbose": false,

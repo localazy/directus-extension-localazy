@@ -16,12 +16,13 @@
     "build:hook": "cd ./extensions/sync-hook && ./node_modules/.bin/directus-extension build --no-minify",
     "dev": "node ./scripts/assure-config.mjs && docker-compose -f ./development/docker-compose.yml up -d && nodemon --config nodemon.json",
     "lint": "eslint --ext .ts,.vue src",
-    "build-scripts": "npm run set-production-config && node ./scripts/copy-license.mjs",
+    "build-scripts": "npm run set-production-config && node ./scripts/copy-license.mjs && node ./scripts/generate-localazy-languages.mjs",
     "set-production-config": "npm run set-config -- --mode=production",
     "set-config": "node ./scripts/set-config.mjs",
     "copy-dist": "node ./scripts/copy-dist-to-module.mjs && node ./scripts/copy-dist-to-hook.mjs"
   },
   "devDependencies": {
+    "@localazy/languages": "^0.1.11",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^20.12.11",
     "@typescript-eslint/eslint-plugin": "^6.2.0",
