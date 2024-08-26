@@ -1,3 +1,12 @@
+## 1.0.8 (2024-08-26)
+### 🔀 Pull Requests
+
+- [Update @localazy/languages. #15](https://github.com/localazy/directus-extension-localazy/pull/15)
+
+### 🧰 Other Commits
+
+- Update @localazy/languages. ([900ee5c](https://github.com/localazy/directus-extension-localazy/commit/900ee5c)) ([#15](https://github.com/localazy/directus-extension-localazy/pull/15))
+
 ## 1.0.7 (2024-08-07)
 
 ### 📚 Documentation
