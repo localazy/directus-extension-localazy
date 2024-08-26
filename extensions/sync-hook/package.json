@@ -11,7 +11,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/localazy/directus-extension-localazy",
+    "url": "git+https://github.com/localazy/directus-extension-localazy.git",
     "directory": "extensions/sync-hook"
   },
   "homepage": "https://github.com/localazy/directus-extension-localazy#readme",
