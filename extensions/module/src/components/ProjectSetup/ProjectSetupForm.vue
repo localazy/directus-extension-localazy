@@ -72,7 +72,7 @@ import {
 } from 'vue';
 import { AppCollection, Field, Item } from '@directus/types';
 import { storeToRefs } from 'pinia';
-import { getLocalazyLanguages } from '@localazy/languages';
+import { getLocalazyLanguages } from '../../../../common/functions/localazy-languages';
 import { SelectItem } from '../../models/directus/internals/select-item';
 import { Settings } from '../../../../common/models/collections-data/settings';
 import { getConfig } from '../../../../common/config/get-config';

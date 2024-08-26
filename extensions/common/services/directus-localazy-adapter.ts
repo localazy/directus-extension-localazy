@@ -1,4 +1,4 @@
-import { getLocalazyLanguages } from '@localazy/languages';
+import { getLocalazyLanguages } from '../functions/localazy-languages';
 
 export class DirectusLocalazyAdapter {
   static mapDirectusToLocalazySourceLanguage(localazySourceLanguageId: number, directusSourceLanguage: string) {

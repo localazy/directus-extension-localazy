@@ -2,7 +2,7 @@
   "name": "@localazy/directus-extension-localazy",
   "description": "The official Localazy module extension for Directus",
   "icon": "translate",
-  "version": "1.0.5",
+  "version": "1.0.7",
   "keywords": [
     "directus",
     "directus-extension",
@@ -35,7 +35,6 @@
   "dependencies": {
     "@localazy/api-client": "^2.1.5",
     "@localazy/generic-connector-client": "^0.2.3",
-    "@localazy/languages": "^0.1.6",
     "@vueuse/core": "^10.2.1",
     "pinia": "^2.1.4"
   },

@@ -47,7 +47,7 @@ jobs:
           node-version: '18.18'
           app-id: ${{ secrets.AUTH_APP_ID }}
           app-key: ${{ secrets.AUTH_APP_KEY }}
-          run-after-install: npm run set-production-config
+          run-after-install: npm run build-scripts
           monorepo-public-npm-token: ${{ secrets.NPM_AUTH_TOKEN_PUBLIC }}
           monorepo-public-npm-publish: |
             'extensions/module'

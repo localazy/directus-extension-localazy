@@ -75,7 +75,7 @@
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia';
 import { computed } from 'vue';
-import { getLocalazyLanguages, findLocalazyLanguageByLocale } from '@localazy/languages';
+import { getLocalazyLanguages } from '../../../../common/functions/localazy-languages';
 import { useLocalazyStore } from '../../stores/localazy-store';
 import { DirectusLocalazyAdapter } from '../../../../common/services/directus-localazy-adapter';
 
