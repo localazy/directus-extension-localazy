@@ -38,7 +38,7 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@directus/extensions-sdk": "^11.0.4",
+    "@directus/extensions-sdk": "^12.1.4",
     "@types/lodash": "^4.17.1",
     "@types/node": "^20.12.11",
     "typescript": "^5.4.5"
