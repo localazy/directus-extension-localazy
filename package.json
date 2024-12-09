@@ -12,6 +12,7 @@
   "type": "module",
   "scripts": {
     "build": "npm run build-scripts && npm run build:module && npm run build:hook",
+    "build:development": "npm run build:module && npm run build:hook",
     "build:module": "cd ./extensions/module && ./node_modules/.bin/directus-extension build --no-minify",
     "build:hook": "cd ./extensions/sync-hook && ./node_modules/.bin/directus-extension build --no-minify",
     "dev": "node ./scripts/assure-config.mjs && docker-compose -f ./development/docker-compose.yml up -d && nodemon --config nodemon.json",
