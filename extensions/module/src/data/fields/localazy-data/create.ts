@@ -6,7 +6,7 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
     field: 'id',
     type: 'integer',
     meta: {
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
       interface: 'numeric',
     },
@@ -23,7 +23,7 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
     type: 'string',
     meta: {
       interface: 'input',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },
@@ -32,7 +32,7 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
     type: 'string',
     meta: {
       interface: 'input',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },
@@ -41,7 +41,7 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
     type: 'string',
     meta: {
       interface: 'input',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },
@@ -50,7 +50,7 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
     type: 'string',
     meta: {
       interface: 'input',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },
@@ -59,7 +59,7 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
     type: 'string',
     meta: {
       interface: 'input',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },
@@ -68,7 +68,7 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
     type: 'string',
     meta: {
       interface: 'input',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },
@@ -77,7 +77,7 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
     type: 'string',
     meta: {
       interface: 'input',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },

@@ -7,7 +7,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     field: 'id',
     type: 'integer',
     meta: {
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
       interface: 'numeric',
     },
@@ -24,7 +24,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'string',
     meta: {
       interface: 'input',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },
@@ -33,7 +33,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'string',
     meta: {
       interface: 'input',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },
@@ -42,7 +42,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'string',
     meta: {
       interface: 'input',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },
@@ -51,7 +51,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'text',
     meta: {
       interface: 'input-multiline',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },
@@ -60,7 +60,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'boolean',
     meta: {
       interface: 'boolean',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
     schema: {
@@ -72,7 +72,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'boolean',
     meta: {
       interface: 'boolean',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
     schema: {
@@ -84,7 +84,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'boolean',
     meta: {
       interface: 'boolean',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
     schema: {
@@ -96,7 +96,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'boolean',
     meta: {
       interface: 'boolean',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
     schema: {
@@ -108,7 +108,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'boolean',
     meta: {
       interface: 'boolean',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
     schema: {
@@ -119,7 +119,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     field: 'create_missing_languages_in_directus',
     type: 'integer',
     meta: {
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
       interface: 'numeric',
     },

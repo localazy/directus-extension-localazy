@@ -6,7 +6,7 @@ export const createContentTransferSetupsFields = (): Array<DeepPartial<Field>> =
     field: 'id',
     type: 'integer',
     meta: {
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
       interface: 'numeric',
     },
@@ -38,7 +38,7 @@ export const createContentTransferSetupsFields = (): Array<DeepPartial<Field>> =
     type: 'boolean',
     meta: {
       interface: 'boolean',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
     schema: {
