@@ -17,12 +17,26 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
-import { storeToRefs } from 'pinia';
+import { ref, PropType } from 'vue';
 import { useStores } from '@directus/extensions-sdk';
+import { AppCollection } from '@directus/types';
 import { useDirectusApi } from '../../composables/use-directus-api';
 import { useLocalazyStore } from '../../stores/localazy-store';
 import { AnalyticsService } from '../../../../common/services/analytics-service';
+import { LocalazyData } from '../../../../common/models/collections-data/localazy-data';
+
+type Collection = AppCollection | null;
+
+const props = defineProps({
+  localazyData: {
+    type: Object as PropType<LocalazyData | null>,
+    required: true,
+  },
+  localazyDataCollection: {
+    type: Object as PropType<Collection | null>,
+    required: true,
+  },
+});
 
 const loginButtonData = ref({
   isLoading: false,
@@ -32,34 +46,36 @@ const loginButtonData = ref({
 const { upsertDirectusItem } = useDirectusApi();
 const localazyStore = useLocalazyStore();
 const {
-  hydrate,
+  hydrateLocalazyData,
 } = localazyStore;
-const { localazyDataCollection, localazyData } = storeToRefs(localazyStore);
 const { useNotificationsStore } = useStores();
 const notificationsStore = useNotificationsStore();
+const emit = defineEmits(['update:localazyData']);
 
 const onLogout = async () => {
   try {
     loginButtonData.value.isLoading = true;
-    const orgId = localazyData.value?.orgId || '';
-    const name = localazyData.value?.name || '';
-    const userId = localazyData.value?.userId || '';
+    const orgId = props.localazyData?.org_id || '';
+    const name = props.localazyData?.user_name || '';
+    const userId = props.localazyData?.user_id || '';
 
-    if (localazyDataCollection.value) {
+    if (props.localazyDataCollection) {
+      const newData: LocalazyData = {
+        access_token: '',
+        org_id: '',
+        project_id: '',
+        project_name: '',
+        project_url: '',
+        user_id: '',
+        user_name: '',
+      };
       await upsertDirectusItem(
-        localazyDataCollection.value.collection,
-        localazyData.value,
-        {
-          access_token: '',
-          org_id: '',
-          project_id: '',
-          project_name: '',
-          project_url: '',
-          user_id: '',
-          user_name: '',
-        },
+        props.localazyDataCollection.collection,
+        props.localazyData,
+        newData,
       );
-      await hydrate({ force: true });
+      emit('update:localazyData', newData);
+      await hydrateLocalazyData({ force: true, localazyData: newData });
       if (orgId && userId && name) {
         AnalyticsService.trackLogOut({
           userId,

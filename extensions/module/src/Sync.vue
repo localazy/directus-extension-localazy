@@ -20,17 +20,17 @@
 
     <template #actions>
       <sync-action-buttons
-        @upload="onExport"
-        @download="onImport"
-        @save-settings="onSaveSettings"
+        @upload="onExport({ contentTransferSetupCollection, contentTransferSetup })"
+        @download="onImport({ contentTransferSetupCollection, contentTransferSetup })"
+        @save-settings="onSaveSettings({ contentTransferSetupCollection, contentTransferSetup, notify: true })"
         :has-changes="hasChanges"
         :disable-sync="!someTranslatableFieldsChecked && !synchronizeTranslationStrings"
       />
     </template>
 
     <div class="panel">
-      <config-notice class="notice" />
-      <errors-notice class="notice" />
+      <config-notice class="notice" :has-incomplete-configuration="hasIncompleteConfiguration" />
+      <errors-notice class="notice" :localazy-data="localazyData" />
 
       <sync-option-buttons
         v-model:show-untranslatable-field="showUntranslatableField"
@@ -41,7 +41,7 @@
         @deselect-all="deselectAll"
       />
 
-      <div class="page">
+      <div class="page" v-if="hydratedDirectusData">
 
         <div class="collection-list">
           <collection-item
@@ -92,6 +92,8 @@ import { useProgressTrackerStore } from './stores/progress-tracker-store';
 import TranslationStringsContent from './components/Sync/TranslationStringsContent.vue';
 import { useInitSyncContainer } from './composables/use-sync-container-init';
 import { useSyncContainerActions } from './composables/use-sync-container-actions';
+import { useHydrate } from './composables/use-hydrate';
+import { useLocalazyStore } from './stores/localazy-store';
 
 const {
   translatableRootCollections, rootCollections, translatableCollections, collections,
@@ -108,6 +110,16 @@ const {
   configuration,
   enabledFields,
   synchronizeTranslationStrings,
+});
+const localazyStore = useLocalazyStore();
+
+const {
+  hydrateDirectusData, localazyData, hasIncompleteConfiguration,
+  hydratedDirectusData, contentTransferSetupCollection, contentTransferSetup,
+} = useHydrate();
+
+hydrateDirectusData().then(() => {
+  localazyStore.hydrateLocalazyData({ localazyData });
 });
 
 const iteratedCollections = computed(() => (showUntranslatableCollections.value

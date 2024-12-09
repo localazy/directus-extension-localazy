@@ -22,7 +22,6 @@ export const useExportToLocalazy = (token: Ref<string>) => {
   const loading = ref(false);
   const { execute, add } = useEnhancedAsyncQueue();
   const { addProgressMessage, upsertProgressMessage } = useProgressTrackerStore();
-  const { hydrate } = useLocalazyStore();
   const { addLocalazyError } = useErrorsStore();
   const {
     localazyProject, projectId, localazyUser,
@@ -56,7 +55,6 @@ export const useExportToLocalazy = (token: Ref<string>) => {
   const exportContentToLocalazy = async (data: ExportContentToLocalazy) => {
     const { content, settings } = data;
     loading.value = true;
-    await hydrate();
 
     const directusSourceLanguageAsLocalazyLanguage = ExportToLocalazyCommonService.getDirectusSourceLanguageAsLocalazyLanguage({
       localazySourceLanguage: localazyProject.value?.sourceLanguage || 0,

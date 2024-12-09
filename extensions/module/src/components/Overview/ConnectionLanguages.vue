@@ -70,12 +70,15 @@
 
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia';
-import { computed, ref, watch } from 'vue';
+import {
+  computed, PropType, ref, watch,
+} from 'vue';
 import { findLocalazyLanguageByLocale } from '@localazy/languages';
 import { uniqWith } from 'lodash';
 import { useLocalazyStore } from '../../stores/localazy-store';
 import { useDirectusLanguages } from '../../composables/use-directus-languages';
 import { DirectusLocalazyAdapter } from '../../../../common/services/directus-localazy-adapter';
+import { Settings } from '../../../../common/models/collections-data/settings';
 
 type Row = {
   locale: string;
@@ -95,14 +98,21 @@ type Row = {
   };
 };
 
-const { localazyProject, settings } = storeToRefs(useLocalazyStore());
+const props = defineProps({
+  settings: {
+    type: Object as PropType<Settings | null>,
+    required: true,
+  },
+});
+
+const { localazyProject } = storeToRefs(useLocalazyStore());
 const { fetchDirectusLanguages } = useDirectusLanguages();
 
 const directusLanguages = ref<string[]>([]);
 
-watch(() => settings, (s) => {
-  if (s.value?.language_collection && s.value?.language_code_field) {
-    fetchDirectusLanguages(s.value?.language_collection, s.value?.language_code_field).then((languages) => {
+watch(() => props.settings, (s) => {
+  if (s?.language_collection && s?.language_code_field) {
+    fetchDirectusLanguages(s?.language_collection, s?.language_code_field).then((languages) => {
       directusLanguages.value = languages;
     });
   }
