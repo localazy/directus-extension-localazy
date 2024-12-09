@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { defineModule } from '@directus/extensions-sdk';
 import AdvancedSettings from './AdvancedSettings.vue';
 import ProjectSetup from './ProjectSetup.vue';
@@ -38,6 +39,20 @@ export default defineModule({
     },
   ],
   preRegisterCheck(user) {
-    return user.role?.admin_access === true || getConfig().APP_MODE === 'demo';
+    if (getConfig().APP_MODE === 'demo') {
+      return true;
+    }
+    if ('admin_access' in user) {
+      return user.admin_access === true;
+    }
+    if ('role' in user) {
+      /** In older version of Directus, admin_access exists in role attribute */
+      // @ts-expect-error
+      if ('admin_access' in user.role) {
+      // @ts-expect-error
+        return user.role.admin_access === true;
+      }
+    }
+    return false;
   },
 });
