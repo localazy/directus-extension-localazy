@@ -26,8 +26,8 @@
     <template #navigation>
       <Navigation />
     </template>
-    <div class="panel page">
-      <errors-notice class="errors-notice" />
+    <div class="panel page" v-if="hydrated && hydratedDirectusData">
+      <errors-notice class="errors-notice" :localazy-data="localazyData" />
 
       <advanced-settings-form
         v-if="settingsCollection"
@@ -56,6 +56,7 @@ import { useLocalazyStore } from './stores/localazy-store';
 import { defaultConfiguration } from './data/default-configuration';
 import ErrorsNotice from './components/ErrorsNotice.vue';
 import { useDirectusApi } from './composables/use-directus-api';
+import { useHydrate } from './composables/use-hydrate';
 
 type Configuration = {
   settings: Settings;
@@ -70,34 +71,37 @@ const notificationsStore = useNotificationsStore();
 const { upsertDirectusItem } = useDirectusApi();
 const localazyStore = useLocalazyStore();
 const {
-  hydrate,
-} = localazyStore;
+  hydrateDirectusData, localazyData, settingsCollection, settings, hydratedDirectusData,
+} = useHydrate();
 const {
-  settingsCollection, settings, hydrating,
-} = storeToRefs(localazyStore);
+  hydrateLocalazyData, hydrated,
+} = localazyStore;
+const { hydrating } = storeToRefs(localazyStore);
 
 watch(
-  localazyStore.$state,
-  (state) => {
-    configuration.value.settings = merge(configuration.value.settings, state.settings);
+  settings,
+  (s) => {
+    configuration.value.settings = merge(configuration.value.settings, s);
     settingsEdits.value = cloneDeep(configuration.value.settings);
   },
   { immediate: true, deep: true },
 );
 
-hydrate();
+hydrateDirectusData().then(() => {
+  hydrateLocalazyData({ localazyData });
+});
 
 const changesExist = computed(() => !isEqual(settingsEdits.value, configuration.value.settings));
 
 async function onSaveChanges() {
   loading.value = true;
   if (settingsCollection.value) {
-    await upsertDirectusItem(settingsCollection.value.collection, settings.value, settingsEdits.value);
+    await upsertDirectusItem(settingsCollection.value.collection, settings.value, settingsEdits.value, { ignoreEmpty: true });
     configuration.value.settings = cloneDeep(settingsEdits.value);
     notificationsStore.add({
       title: 'Settings saved',
     });
-    await hydrate({ force: true });
+    await hydrateDirectusData({ force: true });
   }
   loading.value = false;
 }

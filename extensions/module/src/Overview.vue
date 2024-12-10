@@ -17,53 +17,41 @@
     <template #navigation>
       <Navigation />
     </template>
-    <div class="panel page">
-      <config-notice class="notice" />
-      <errors-notice class="notice" />
+    <div class="panel page" v-if="hydrated && hydratedDirectusData">
+      <config-notice class="notice" :has-incomplete-configuration="hasIncompleteConfiguration" />
+      <errors-notice class="notice" :localazy-data="localazyData" />
 
-      <connection-overview class="overview-block" />
-      <connection-languages class="overview-block mt-8" />
+      <connection-overview class="overview-block" :localazy-data="localazyData" :settings="settings" />
+      <connection-languages class="overview-block mt-8" :settings="settings" />
 
+    </div>
+
+    <div v-else class="hydrating">
+      <v-progress-circular indeterminate lar />
     </div>
 
   </private-view>
 </template>
 
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
-import { cloneDeep, merge } from 'lodash';
-import { Settings } from '../../common/models/collections-data/settings';
+import { storeToRefs } from 'pinia';
 import Navigation from './components/Navigation.vue';
 import { useLocalazyStore } from './stores/localazy-store';
-import { defaultConfiguration } from './data/default-configuration';
 import ErrorsNotice from './components/ErrorsNotice.vue';
 import ConfigNotice from './components/ConfigNotice.vue';
-
 import ConnectionOverview from './components/Overview/ConnectionOverview.vue';
 import ConnectionLanguages from './components/Overview/ConnectionLanguages.vue';
+import { useHydrate } from './composables/use-hydrate';
 
-type Configuration = {
-  settings: Settings;
-};
-
-const configuration = ref<Configuration>(defaultConfiguration());
-const settingsEdits = ref<Settings>(cloneDeep(configuration.value.settings));
-
-const localazyStore = useLocalazyStore();
 const {
-  hydrate,
-} = localazyStore;
+  hydrateDirectusData, localazyData, hasIncompleteConfiguration, settings, hydratedDirectusData,
+} = useHydrate();
+const localazyStore = useLocalazyStore();
+const { hydrated } = storeToRefs(localazyStore);
 
-watch(
-  localazyStore.$state,
-  (state) => {
-    configuration.value.settings = merge(configuration.value.settings, state.settings);
-    settingsEdits.value = cloneDeep(configuration.value.settings);
-  },
-  { immediate: true, deep: true },
-);
-
-hydrate();
+hydrateDirectusData().then(() => {
+  localazyStore.hydrateLocalazyData({ localazyData });
+});
 
 </script>
 
@@ -100,5 +88,11 @@ hydrate();
 
 .mt-8 {
   margin-top: 1rem;
+}
+
+.hydrating {
+  display: flex;
+  justify-content: center;
+  margin-top: 48px;
 }
 </style>

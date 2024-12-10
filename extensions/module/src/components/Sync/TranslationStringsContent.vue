@@ -27,11 +27,9 @@
 </template>
 
 <script lang="ts" setup>
-import { PropType } from 'vue';
-
 const props = defineProps({
   shouldSynchronize: {
-    type: Number as PropType<0 | 1>,
+    type: Boolean,
     required: true,
   },
 });
@@ -39,7 +37,7 @@ const props = defineProps({
 const emits = defineEmits(['update:shouldSynchronize']);
 
 function onToggle() {
-  emits('update:shouldSynchronize', props.shouldSynchronize ? 0 : 1);
+  emits('update:shouldSynchronize', props.shouldSynchronize);
 }
 </script>
 

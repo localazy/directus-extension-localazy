@@ -74,34 +74,45 @@
 
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia';
-import { computed } from 'vue';
+import { computed, PropType } from 'vue';
 import { getLocalazyLanguages, findLocalazyLanguageByLocale } from '@localazy/languages';
 import { useLocalazyStore } from '../../stores/localazy-store';
 import { DirectusLocalazyAdapter } from '../../../../common/services/directus-localazy-adapter';
+import { Settings } from '../../../../common/models/collections-data/settings';
+import { LocalazyData } from '../../../../common/models/collections-data/localazy-data';
 
-const localazyStore = useLocalazyStore();
+const { hydrateLocalazyData } = useLocalazyStore();
+
+const props = defineProps({
+  settings: {
+    type: Object as PropType<Settings | null>,
+    required: true,
+  },
+  localazyData: {
+    type: Object as PropType<LocalazyData | null>,
+    required: true,
+  },
+});
+
 const {
-  hydrate,
-} = localazyStore;
-const {
-  hydrating, localazyProject, settings, exceededKeyLimit, localazyData,
+  hydrating, localazyProject, exceededKeyLimit,
 } = storeToRefs(useLocalazyStore());
 
 const isConnected = computed(() => !hydrating.value && !!localazyProject.value);
-const hasLocalazyToken = computed(() => !!localazyData.value?.access_token);
+const hasLocalazyToken = computed(() => !!props.localazyData?.access_token);
 const isConnecting = computed(() => hydrating.value);
 const localazySourceLanguage = computed(() => getLocalazyLanguages()
   .find((lang) => lang.localazyId === localazyProject.value?.sourceLanguage));
 const directusSourceLanguage = computed(() => {
-  if (!settings.value?.source_language) return null;
+  if (!props.settings?.source_language) return null;
   return findLocalazyLanguageByLocale(
-    DirectusLocalazyAdapter.transformDirectusToLocalazyLanguage(settings.value.source_language),
+    DirectusLocalazyAdapter.transformDirectusToLocalazyLanguage(props.settings.source_language),
   );
 });
 
 async function onReconnect() {
   if (hasLocalazyToken.value) {
-    await hydrate({ force: true });
+    await hydrateLocalazyData({ force: true, localazyData: props.localazyData });
   }
 }
 </script>

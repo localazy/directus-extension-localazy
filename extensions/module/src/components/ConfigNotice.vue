@@ -55,8 +55,15 @@ import { computed } from 'vue';
 import { useLocalazyStore } from '../stores/localazy-store';
 import { getConfig } from '../../../common/config/get-config';
 
+defineProps({
+  hasIncompleteConfiguration: {
+    type: Boolean,
+    required: true,
+  },
+});
+
 const {
-  hasIncompleteConfiguration, exceededKeyLimit, localazyProject, lacksAccessToPlugin,
+  exceededKeyLimit, localazyProject, lacksAccessToPlugin,
 } = storeToRefs(useLocalazyStore());
 
 const marketPlaceUrl = computed(() => {
@@ -65,6 +72,7 @@ const marketPlaceUrl = computed(() => {
   }
   return '';
 });
+const appMode = computed(() => getConfig().APP_MODE);
 const isDemo = computed(() => getConfig().APP_MODE === 'demo');
 
 </script>

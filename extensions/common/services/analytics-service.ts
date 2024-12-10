@@ -28,10 +28,10 @@ type UploadToLocalazy = CommonParams & {
   projectName: string;
   sourceLanguage: string;
   languages: string[];
-  upload_existing_translations: 0 | 1;
-  automated_upload: 0 | 1;
-  automated_deprecation: 0 | 1;
-  skip_empty_strings: 0 | 1;
+  upload_existing_translations: boolean;
+  automated_upload: boolean;
+  automated_deprecation: boolean;
+  skip_empty_strings: boolean;
   create_missing_languages_in_directus: CreateMissingLanguagesInDirectus;
 };
 
@@ -39,10 +39,10 @@ type DownloadToLocalazy = CommonParams & {
   projectName: string;
   sourceLanguage: string;
   languages: string[];
-  upload_existing_translations: 0 | 1;
-  automated_upload: 0 | 1;
-  automated_deprecation: 0 | 1;
-  skip_empty_strings: 0 | 1;
+  upload_existing_translations: boolean;
+  automated_upload: boolean;
+  automated_deprecation: boolean;
+  skip_empty_strings: boolean;
   create_missing_languages_in_directus: CreateMissingLanguagesInDirectus;
 };
 

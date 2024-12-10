@@ -123,33 +123,33 @@ const localEdits = computed<Settings>({
 const importSourceLanguageOptions = ref<Item[]>([
   {
     text: 'Import source language from Localazy',
-    value: 1,
+    value: true,
   },
   {
     text: "Don't import source language from Localazy",
-    value: 0,
+    value: false,
   },
 ]);
 
 const uploadExistingTranslationsOptions = ref<Item[]>([
   {
     text: 'Export translations from Directus',
-    value: 1,
+    value: true,
   },
   {
     text: "Don't export translations from Directus",
-    value: 0,
+    value: false,
   },
 ]);
 
 const skipEmptyStringsOptions = ref<Item[]>([
   {
     text: "Don't upload empty values to Localazy",
-    value: 1,
+    value: true,
   },
   {
     text: 'Upload empty values to Localazy',
-    value: 0,
+    value: false,
   },
 ]);
 
@@ -171,22 +171,22 @@ const directusMissingLanguagesOptions = ref<Item[]>([
 const automatedUploadOptions = ref<Item[]>([
   {
     text: 'Allow automated upload',
-    value: 1,
+    value: true,
   },
   {
     text: 'Disable automated upload',
-    value: 0,
+    value: false,
   },
 ]);
 
 const automatedDeprecationOptions = ref<Item[]>([
   {
     text: 'Allow automated deprecation',
-    value: 1,
+    value: true,
   },
   {
     text: 'Disable automated deprecation',
-    value: 0,
+    value: false,
   },
 ]);
 

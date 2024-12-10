@@ -1,3 +1,4 @@
+import { AppCollection } from '@directus/types';
 import { isEqual, merge } from 'lodash';
 import { Ref, computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -14,7 +15,7 @@ import { useCollectionsOrganizer } from './use-collections-organizer';
 import { useDirectusLocalazyAdapter } from './use-directus-localazy-adapter';
 import { useTranslatableCollections } from './use-translatable-collections';
 import { useTranslationStringsContent } from './use-translation-strings-content';
-import { EnabledField } from '../../../common/models/collections-data/content-transfer-setup';
+import { ContentTransferSetupDatabase, EnabledField } from '../../../common/models/collections-data/content-transfer-setup';
 import { Configuration } from '../models/configuration';
 import { AnalyticsService } from '../../../common/services/analytics-service';
 import { ExportToLocalazyCommonService } from '../../../common/services/export-to-localazy-common-service';
@@ -22,8 +23,21 @@ import { ExportToLocalazyCommonService } from '../../../common/services/export-t
 type UseSyncContainerActions = {
   configuration: Ref<Configuration>;
   enabledFields: Ref<EnabledField[]>;
-  synchronizeTranslationStrings: Ref<0 | 1>;
+  synchronizeTranslationStrings: Ref<boolean>;
 };
+
+type OnSaveSettingsParams = {
+  notify?: boolean;
+  contentTransferSetupCollection: AppCollection | null;
+  contentTransferSetup: ContentTransferSetupDatabase | null;
+};
+
+type OnExportParams = {
+  contentTransferSetupCollection: AppCollection | null;
+  contentTransferSetup: ContentTransferSetupDatabase | null;
+};
+
+type OnImportParams = OnExportParams;
 
 export const useSyncContainerActions = (data: UseSyncContainerActions) => {
   const { configuration, enabledFields, synchronizeTranslationStrings } = data;
@@ -40,9 +54,7 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
 
   const { addProgressMessage, resetProgressTracker } = useProgressTrackerStore();
   const localazyStore = useLocalazyStore();
-  const {
-    contentTransferSetup, contentTransferSetupCollection, localazyUser, localazyProject,
-  } = storeToRefs(localazyStore);
+  const { localazyUser, localazyProject } = storeToRefs(localazyStore);
 
   const loading = ref(false);
   const showProgress = ref(false);
@@ -53,20 +65,20 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
     enabledFields.value,
   ));
 
-  async function onSaveSettings(notify = true) {
+  async function onSaveSettings(payload: OnSaveSettingsParams) {
+    const { contentTransferSetupCollection, contentTransferSetup, notify } = payload;
     if (!hasChanges.value) { return; }
 
-    if (contentTransferSetupCollection.value && contentTransferSetup.value) {
-      contentTransferSetup.value.enabled_fields = EnabledFieldsService.prepareForDatabase(enabledFields.value);
+    if (contentTransferSetupCollection && contentTransferSetup) {
+      contentTransferSetup.enabled_fields = EnabledFieldsService.prepareForDatabase(enabledFields.value);
       await upsertDirectusItem(
-        contentTransferSetupCollection.value.collection,
-        contentTransferSetup.value,
+        contentTransferSetupCollection.collection,
+        contentTransferSetup,
         {
           enabled_fields: EnabledFieldsService.prepareForDatabase(enabledFields.value),
           translation_strings: synchronizeTranslationStrings.value,
         },
       );
-      configuration.value.content_transfer_setup = contentTransferSetup.value;
       if (notify) {
         notificationsStore.add({
           title: 'Settings saved',
@@ -75,7 +87,7 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
     }
   }
 
-  async function onExport() {
+  async function onExport(payload: OnExportParams) {
     loading.value = true;
     showProgress.value = true;
     addProgressMessage({
@@ -83,7 +95,7 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
       message: 'Preparing Directus data for import',
     });
     const token = computed(() => configuration.value.localazy_data.access_token);
-    onSaveSettings(false);
+    onSaveSettings(payload);
     try {
       const exportLanguages = await resolveExportLanguages(configuration.value.settings);
       const [translationStrings, collectionsContent] = await Promise.all([
@@ -109,14 +121,14 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
     }
   }
 
-  async function onImport() {
+  async function onImport(payload: OnImportParams) {
     showProgress.value = true;
     loading.value = true;
     addProgressMessage({
       id: ProgressTrackerId.RETRIEVING_LANGUAGES,
       message: 'Retrieving target languages',
     });
-    onSaveSettings(false);
+    onSaveSettings(payload);
     try {
       const importLanguages = await resolveImportLanguages(configuration.value.settings);
       const result = await useImportFromLocalazy().importContentFromLocalazy(

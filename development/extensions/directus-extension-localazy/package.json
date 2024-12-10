@@ -2,7 +2,7 @@
   "name": "@localazy/directus-extension-localazy",
   "description": "The official Localazy module extension for Directus",
   "icon": "translate",
-  "version": "1.0.7",
+  "version": "1.0.9",
   "keywords": [
     "directus",
     "directus-extension",
@@ -11,7 +11,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/localazy/directus-extension-localazy",
+    "url": "git+https://github.com/localazy/directus-extension-localazy.git",
     "directory": "extensions/module"
   },
   "homepage": "https://github.com/localazy/directus-extension-localazy#readme",
@@ -40,8 +40,8 @@
     "pinia": "^2.1.4"
   },
   "devDependencies": {
-    "@directus/constants": "^11.0.4",
-    "@directus/extensions-sdk": "^11.0.4",
+    "@directus/constants": "^12.0.1",
+    "@directus/extensions-sdk": "^12.1.4",
     "@types/lodash": "^4.14.195",
     "sass": "^1.63.6",
     "typescript": "^5.4.5",

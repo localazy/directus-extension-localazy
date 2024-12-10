@@ -7,16 +7,13 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     field: 'id',
     type: 'integer',
     meta: {
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
       interface: 'numeric',
     },
     schema: {
-      numeric_precision: 32,
-      numeric_scale: 0,
       is_nullable: false,
       is_primary_key: true,
-      has_auto_increment: true,
     },
   },
   {
@@ -24,7 +21,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'string',
     meta: {
       interface: 'input',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },
@@ -33,7 +30,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'string',
     meta: {
       interface: 'input',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },
@@ -42,7 +39,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'string',
     meta: {
       interface: 'input',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },
@@ -51,7 +48,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'text',
     meta: {
       interface: 'input-multiline',
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
   },
@@ -60,11 +57,11 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'boolean',
     meta: {
       interface: 'boolean',
-      readonly: true,
+      special: [
+        'cast-boolean',
+      ],
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
-    },
-    schema: {
-      default_value: true,
     },
   },
   {
@@ -72,19 +69,23 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'boolean',
     meta: {
       interface: 'boolean',
-      readonly: true,
+      special: [
+        'cast-boolean',
+      ],
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
-    schema: {
-      default_value: true,
-    },
+
   },
   {
     field: 'upload_existing_translations',
     type: 'boolean',
     meta: {
       interface: 'boolean',
-      readonly: true,
+      special: [
+        'cast-boolean',
+      ],
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
     schema: {
@@ -96,7 +97,10 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'boolean',
     meta: {
       interface: 'boolean',
-      readonly: true,
+      special: [
+        'cast-boolean',
+      ],
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
     schema: {
@@ -108,7 +112,10 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     type: 'boolean',
     meta: {
       interface: 'boolean',
-      readonly: true,
+      special: [
+        'cast-boolean',
+      ],
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
     schema: {
@@ -119,7 +126,7 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
     field: 'create_missing_languages_in_directus',
     type: 'integer',
     meta: {
-      readonly: true,
+      readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
       interface: 'numeric',
     },

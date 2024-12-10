@@ -30,15 +30,23 @@
 
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia';
-import { computed } from 'vue';
+import { computed, PropType } from 'vue';
 import { useErrorsStore } from '../stores/errors-store';
 import { useLocalazyStore } from '../stores/localazy-store';
+import { LocalazyData } from '../../../common/models/collections-data/localazy-data';
+
+const props = defineProps({
+  localazyData: {
+    type: Object as PropType<LocalazyData | null>,
+    required: true,
+  },
+});
 
 const {
   localazyErrors, directusErrors, hasLocalazyErrors, hasDirectusErrors,
 } = storeToRefs(useErrorsStore());
 const { clearDirectusError } = useErrorsStore();
-const { hydrate } = useLocalazyStore();
+const { hydrateLocalazyData } = useLocalazyStore();
 const { hydrating } = storeToRefs(useLocalazyStore());
 
 const currentError = computed(() => {
@@ -101,7 +109,7 @@ const helpMessage = computed(() => {
 });
 
 async function onReconnect() {
-  await hydrate({ force: true });
+  await hydrateLocalazyData({ force: true, localazyData: props.localazyData });
 }
 
 </script>

@@ -32,7 +32,7 @@ export const useImportFromLocalazy = () => {
 
   const { addProgressMessage } = useProgressTrackerStore();
   const { addLocalazyError } = useErrorsStore();
-  const { localazyProject, localazyData } = storeToRefs(useLocalazyStore());
+  const { localazyProject } = storeToRefs(useLocalazyStore());
 
   const importContentFromLocalazy = async (data: ImportContentFromLocalazy): Promise<ImportContentFromLocalazyReturn> => {
     if (!localazyProject.value) {
@@ -62,7 +62,7 @@ export const useImportFromLocalazy = () => {
         },
       });
     } catch (e: any) {
-      addLocalazyError(e, { type: 'import', userId: localazyData.value?.user_id || '', orgId: localazyProject.value.orgId });
+      addLocalazyError(e, { type: 'import', userId: data.localazyData.user_id || '', orgId: localazyProject.value.orgId });
       return { success: false };
     }
   };
