@@ -9,7 +9,7 @@ import { ContentFromTranslationStrings } from './content-for-localazy/content-fr
 
 type FetchTranslationStrings = {
   languages: string[];
-  synchronizeTranslationStrings: 0 | 1;
+  synchronizeTranslationStrings: boolean;
   settings: Settings;
 };
 
@@ -201,7 +201,7 @@ export class TranslationStringsService {
   }
 
   async fetchTranslationStrings(options: FetchTranslationStrings): Promise<TranslatableContent> {
-    if (options.synchronizeTranslationStrings === 0) {
+    if (options.synchronizeTranslationStrings === false) {
       return {
         sourceLanguage: {},
         otherLanguages: {},

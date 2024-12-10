@@ -11,11 +11,8 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
       interface: 'numeric',
     },
     schema: {
-      numeric_precision: 32,
-      numeric_scale: 0,
       is_nullable: false,
       is_primary_key: true,
-      has_auto_increment: true,
     },
   },
   {

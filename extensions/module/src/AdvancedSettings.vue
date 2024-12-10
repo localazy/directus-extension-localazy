@@ -96,7 +96,7 @@ const changesExist = computed(() => !isEqual(settingsEdits.value, configuration.
 async function onSaveChanges() {
   loading.value = true;
   if (settingsCollection.value) {
-    await upsertDirectusItem(settingsCollection.value.collection, settings.value, settingsEdits.value);
+    await upsertDirectusItem(settingsCollection.value.collection, settings.value, settingsEdits.value, { ignoreEmpty: true });
     configuration.value.settings = cloneDeep(settingsEdits.value);
     notificationsStore.add({
       title: 'Settings saved',

@@ -11,11 +11,8 @@ export const createContentTransferSetupsFields = (): Array<DeepPartial<Field>> =
       interface: 'numeric',
     },
     schema: {
-      numeric_precision: 32,
-      numeric_scale: 0,
       is_nullable: false,
       is_primary_key: true,
-      has_auto_increment: true,
     },
   },
   {
@@ -38,6 +35,9 @@ export const createContentTransferSetupsFields = (): Array<DeepPartial<Field>> =
     type: 'boolean',
     meta: {
       interface: 'boolean',
+      special: [
+        'cast-boolean',
+      ],
       readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },

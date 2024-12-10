@@ -31,8 +31,8 @@
       <project-setup-form
         v-if="settingsCollection"
         v-model:edits="settingsEdits"
+        v-model:localazy-data="localazyData"
         :collection="settingsCollection.collection"
-        :localazy-data="localazyData"
         :localazy-data-collection="localazyDataCollection"
       />
 
@@ -97,7 +97,7 @@ const changesExist = computed(() => !isEqual(settingsEdits.value, configuration.
 async function onSaveChanges() {
   loading.value = true;
   if (settingsCollection.value) {
-    await upsertDirectusItem(settingsCollection.value.collection, settings.value, settingsEdits.value);
+    await upsertDirectusItem(settingsCollection.value.collection, settings.value, settingsEdits.value, { ignoreEmpty: true });
     configuration.value.settings = cloneDeep(settingsEdits.value);
     notificationsStore.add({
       title: 'Settings saved',

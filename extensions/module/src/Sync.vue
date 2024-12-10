@@ -139,12 +139,12 @@ const allTranslatableFieldsChecked = computed(() => enabledFields.value.length =
 
 function selectAll() {
   enabledFields.value = allTranslatableFields.value;
-  synchronizeTranslationStrings.value = 1;
+  synchronizeTranslationStrings.value = true;
 }
 
 function deselectAll() {
   enabledFields.value = [];
-  synchronizeTranslationStrings.value = 0;
+  synchronizeTranslationStrings.value = false;
 }
 
 </script>

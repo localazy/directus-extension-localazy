@@ -26,6 +26,10 @@
 
     </div>
 
+    <div v-else class="hydrating">
+      <v-progress-circular indeterminate lar />
+    </div>
+
   </private-view>
 </template>
 
@@ -84,5 +88,11 @@ hydrateDirectusData().then(() => {
 
 .mt-8 {
   margin-top: 1rem;
+}
+
+.hydrating {
+  display: flex;
+  justify-content: center;
+  margin-top: 48px;
 }
 </style>

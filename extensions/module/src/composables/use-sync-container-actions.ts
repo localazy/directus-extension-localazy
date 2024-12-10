@@ -23,7 +23,7 @@ import { ExportToLocalazyCommonService } from '../../../common/services/export-t
 type UseSyncContainerActions = {
   configuration: Ref<Configuration>;
   enabledFields: Ref<EnabledField[]>;
-  synchronizeTranslationStrings: Ref<0 | 1>;
+  synchronizeTranslationStrings: Ref<boolean>;
 };
 
 type OnSaveSettingsParams = {
