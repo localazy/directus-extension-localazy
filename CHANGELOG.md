@@ -1,3 +1,22 @@
+## 1.0.10 (2024-12-10)
+### 🔀 Pull Requests
+
+- [Update directus plugin for the latest directus version #19](https://github.com/localazy/directus-extension-localazy/pull/19)
+
+### 🐛 Bug Fixes
+
+- Fix initial hydration and data definiton. ([d5a72f3](https://github.com/localazy/directus-extension-localazy/commit/d5a72f3)) ([#19](https://github.com/localazy/directus-extension-localazy/pull/19))
+- Fix preRegisterCheck to work with both old and new user object. ([d5a72f3](https://github.com/localazy/directus-extension-localazy/commit/d5a72f3)) ([#19](https://github.com/localazy/directus-extension-localazy/pull/19))
+- Hydrate plugin sequentially to prevent overloading. ([d5a72f3](https://github.com/localazy/directus-extension-localazy/commit/d5a72f3)) ([#19](https://github.com/localazy/directus-extension-localazy/pull/19))
+
+### 🧰 Other Commits
+
+- Fix dev build overwriting config file. ([d5a72f3](https://github.com/localazy/directus-extension-localazy/commit/d5a72f3)) ([#19](https://github.com/localazy/directus-extension-localazy/pull/19))
+- Fix docker-compose config for the latest directus version. ([d5a72f3](https://github.com/localazy/directus-extension-localazy/commit/d5a72f3)) ([#19](https://github.com/localazy/directus-extension-localazy/pull/19))
+- Keep fields visible in dev mode. ([d5a72f3](https://github.com/localazy/directus-extension-localazy/commit/d5a72f3)) ([#19](https://github.com/localazy/directus-extension-localazy/pull/19))
+- Move useStores outside of store definition. ([d5a72f3](https://github.com/localazy/directus-extension-localazy/commit/d5a72f3)) ([#19](https://github.com/localazy/directus-extension-localazy/pull/19))
+- Update dependencies. ([d5a72f3](https://github.com/localazy/directus-extension-localazy/commit/d5a72f3)) ([#19](https://github.com/localazy/directus-extension-localazy/pull/19))
+
 ## 1.0.9 (2024-08-26)
 ### 🔀 Pull Requests
 

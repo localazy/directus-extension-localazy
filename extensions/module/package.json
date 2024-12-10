@@ -2,7 +2,7 @@
   "name": "@localazy/directus-extension-localazy",
   "description": "The official Localazy module extension for Directus",
   "icon": "translate",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "keywords": [
     "directus",
     "directus-extension",
