@@ -64,7 +64,7 @@ export const useHydrate = () => {
   const { hydrate: hydrateCollectionsStore } = useCollectionsStore();
   const {
     upsertDirectusItem, upsertDirectusCollection, fetchDirectusSingletonItem,
-    createField,
+    createField, createDirectusItem,
   } = useDirectusApi();
 
   const hasIncompleteConfiguration = computed(() => {
@@ -95,11 +95,19 @@ export const useHydrate = () => {
         fields: createContentTransferSetupsFields(),
       },
     );
-    await sleep(300);
+    await sleep(100);
     await hydrateCollectionsStore();
-    await sleep(300);
+    await sleep(100);
     await hydrateFieldsStore();
-    await sleep(300);
+    await sleep(100);
+    await createDirectusItem(
+      collection,
+      {
+        id: 1,
+        ...defaultConfiguration().content_transfer_setup,
+      },
+      { ignoreEmpty: true },
+    );
     return contentCollection;
   }
 
@@ -124,10 +132,10 @@ export const useHydrate = () => {
     if (!localazyFolderCollection) {
       try {
         await createGroupingFolder(defaultOptions.collections.groupingFolder);
-        await sleep(300);
+        await sleep(100);
         await hydrateCollectionsStore();
         await hydrateFieldsStore();
-        await sleep(300);
+        await sleep(100);
       } catch (e: any) {
         addDirectusError(e);
       }
@@ -193,11 +201,11 @@ export const useHydrate = () => {
 
       missingFields.forEach(async (field) => {
         await createField(collection, field);
-        await sleep(300);
+        await sleep(100);
       });
       if (missingFields.length > 0) {
         await hydrateFieldsStore();
-        await sleep(300);
+        await sleep(100);
       }
     };
 
@@ -238,11 +246,19 @@ export const useHydrate = () => {
         fields: createSettingsFields(),
       },
     );
-    await sleep(300);
+    await sleep(100);
     await hydrateCollectionsStore();
-    await sleep(300);
+    await sleep(100);
     await hydrateFieldsStore();
-    await sleep(300);
+    await sleep(100);
+    await createDirectusItem(
+      collection,
+      {
+        id: 1,
+        ...defaultConfiguration().settings,
+      },
+      { ignoreEmpty: true },
+    );
 
     return newSettingsCollection;
   }
@@ -265,11 +281,19 @@ export const useHydrate = () => {
         fields: createLocalazyDataFields(),
       },
     );
-    await sleep(300);
+    await sleep(100);
     await hydrateCollectionsStore();
-    await sleep(300);
+    await sleep(100);
     await hydrateFieldsStore();
-    await sleep(300);
+    await sleep(100);
+    await createDirectusItem(
+      collection,
+      {
+        id: 1,
+        ...defaultConfiguration().localazy_data,
+      },
+      { ignoreEmpty: true },
+    );
 
     return contentCollection;
   }
@@ -282,12 +306,12 @@ export const useHydrate = () => {
 
     missingFields.forEach(async (field) => {
       await createField(collection, field);
-      await sleep(300);
+      await sleep(100);
     });
 
     if (missingFields.length > 0) {
       await hydrateFieldsStore();
-      await sleep(300);
+      await sleep(100);
     }
   }
 
@@ -317,12 +341,12 @@ export const useHydrate = () => {
 
       missingFields.forEach(async (field) => {
         await createField(collection, field);
-        await sleep(300);
+        await sleep(100);
       });
 
       if (missingFields.length > 0) {
         await hydrateFieldsStore();
-        await sleep(300);
+        await sleep(100);
       }
     };
 
@@ -411,18 +435,14 @@ export const useHydrate = () => {
       : contentTransferSetupCollection.value;
 
     hydratingDirectusData.value = true;
-    await Promise.all([
-      resolveFolderCollection(),
-      resolveSettingsCollection(),
-      resolveContentTransferSetupCollection(),
-      resolveLocalazyDataCollection(),
-    ]);
+    await resolveFolderCollection();
+    await resolveSettingsCollection();
+    await resolveContentTransferSetupCollection();
+    await resolveLocalazyDataCollection();
 
-    await Promise.all([
-      loadSettings(options),
-      loadContentTransferSetup(options),
-      loadLocalazyDataCollection(options),
-    ]);
+    await loadSettings(options);
+    await loadContentTransferSetup(options);
+    await loadLocalazyDataCollection(options);
 
     hydratedDirectusData.value = true;
     hydratingDirectusData.value = false;

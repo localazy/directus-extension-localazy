@@ -26,18 +26,21 @@ export function useDirectusApi(): UseDirectusApi {
     const resolvedPayload = options.ignoreEmpty
       ? Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined && value !== null && value !== ''))
       : data;
+    const isSingleton = getCollection(collection)?.meta?.singleton === true;
 
     if (isEmpty(resolvedPayload)) {
       return;
     }
+    if (isSingleton && Object.keys(resolvedPayload).length === 0 && !!resolvedPayload.id) {
+      // Don't update singleton if ID is present and no other data is present
+      return;
+    }
 
     loading.value = true;
-    let targetCollection = getCollection(collection) as AppCollection;
-
-    if (targetCollection?.meta?.singleton === true) {
-      targetCollection = await api.patch(`/items/${collection}`, resolvedPayload);
+    if (isSingleton) {
+      await api.patch(`/items/${collection}`, resolvedPayload);
     } else {
-      targetCollection = await api.patch(`/items/${collection}/${itemId}`, resolvedPayload);
+      await api.patch(`/items/${collection}/${itemId}`, resolvedPayload);
     }
     loading.value = false;
   };
@@ -46,22 +49,27 @@ export function useDirectusApi(): UseDirectusApi {
     const resolvedPayload = options.ignoreEmpty
       ? Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined && value !== null && value !== ''))
       : data;
+    const isSingleton = getCollection(collection)?.meta?.singleton === true;
 
     if (isEmpty(resolvedPayload)) {
       return;
     }
 
+    if (isSingleton && Object.keys(resolvedPayload).length === 0 && !!resolvedPayload.id) {
+      // Don't update singleton if ID is present and no other data is present
+      return;
+    }
+
     loading.value = true;
-    let targetCollection = getCollection(collection) as AppCollection;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, ...payload } = resolvedPayload;
-    if (targetCollection?.meta?.singleton === true) {
-      targetCollection = await api.patch(`/items/${collection}`, {
+    if (isSingleton) {
+      await api.patch(`/items/${collection}`, {
         ...resolvedPayload,
         id: resolvedPayload.id || 1,
       });
     } else {
-      targetCollection = await api.post(`/items/${collection}`, payload);
+      await api.post(`/items/${collection}`, payload);
     }
     loading.value = false;
   };

@@ -49,7 +49,7 @@ export default defineModule({
       /** In older version of Directus, admin_access exists in role attribute */
       // @ts-expect-error
       if ('admin_access' in user.role) {
-      // @ts-expect-error
+        // @ts-expect-error
         return user.role.admin_access === true;
       }
     }
