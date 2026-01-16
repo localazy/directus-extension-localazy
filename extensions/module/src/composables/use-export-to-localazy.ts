@@ -7,6 +7,7 @@ import { KeyValueEntry } from '../../../common/models/localazy-key-entry';
 import { TranslatableContent } from '../../../common/models/translatable-content';
 import { AnalyticsService } from '../../../common/services/analytics-service';
 import { ContentFromCollections } from '../../../common/utilities/content-from-collections-service';
+import { DirectusLocalazyAdapter } from '../../../common/services/directus-localazy-adapter';
 import { useEnhancedAsyncQueue } from './use-async-queue';
 import { useProgressTrackerStore } from '../stores/progress-tracker-store';
 import { useLocalazyStore } from '../stores/localazy-store';
@@ -65,7 +66,9 @@ export const useExportToLocalazy = (token: Ref<string>) => {
 
     add(createExportPromisesForLanguage(content.sourceLanguage, directusSourceLanguageAsLocalazyLanguage));
     Object.entries(content.otherLanguages).forEach(([language, languageContent]) => {
-      add(createExportPromisesForLanguage(languageContent, language));
+      // Transform Directus language code to Localazy format using custom mappings if available
+      const localazyLanguage = DirectusLocalazyAdapter.transformDirectusToLocalazyLanguage(language);
+      add(createExportPromisesForLanguage(languageContent, localazyLanguage));
     });
 
     if (localazyProject.value) {

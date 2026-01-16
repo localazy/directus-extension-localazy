@@ -1,5 +1,6 @@
-import { Item } from '@directus/types';
+import { Item, Relation } from '@directus/types';
 import { isEqual } from 'lodash';
+import { useStores } from '@directus/extensions-sdk';
 import {
   LocalazyCollectionBlock, LocalazyContent, LocalazyCollectionItem, LocalazyItemsInLanguage,
 } from '../../../common/models/localazy-content';
@@ -11,12 +12,15 @@ import { ProgressTrackerId } from '../enums/progress-tracker-id';
 import { useProgressTrackerStore } from '../stores/progress-tracker-store';
 import { useDirectusApi } from './use-directus-api';
 import { useTranslationStringsContent } from './use-translation-strings-content';
+import { Settings } from '../../../common/models/collections-data/settings';
 
 type CreatePayloadForTranslationItem = {
   collectionItem: Item,
   localazyItem: LocalazyCollectionItem,
   language: string,
-  currentPayload: TranslationPayload
+  currentPayload: TranslationPayload,
+  languageFkField: string,
+  languageCodeField: string,
 };
 
 type UpsertItemFromLocalazyContent = {
@@ -24,6 +28,8 @@ type UpsertItemFromLocalazyContent = {
   itemsInCollection: Item[];
   itemId: string | number;
   translations: LocalazyItemsInLanguage[];
+  translationFieldFkMap: Map<string, string>;
+  languageCodeField: string;
 };
 
 export const useDirectusLocalazyAdapter = () => {
@@ -31,19 +37,49 @@ export const useDirectusLocalazyAdapter = () => {
   const { upsertProgressMessage } = useProgressTrackerStore();
   const { fetchDirectusItems, updateDirectusItem } = useDirectusApi();
   const { upsertTranslationStrings } = useTranslationStringsContent();
+  const { useRelationsStore } = useStores();
+  const relationsStore = useRelationsStore();
+
+  /**
+   * Get the FK field name for a translation relation that points to the languages collection.
+   * Returns the field name (e.g., 'languages_code') or default if not found.
+   */
+  function getLanguageFkFieldName(collection: string, translationField: string, languagesCollection: string): string {
+    const relations: Relation[] = relationsStore.getRelationsForField(collection, translationField);
+    const languageRelation = relations.find((r) => r.related_collection === languagesCollection);
+    return languageRelation?.field || 'languages_code';
+  }
+
+  /**
+   * Extract language code from a languages_code field value.
+   * Handles both direct string values and expanded object format.
+   */
+  function extractLanguageCode(languageFieldValue: unknown, languageCodeField: string = 'code'): string | undefined {
+    if (typeof languageFieldValue === 'string') {
+      return languageFieldValue;
+    }
+    if (languageFieldValue && typeof languageFieldValue === 'object') {
+      return (languageFieldValue as Record<string, unknown>)[languageCodeField] as string;
+    }
+    return undefined;
+  }
 
   function createPayloadForTranslationItem(payload: CreatePayloadForTranslationItem) {
     const {
-      collectionItem, localazyItem, language, currentPayload,
+      collectionItem, localazyItem, language, currentPayload, languageFkField, languageCodeField,
     } = payload;
+    // Handle both expanded object and direct string value for the language FK field
     const translationItem = collectionItem[localazyItem.translationField]?.find(
-      (data: any) => data.languages_code === language,
+      (data: any) => {
+        const langCode = extractLanguageCode(data[languageFkField], languageCodeField);
+        return langCode === language;
+      },
     );
     const common = {
       localazyItem,
       translationItem,
       language,
-      languageCodeField: 'languages_code',
+      languageCodeField: languageFkField,
     };
     const isCreateOperation = translationItem === undefined;
 
@@ -60,7 +96,7 @@ export const useDirectusLocalazyAdapter = () => {
         ...common,
         type: 'create',
         value: {
-          languages_code: language,
+          [languageFkField]: language,
           [localazyItem.field]: localazyItem.value,
         },
       });
@@ -85,9 +121,10 @@ export const useDirectusLocalazyAdapter = () => {
 
   async function upsertItemFromLocalazyContent(data: UpsertItemFromLocalazyContent) {
     const {
-      itemsInCollection, itemId, translations, collection,
+      itemsInCollection, itemId, translations, collection, translationFieldFkMap, languageCodeField,
     } = data;
-    const collectionItem = itemsInCollection.find((i: Item) => +i.id === +itemId);
+    // Compare as strings to handle both numeric IDs and UUIDs
+    const collectionItem = itemsInCollection.find((i: Item) => String(i.id) === String(itemId));
     let payload: TranslationPayload = { };
     const updateTranslationFields: Set<string> = new Set();
     let somethingToCreate = false;
@@ -97,11 +134,14 @@ export const useDirectusLocalazyAdapter = () => {
     }
     translations.forEach((translation) => {
       translation.items.forEach((item) => {
+        const languageFkField = translationFieldFkMap.get(item.translationField) || 'languages_code';
         const result = createPayloadForTranslationItem({
           collectionItem,
           localazyItem: item,
           language: translation.language,
           currentPayload: payload,
+          languageFkField,
+          languageCodeField,
         });
         payload = result.currentPayload;
         if (result.isCreateOperation) {
@@ -117,16 +157,32 @@ export const useDirectusLocalazyAdapter = () => {
     }
   }
 
-  async function upsertItemsFromSingleCollection(collection: string, content: LocalazyCollectionBlock) {
+  async function upsertItemsFromSingleCollection(collection: string, content: LocalazyCollectionBlock, settings: Settings) {
     try {
+      // Build a map of translation field -> FK field name for language relation
+      const translationFieldFkMap = new Map<string, string>();
+      const fields = ['id'];
+
+      content.translationFields.forEach((field) => {
+        // Resolve the FK field name for this translation relation
+        const fkField = getLanguageFkFieldName(collection, field, settings.language_collection);
+        translationFieldFkMap.set(field, fkField);
+
+        fields.push(`${field}.*`);
+        fields.push(`${field}.${fkField}.*`); // Expand language relation dynamically
+      });
+
       const itemsInCollection = await fetchDirectusItems(collection, {
-        fields: ['id', ...content.translationFields.map((field) => `${field}.*`)],
+        fields,
         limit: -1,
       });
 
-      Object.entries(content.items).forEach(async ([itemId, translations], index) => {
+      // Use for...of instead of forEach to properly await async operations
+      const entries = Object.entries(content.items);
+      for (let index = 0; index < entries.length; index += 1) {
+        const [itemId, translations] = entries[index];
         upsertProgressMessage(ProgressTrackerId.UPDATING_DIRECTUS_COLLECTION, {
-          message: `Updating ${collection} collection (${index + 1}/${Object.keys(content.items).length})`,
+          message: `Updating ${collection} collection (${index + 1}/${entries.length})`,
         });
 
         try {
@@ -135,15 +191,17 @@ export const useDirectusLocalazyAdapter = () => {
             itemsInCollection,
             itemId,
             translations,
+            translationFieldFkMap,
+            languageCodeField: settings.language_code_field,
           });
         } catch (e: any) {
           addDirectusError(e);
           upsertProgressMessage(ProgressTrackerId.UPDATING_DIRECTUS_COLLECTION_ERROR, {
             type: 'error',
-            message: `Error updating ${collection} collection (${index + 1}/${Object.keys(content.items).length})`,
+            message: `Error updating ${collection} collection (${index + 1}/${entries.length})`,
           });
         }
-      });
+      }
     } catch (e: any) {
       addDirectusError(e);
       upsertProgressMessage(ProgressTrackerId.UPDATING_DIRECTUS_COLLECTION_ERROR, {
@@ -154,10 +212,10 @@ export const useDirectusLocalazyAdapter = () => {
     return {};
   }
 
-  async function upsertFromLocalazyContent(contentItems: LocalazyContent) {
+  async function upsertFromLocalazyContent(contentItems: LocalazyContent, settings: Settings) {
     const { add, execute } = useEnhancedAsyncQueue();
     contentItems.collections.forEach((content, collection) => {
-      add(async () => upsertItemsFromSingleCollection(collection, content));
+      add(async () => upsertItemsFromSingleCollection(collection, content, settings));
     });
     add(async () => upsertTranslationStrings(Array.from(contentItems.translationStrings.values())));
 

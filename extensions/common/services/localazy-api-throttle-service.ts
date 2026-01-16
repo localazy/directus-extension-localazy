@@ -24,7 +24,7 @@ class LocalazyRequestProcessor {
   private lastMinuteTimestamp: number = Date.now();
 
   async addRequest<T>(request: () => Promise<T>): Promise<T> {
-    return new Promise<any>((resolve, reject) => {
+    return new Promise<T>((resolve, reject) => {
       this.requests.push(async () => {
         try {
           const response = await request();
@@ -91,21 +91,29 @@ class LocalazyRequestProcessor {
     }
   }
 
-  private createResolveFunction(): (value?: any) => void {
-    let resolveFn: (value?: any) => void;
-    const promise = new Promise<any>((resolve) => {
+  private createResolveFunction(): (value?: unknown) => void {
+    let resolveFn: (value?: unknown) => void;
+    const promise = new Promise<unknown>((resolve) => {
       resolveFn = resolve;
     });
-    promise.catch(() => {}); // Ignore unhandled promise rejection warnings
+    // Handle potential unhandled promise rejection - log but don't suppress
+    promise.catch((error: unknown) => {
+      // eslint-disable-next-line no-console
+      console.error('[LocalazyThrottle] Unhandled resolve promise error:', error);
+    });
     return resolveFn!;
   }
 
-  private createRejectFunction(): (reason?: any) => void {
-    let rejectFn: (reason?: any) => void;
-    const promise = new Promise<any>((_, reject) => {
+  private createRejectFunction(): (reason?: unknown) => void {
+    let rejectFn: (reason?: unknown) => void;
+    const promise = new Promise<unknown>((_, reject) => {
       rejectFn = reject;
     });
-    promise.catch(() => {}); // Ignore unhandled promise rejection warnings
+    // Handle potential unhandled promise rejection - log but don't suppress
+    promise.catch((error: unknown) => {
+      // eslint-disable-next-line no-console
+      console.error('[LocalazyThrottle] Request failed:', error);
+    });
     return rejectFn!;
   }
 }

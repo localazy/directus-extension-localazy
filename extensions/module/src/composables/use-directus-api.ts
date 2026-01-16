@@ -189,7 +189,7 @@ export function useDirectusApi(): UseDirectusApi {
   async function createField(collection: string, field: DeepPartial<Field>) {
     loading.value = true;
     try {
-      await api.post(`collections/${collection}/fields`, field);
+      await api.post(`/fields/${collection}`, field);
     } catch (e: any) {
       addDirectusError(e);
     }

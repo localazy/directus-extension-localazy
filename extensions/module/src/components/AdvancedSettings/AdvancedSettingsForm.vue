@@ -1,6 +1,9 @@
 <template>
   <div>
     <div class="form grid">
+      <language-mappings-editor
+        v-model="localEdits.language_mappings"
+      />
       <div class="half">
         <p class="type-label">Automated upload to Localazy</p>
         <v-select
@@ -102,6 +105,7 @@ import { PropType, computed, ref } from 'vue';
 import { Item } from '@directus/types';
 import { Settings } from '../../../../common/models/collections-data/settings';
 import { CreateMissingLanguagesInDirectus } from '../../../../common/enums/create-missing-languages-in-directus';
+import LanguageMappingsEditor from './LanguageMappingsEditor.vue';
 
 const props = defineProps({
   edits: {

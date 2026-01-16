@@ -70,20 +70,18 @@ class ImportFromLocalazyService {
   }
 
   private async loadFile(token: string, projectId: string) {
-    if (!token) {
+    if (!token || !projectId) {
       return null;
     }
 
-    if (token) {
-      try {
-        const files = await LocalazyApiThrottleService.listFiles(token, {
-          project: projectId,
-        });
-        return files.find((file) => file.name === 'directus.json') || null;
-      } catch (e: any) {
-        return null;
-      }
-    } else {
+    try {
+      const files = await LocalazyApiThrottleService.listFiles(token, {
+        project: projectId,
+      });
+      return files.find((file) => file.name === 'directus.json') || null;
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[ImportFromLocalazy] Failed to load file:', error);
       return null;
     }
   }

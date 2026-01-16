@@ -14,6 +14,7 @@ import { DirectusLocalazyLanguage } from '../../../../common/models/directus-loc
 import { DirectusLocalazyAdapter } from '../../../../common/services/directus-localazy-adapter';
 import { LocalazyPaymentStatus } from '../../../../common/utilities/localazy-payment-status';
 import { LocalazyData } from '../../../../common/models/collections-data/localazy-data';
+import { DirectusItemsServiceConstructor } from '../../../../common/types/directus-services';
 
 type ExportToLocalazy = {
   schema: SchemaOverview;
@@ -26,7 +27,7 @@ type ExportToLocalazy = {
 type FetchLocalazyContent = {
   languages: DirectusLocalazyLanguage[];
   schema: SchemaOverview;
-  ItemsService: any;
+  ItemsService: DirectusItemsServiceConstructor;
   localazyProject?: Project;
   settings?: Settings | null;
   localazyData?: LocalazyData | null;
@@ -51,13 +52,13 @@ export abstract class BaseContentSynchronizationService {
       const projects = await LocalazyApiThrottleService.listProjects(token, { organization: true, languages: true });
       const localazyProject = projects[0] || null;
       return localazyProject;
-    } catch (e: any) {
-      trackLocalazyError(e, 'loadProject');
+    } catch (e) {
+      trackLocalazyError(e instanceof Error ? e : new Error(String(e)), 'loadProject');
       return null;
     }
   }
 
-  protected async resolveLocalazySettings(ItemsService: any, schema: SchemaOverview) {
+  protected async resolveLocalazySettings(ItemsService: DirectusItemsServiceConstructor, schema: SchemaOverview) {
     try {
       const localazySettings = new ItemsService('localazy_settings', { schema });
       const localazyContentTransferSetup = new ItemsService('localazy_content_transfer_setup', { schema });
@@ -74,8 +75,8 @@ export abstract class BaseContentSynchronizationService {
         settings,
         contentTransferSetup,
       };
-    } catch (e: any) {
-      trackLocalazyError(e, 'resolveLocalazySettings');
+    } catch (e) {
+      trackLocalazyError(e instanceof Error ? e : new Error(String(e)), 'resolveLocalazySettings');
       return {
         settings: null,
         contentTransferSetup: null,
@@ -83,7 +84,7 @@ export abstract class BaseContentSynchronizationService {
     }
   }
 
-  protected async resolveLocalazyData(ItemsService: any, schema: SchemaOverview) {
+  protected async resolveLocalazyData(ItemsService: DirectusItemsServiceConstructor, schema: SchemaOverview) {
     try {
       const localazyData = new ItemsService('localazy_config_data', { schema });
       const data: LocalazyData = (await localazyData.readByQuery({
@@ -94,8 +95,8 @@ export abstract class BaseContentSynchronizationService {
       return {
         localazyData: data,
       };
-    } catch (e: any) {
-      trackLocalazyError(e, 'resolveLocalazyData');
+    } catch (e) {
+      trackLocalazyError(e instanceof Error ? e : new Error(String(e)), 'resolveLocalazyData');
       return {
         localazyData: null,
       };
@@ -199,8 +200,8 @@ export abstract class BaseContentSynchronizationService {
         localazyData: resolvedLocalazyData,
         localazyProject: resolvedLocalazyProject,
       };
-    } catch (e: any) {
-      trackLocalazyError(e, 'fetchLocalazyContent');
+    } catch (e) {
+      trackLocalazyError(e instanceof Error ? e : new Error(String(e)), 'fetchLocalazyContent');
       return null;
     }
   }
@@ -221,15 +222,15 @@ export abstract class BaseContentSynchronizationService {
     await execute({ delayBetween: 100 });
   }
 
-  protected async resolveExportLanguages(ItemsService: any, settings: Settings) {
+  protected async resolveExportLanguages(ItemsService: DirectusItemsServiceConstructor, settings: Settings) {
     try {
       const synchronizationLanguagesService = new SynchronizationLanguagesService(ItemsService);
       const exportLanguages = await synchronizationLanguagesService.resolveExportLanguages(
         settings,
       );
       return exportLanguages;
-    } catch (e: any) {
-      trackDirectusError(e, 'resolveExportLanguages');
+    } catch (e) {
+      trackDirectusError(e instanceof Error ? e : new Error(String(e)), 'resolveExportLanguages');
       return [];
     }
   }

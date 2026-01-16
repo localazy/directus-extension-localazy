@@ -1,12 +1,12 @@
 import { isArray, mergeWith } from 'lodash';
 
-function customizer(objValue: any[], srcValue: any[]) {
+function customizer<T>(objValue: T[], srcValue: T[]): T[] | undefined {
   if (isArray(objValue)) {
     return objValue.concat(srcValue);
   }
   return undefined;
 }
 
-export function mergeWithArrays(object: any, source: any) {
+export function mergeWithArrays<T extends object>(object: T, source: Partial<T>): T {
   return mergeWith(object, source, customizer);
 }

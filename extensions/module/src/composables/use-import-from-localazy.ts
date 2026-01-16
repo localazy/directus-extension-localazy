@@ -2,7 +2,7 @@ import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useLocalazyStore } from '../stores/localazy-store';
 import { useProgressTrackerStore } from '../stores/progress-tracker-store';
-import { ContentFromLocalazyService } from '../services/content-from-localazy-service';
+import { ContentFromLocalazyService } from '../../../common/services/content-from-localazy-service';
 import { EnabledField } from '../../../common/models/collections-data/content-transfer-setup';
 import { useErrorsStore } from '../stores/errors-store';
 import { ProgressTrackerId } from '../enums/progress-tracker-id';

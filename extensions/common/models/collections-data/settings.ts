@@ -11,4 +11,6 @@ export type Settings = {
   automated_deprecation: boolean;
   skip_empty_strings: boolean;
   create_missing_languages_in_directus: CreateMissingLanguagesInDirectus;
+  /** JSON string containing custom language code mappings between Directus and Localazy */
+  language_mappings: string;
 };

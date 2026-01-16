@@ -4,13 +4,14 @@ import {
 } from '@directus/types';
 import { DirectusApi } from '../../../common/interfaces/directus-api';
 import { useGetCollectionFromSchema } from '../composables/use-get-collection-from-schema';
+import { DirectusItemsServiceConstructor } from '../../../common/types/directus-services';
 
 export class DirectusApiService implements DirectusApi {
   protected schema!: SchemaOverview;
 
-  protected ItemsService!: any;
+  protected ItemsService!: DirectusItemsServiceConstructor;
 
-  constructor(ItemsService: any, schema: any) {
+  constructor(ItemsService: DirectusItemsServiceConstructor, schema: SchemaOverview) {
     this.ItemsService = ItemsService;
     this.schema = schema;
   }
@@ -71,27 +72,27 @@ export class DirectusApiService implements DirectusApi {
     await this.upsertOne('directus_translations', payload);
   }
 
-  async updateSettings(payload: any) {
+  async updateSettings(payload: Partial<Item>) {
     await this.upsertSingleton('directus_settings', payload);
   }
 
-  private readByQuery(collection: string, query: any) {
+  private readByQuery(collection: string, query: Query) {
     return (new this.ItemsService(collection, { schema: this.schema })).readByQuery(query);
   }
 
-  private createOne(collection: string, payload: any) {
+  private createOne(collection: string, payload: Partial<Item>) {
     return (new this.ItemsService(collection, { schema: this.schema })).createOne(payload);
   }
 
-  private updateOne(collection: string, id: string | number, payload: any) {
+  private updateOne(collection: string, id: string | number, payload: Partial<Item>) {
     return (new this.ItemsService(collection, { schema: this.schema })).updateOne(id, payload);
   }
 
-  private upsertSingleton(collection: string, payload: any) {
+  private upsertSingleton(collection: string, payload: Partial<Item>) {
     return (new this.ItemsService(collection, { schema: this.schema })).upsertSingleton(payload);
   }
 
-  private upsertOne(collection: string, payload: any) {
+  private upsertOne(collection: string, payload: Partial<Item>) {
     return (new this.ItemsService(collection, { schema: this.schema })).upsertOne(payload);
   }
 }

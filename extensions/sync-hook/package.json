@@ -26,7 +26,7 @@
     "type": "hook",
     "path": "dist/index.js",
     "source": "src/index.ts",
-    "host": "^10.10.0"
+    "host": "^10.10.0 || ^11.0.0"
   },
   "scripts": {
     "build": "directus-extension build",
@@ -38,7 +38,7 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@directus/extensions-sdk": "^12.1.4",
+    "@directus/extensions-sdk": "^13.0.0",
     "@types/lodash": "^4.17.1",
     "@types/node": "^20.12.11",
     "typescript": "^5.4.5"

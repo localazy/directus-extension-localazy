@@ -19,6 +19,7 @@ type ResolveContentForCollectionReturn = {
   translatableFieldAttributes: {
     field: string;
     fieldLanguageCodeField: string;
+    languagesCollectionCodeField: string;
   }[];
   items: Item[];
 };
@@ -85,34 +86,37 @@ export class TranslatableCollectionsService {
   }
 
   async resolveContentForCollection(data: ResolveContentForCollection): Promise<ResolveContentForCollectionReturn> {
-    const payload = {
-      fields: ['id', ...data.translationTypeFields.map((field) => `${field.field}.*`)],
-      filter: { id: { _in: data.itemIds } },
-      limit: -1,
-      deep: data.translationTypeFields.reduce((acc, field) => {
-        acc[field.field] = {
-          _filter: {
-            languages_code: { _in: data.languages },
-          },
-        };
-        return acc;
-      }, {} as any),
-    };
-
-    if (data.itemIds.length > 0) {
-      payload.filter = { id: { _in: data.itemIds } };
-    }
-
-    const result = await this.directusApi.fetchDirectusItems(data.collection, payload);
-
+    // First, resolve the language relation field for each translation field
     const translatableFieldAttributes = data.translationTypeFields.map((field) => {
       const languageRelation = this.translatableCollectionsContent.getRelationsForField(data.collection, field.field)
         .find((relation: Relation) => relation.related_collection === data.languagesCollection);
       return {
         field: field.field,
-        fieldLanguageCodeField: languageRelation?.field || '',
+        fieldLanguageCodeField: languageRelation?.field || 'languages_code',
+        languagesCollectionCodeField: data.languagesCollectionCodeField,
       };
     });
+
+    // Build fields array - fetch translations with expanded language relation
+    // Use wildcard on the language FK field to get the full language object including the code
+    const fields = ['id'];
+    translatableFieldAttributes.forEach((attr) => {
+      fields.push(`${attr.field}.*`);
+      // Expand the language relation to get the language code
+      fields.push(`${attr.field}.${attr.fieldLanguageCodeField}.*`);
+    });
+
+    const payload: Record<string, any> = {
+      fields,
+      limit: -1,
+    };
+
+    // Only filter by itemIds if specific items are requested, otherwise fetch all
+    if (data.itemIds.length > 0) {
+      payload.filter = { id: { _in: data.itemIds } };
+    }
+
+    const result = await this.directusApi.fetchDirectusItems(data.collection, payload);
 
     return {
       collection: data.collection,
@@ -155,6 +159,7 @@ export class TranslatableCollectionsService {
             collectionFields,
             translatableFieldAttributes: result.data.translatableFieldAttributes,
             settings,
+            languages,
           }));
       }
     }

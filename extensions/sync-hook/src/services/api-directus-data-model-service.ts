@@ -1,13 +1,14 @@
 import { Field, Relation, SchemaOverview } from '@directus/types';
 import { DirectusDataModel } from '../../../common/interfaces/directus-data-model';
 import { FieldsUtilsService } from '../../../common/utilities/fields-utils-service';
+import { DirectusFieldsServiceConstructor } from '../../../common/types/directus-services';
 
 export class ApiDirectusDataModelService implements DirectusDataModel {
-  private FieldsService!: any;
+  private FieldsService!: DirectusFieldsServiceConstructor;
 
   private schema!: SchemaOverview;
 
-  constructor(schema: SchemaOverview, FieldsService: any) {
+  constructor(schema: SchemaOverview, FieldsService: DirectusFieldsServiceConstructor) {
     this.FieldsService = FieldsService;
     this.schema = schema;
   }

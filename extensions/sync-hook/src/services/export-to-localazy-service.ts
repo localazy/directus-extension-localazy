@@ -36,8 +36,8 @@ export class ExportToLocalazyService {
       const projects = await LocalazyApiThrottleService.listProjects(token, { organization: true, languages: true });
       const localazyProject = projects[0] || null;
       return localazyProject;
-    } catch (e: any) {
-      trackLocalazyError(e, 'loadProject');
+    } catch (e) {
+      trackLocalazyError(e instanceof Error ? e : new Error(String(e)), 'loadProject');
       return null;
     }
   }
@@ -65,6 +65,9 @@ export class ExportToLocalazyService {
       return;
     }
 
+    // Initialize custom language mappings from settings
+    DirectusLocalazyAdapter.initializeMappings(settings.language_mappings || '[]');
+
     try {
       const { add, execute } = useEnhancedAsyncQueue();
 
@@ -89,8 +92,8 @@ export class ExportToLocalazyService {
 
         await execute({ delayBetween: 150 });
       }
-    } catch (e: any) {
-      trackLocalazyError(e, 'export');
+    } catch (e) {
+      trackLocalazyError(e instanceof Error ? e : new Error(String(e)), 'export');
     }
   }
 }

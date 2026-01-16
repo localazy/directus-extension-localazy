@@ -7,20 +7,25 @@ import { ContentTransferSetupDatabase } from '../../../../common/models/collecti
 import { ApiTranslatableCollectionsService } from '../translatable-collections-service';
 import { EnabledFieldsService } from '../../../../common/utilities/enabled-fields-service';
 import { trackDirectusError } from '../../functions/track-error';
+import {
+  DirectusItemsServiceConstructor,
+  DirectusFieldsServiceConstructor,
+  DirectusLogger,
+} from '../../../../common/types/directus-services';
 
 type ExportCollectionContent = {
   schema: SchemaOverview;
-  ItemsService: any;
-  FieldsService: any;
-  logger: any;
+  ItemsService: DirectusItemsServiceConstructor;
+  FieldsService: DirectusFieldsServiceConstructor;
+  logger: DirectusLogger;
   keys: string[];
   collection: string;
- };
+};
 
- type FetchTranslatableCollectionsContent = {
+type FetchTranslatableCollectionsContent = {
   schema: SchemaOverview;
-  ItemsService: any;
-  FieldsService: any;
+  ItemsService: DirectusItemsServiceConstructor;
+  FieldsService: DirectusFieldsServiceConstructor;
   keys: string[];
   collection: string;
   settings: Settings;
@@ -29,10 +34,10 @@ type ExportCollectionContent = {
 
 type DeprecateDeletedCollectionItems = {
   schema: SchemaOverview;
-  logger: any;
-  collection: string,
-  itemIds: string[],
-  ItemsService: any;
+  logger: DirectusLogger;
+  collection: string;
+  itemIds: string[];
+  ItemsService: DirectusItemsServiceConstructor;
 };
 
 class CollectionContentSynchronizationService extends BaseContentSynchronizationService {
@@ -79,10 +84,10 @@ class CollectionContentSynchronizationService extends BaseContentSynchronization
       } else {
         logger.error('Localazy: Missing settings or content transfer setup');
       }
-    } catch (e: any) {
+    } catch (e) {
       logger.info(`Localazy: Exporting ${collection} content for keys ${data.keys.join(', ')} failed`);
-      logger.error(e);
-      trackDirectusError(e, 'exportCollectionContent');
+      logger.error(String(e));
+      trackDirectusError(e instanceof Error ? e : new Error(String(e)), 'exportCollectionContent');
     }
   }
 
@@ -143,10 +148,10 @@ class CollectionContentSynchronizationService extends BaseContentSynchronization
       } else {
         logger.error('Localazy: Could not deprecate deleted collection items');
       }
-    } catch (e: any) {
+    } catch (e) {
       logger.error('Localazy: Deprecating deleted collection items failed');
-      logger.error(e);
-      trackDirectusError(e, 'deprecateDeletedCollectionItems');
+      logger.error(String(e));
+      trackDirectusError(e instanceof Error ? e : new Error(String(e)), 'deprecateDeletedCollectionItems');
     }
   }
 

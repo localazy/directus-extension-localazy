@@ -2,9 +2,8 @@
 import { uniqWith } from 'lodash';
 import { Locales, Project } from '@localazy/api-client';
 import { LocalazyApiThrottleService } from '../../../common/services/localazy-api-throttle-service';
-// import { trackLocalazyError } from '../functions/track-error';
 import { DirectusLocalazyLanguage } from '../../../common/models/directus-localazy-language';
-import { ContentFromLocalazyService } from './content-from-localazy-service';
+import { ContentFromLocalazyService } from '../../../common/services/content-from-localazy-service';
 import { EnabledField } from '../../../common/models/collections-data/content-transfer-setup';
 import { LocalazyData } from '../../../common/models/collections-data/localazy-data';
 
@@ -71,21 +70,18 @@ class ImportFromLocalazyService {
   }
 
   private async loadFile(token: string, projectId: string) {
-    if (!token) {
+    if (!token || !projectId) {
       return null;
     }
 
-    if (token) {
-      try {
-        const files = await LocalazyApiThrottleService.listFiles(token, {
-          project: projectId,
-        });
-        return files.find((file) => file.name === 'directus.json') || null;
-      } catch (e: any) {
-        // trackLocalazyError(e, 'loadFile');
-        return null;
-      }
-    } else {
+    try {
+      const files = await LocalazyApiThrottleService.listFiles(token, {
+        project: projectId,
+      });
+      return files.find((file) => file.name === 'directus.json') || null;
+    } catch {
+      // eslint-disable-next-line no-console
+      console.error('[ImportFromLocalazy] Failed to load file');
       return null;
     }
   }

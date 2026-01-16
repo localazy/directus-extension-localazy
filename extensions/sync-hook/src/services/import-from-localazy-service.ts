@@ -71,21 +71,17 @@ class ImportFromLocalazyService {
   }
 
   private async loadFile(token: string, projectId: string) {
-    if (!token) {
+    if (!token || !projectId) {
       return null;
     }
 
-    if (token) {
-      try {
-        const files = await LocalazyApiThrottleService.listFiles(token, {
-          project: projectId,
-        });
-        return files.find((file) => file.name === 'directus.json') || null;
-      } catch (e: any) {
-        trackLocalazyError(e, 'loadFile');
-        return null;
-      }
-    } else {
+    try {
+      const files = await LocalazyApiThrottleService.listFiles(token, {
+        project: projectId,
+      });
+      return files.find((file) => file.name === 'directus.json') || null;
+    } catch (e) {
+      trackLocalazyError(e instanceof Error ? e : new Error(String(e)), 'loadFile');
       return null;
     }
   }

@@ -70,11 +70,11 @@ export class TranslationStringsService {
       try {
         const result = await this.directusApi.fetchTranslationStrings();
         translationStrings = this.normalizeDirectus10TranslationStrings(result as Directus10TranslationApiResult[]);
-      } catch (e: any) {
+      } catch {
         try {
           translationStrings = await this.fetchTranslationStringsFromSettings();
           return translationStrings;
-        } catch (e2: any) {
+        } catch {
           return [];
         }
       }
@@ -163,18 +163,17 @@ export class TranslationStringsService {
       });
     });
 
-    if (existingStrings.length > 0) {
-      existingStrings.forEach(async (item) => {
-        await this.directusApi.upsertTranslationString({
-          id: item.id,
-          value: item.value,
-        });
+    // Process existing strings sequentially to avoid race conditions
+    for (const item of existingStrings) {
+      await this.directusApi.upsertTranslationString({
+        id: item.id,
+        value: item.value,
       });
     }
-    if (newStrings.length > 0) {
-      newStrings.forEach(async (item) => {
-        await this.directusApi.upsertTranslationString(item);
-      });
+
+    // Process new strings sequentially to avoid race conditions
+    for (const item of newStrings) {
+      await this.directusApi.upsertTranslationString(item);
     }
   }
 

@@ -8,12 +8,23 @@
       <div class="font-normal">
         {{ data.locale }}
         <span v-if="data.englishName">({{ data.englishName }})</span>
+        <v-icon
+          v-if="data.hasCustomMapping"
+          small
+          name="swap_horiz"
+          color="var(--primary)"
+          title="Custom mapping configured" />
       </div>
       <div class="ml-2">
         <v-icon
+          name="check"
+          color="var(--success)"
+          v-if="data.hasCustomMapping"
+          title="Custom mapping configured" />
+        <v-icon
           name="error"
           color="var(--danger)"
-          v-if="!data.directus.recoznigedInLocalazy"
+          v-else-if="!data.directus.recoznigedInLocalazy"
           title="Localazy does not recognize this language" />
         <v-icon
           name="visibility_off"
@@ -30,7 +41,14 @@
           v-else
           title="This language has not been added in your Localazy project" />
 
-        <span v-if="!data.directus.recoznigedInLocalazy">
+        <span v-if="data.hasCustomMapping">
+          Mapped to {{ data.localazy.mappedTo }}
+          <v-icon
+            small
+            name="help_outline"
+            title="Custom language mapping configured" />
+        </span>
+        <span v-else-if="!data.directus.recoznigedInLocalazy">
           Unknown Localazy language
         </span>
         <span v-else-if="data.localazy.hidden">
@@ -77,13 +95,14 @@ import { findLocalazyLanguageByLocale } from '@localazy/languages';
 import { uniqWith } from 'lodash';
 import { useLocalazyStore } from '../../stores/localazy-store';
 import { useDirectusLanguages } from '../../composables/use-directus-languages';
-import { DirectusLocalazyAdapter } from '../../../../common/services/directus-localazy-adapter';
+import { LanguageMappingService } from '../../../../common/services/language-mapping-service';
 import { Settings } from '../../../../common/models/collections-data/settings';
 
 type Row = {
   locale: string;
   englishName?: string;
   localazyId?: number;
+  hasCustomMapping: boolean;
   localazy: {
     present: boolean;
     presentMapped: boolean;
@@ -121,19 +140,23 @@ watch(() => props.settings, (s) => {
 const languageRows = computed((): Row[] => {
   const localazyLanguages = (localazyProject.value?.languages || []);
   const localazyLocales = localazyLanguages.map((l) => l.code);
-  // const allLanguages = uniq([...directusLanguages.value, ...localazyLocales]);
+
+  // Initialize mapping service with custom mappings from settings
+  const mappingService = new LanguageMappingService(props.settings?.language_mappings || '[]');
 
   const allLanguages = [...directusLanguages.value, ...localazyLocales]
     .map((locale) => {
-      const directusFormLocale = DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(locale);
-      const localazyFormLocale = DirectusLocalazyAdapter.transformDirectusToLocalazyLanguage(locale);
+      const directusFormLocale = mappingService.transformLocalazyToDirectus(locale);
+      const localazyFormLocale = mappingService.transformDirectusToLocalazy(locale);
       const localazyLanguage = findLocalazyLanguageByLocale(localazyFormLocale);
       const projectLanguage = localazyLanguages.find((l) => l.code === localazyFormLocale);
+      const hasCustomMapping = mappingService.hasCustomMapping(locale);
 
       return {
         locale,
         localazyId: localazyLanguage?.localazyId,
         englishName: localazyLanguage?.name,
+        hasCustomMapping,
         localazy: {
           present: localazyLocales.includes(locale),
           presentMapped: localazyLocales.includes(localazyFormLocale),
@@ -151,8 +174,8 @@ const languageRows = computed((): Row[] => {
 
   return uniqWith(allLanguages, (arrVal, othVal) => {
     if (arrVal.directus.present !== othVal.directus.present) {
-      return DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(arrVal.locale)
-        === DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(othVal.locale);
+      return mappingService.transformLocalazyToDirectus(arrVal.locale)
+        === mappingService.transformLocalazyToDirectus(othVal.locale);
     }
     return arrVal.locale === othVal.locale;
   })

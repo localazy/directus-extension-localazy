@@ -26,13 +26,19 @@ export default defineHook(({ action }, { services, logger }) => {
   });
 
   action('settings.delete', async ({ keys }, { schema }) => {
-    if (schema) {
-      await translationStringsSynchronizationService.deprecateDeletedTranslationStrings({
-        schema,
-        logger,
-        itemIds: keys,
-        ItemsService,
-      });
+    if (schema && keys.length > 0) {
+      try {
+        await translationStringsSynchronizationService.deprecateDeletedTranslationStrings({
+          schema,
+          logger,
+          itemIds: keys,
+          ItemsService,
+        });
+      } catch (e) {
+        // In Directus 11+, delete hook fires before permission checks
+        // Item might not have been deleted if permission was denied
+        logger.warn(`[Localazy] Could not deprecate settings: ${e}`);
+      }
     }
   });
 
@@ -57,13 +63,19 @@ export default defineHook(({ action }, { services, logger }) => {
   });
 
   action('translations.delete', async ({ keys }, { schema }) => {
-    if (schema) {
-      await translationStringsSynchronizationService.deprecateDeletedTranslationStrings({
-        schema,
-        logger,
-        itemIds: keys,
-        ItemsService,
-      });
+    if (schema && keys.length > 0) {
+      try {
+        await translationStringsSynchronizationService.deprecateDeletedTranslationStrings({
+          schema,
+          logger,
+          itemIds: keys,
+          ItemsService,
+        });
+      } catch (e) {
+        // In Directus 11+, delete hook fires before permission checks
+        // Item might not have been deleted if permission was denied
+        logger.warn(`[Localazy] Could not deprecate translations: ${e}`);
+      }
     }
   });
 
@@ -81,14 +93,20 @@ export default defineHook(({ action }, { services, logger }) => {
   });
 
   action('items.delete', async ({ keys, collection }, { schema }) => {
-    if (schema) {
-      await collectionContentSynchronizationService.deprecateDeletedCollectionItems({
-        schema,
-        collection,
-        logger,
-        itemIds: keys,
-        ItemsService,
-      });
+    if (schema && keys.length > 0) {
+      try {
+        await collectionContentSynchronizationService.deprecateDeletedCollectionItems({
+          schema,
+          collection,
+          logger,
+          itemIds: keys,
+          ItemsService,
+        });
+      } catch (e) {
+        // In Directus 11+, delete hook fires before permission checks
+        // Item might not have been deleted if permission was denied
+        logger.warn(`[Localazy] Could not deprecate items in ${collection}: ${e}`);
+      }
     }
   });
 

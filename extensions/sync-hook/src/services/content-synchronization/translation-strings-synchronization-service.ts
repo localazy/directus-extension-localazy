@@ -7,16 +7,17 @@ import { Settings } from '../../../../common/models/collections-data/settings';
 import { ContentTransferSetupDatabase } from '../../../../common/models/collections-data/content-transfer-setup';
 import { DirectusApiService } from '../directus-service';
 import { trackDirectusError } from '../../functions/track-error';
+import { DirectusItemsServiceConstructor, DirectusLogger } from '../../../../common/types/directus-services';
 
 type ExportTranslationString = {
   schema: SchemaOverview;
-  logger: any;
-  ItemsService: any;
+  logger: DirectusLogger;
+  ItemsService: DirectusItemsServiceConstructor;
 };
 
 type FetchTranslationStrings = {
   schema: SchemaOverview;
-  ItemsService: any;
+  ItemsService: DirectusItemsServiceConstructor;
   settings: Settings;
   contentTransferSetup: ContentTransferSetupDatabase;
 };
@@ -24,8 +25,8 @@ type FetchTranslationStrings = {
 type DeprecateDeletedTranslationStrings = {
   schema: SchemaOverview;
   itemIds: string[];
-  logger: any;
-  ItemsService: any;
+  logger: DirectusLogger;
+  ItemsService: DirectusItemsServiceConstructor;
 };
 
 class TranslationStringsSynchronizationService extends BaseContentSynchronizationService {
@@ -70,10 +71,10 @@ class TranslationStringsSynchronizationService extends BaseContentSynchronizatio
       } else {
         logger.error('Localazy: Missing settings or content transfer setup');
       }
-    } catch (e: any) {
+    } catch (e) {
       logger.error('Localazy: Exporting translation strings failed');
-      logger.error(e);
-      trackDirectusError(e, 'exportCollectionContent');
+      logger.error(String(e));
+      trackDirectusError(e instanceof Error ? e : new Error(String(e)), 'exportCollectionContent');
     }
   }
 
@@ -133,10 +134,10 @@ class TranslationStringsSynchronizationService extends BaseContentSynchronizatio
       } else {
         logger.error('Localazy: Could not deprecate deleted translation strings');
       }
-    } catch (e: any) {
+    } catch (e) {
       logger.error('Localazy: Deprecating deleted translation strings failed');
-      logger.error(e);
-      trackDirectusError(e, 'deprecateDeletedCollectionItems');
+      logger.error(String(e));
+      trackDirectusError(e instanceof Error ? e : new Error(String(e)), 'deprecateDeletedCollectionItems');
     }
   }
 
@@ -164,8 +165,8 @@ class TranslationStringsSynchronizationService extends BaseContentSynchronizatio
       });
 
       return translationStrings;
-    } catch (e: any) {
-      trackDirectusError(e, 'fetchTranslationStrings');
+    } catch (e) {
+      trackDirectusError(e instanceof Error ? e : new Error(String(e)), 'fetchTranslationStrings');
       return {
         sourceLanguage: {},
         otherLanguages: {},
