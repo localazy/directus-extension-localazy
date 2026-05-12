@@ -22,34 +22,28 @@
 </template>
 
 <script lang="ts" setup>
-import { storeToRefs } from 'pinia';
+import { onBeforeMount } from 'vue';
 import AdvancedSettingsForm from './components/AdvancedSettings/AdvancedSettingsForm.vue';
 import Navigation from './components/Navigation.vue';
-import { useLocalazyStore } from './stores/localazy-store';
 import ErrorsNotice from './components/ErrorsNotice.vue';
-import { useLocalazyInstallerStore, LOCALAZY_COLLECTIONS } from './stores/localazy-installer-store';
+import { LOCALAZY_COLLECTIONS } from './stores/localazy-installer-store';
 import { useLocalazySettingsStore } from './stores/localazy-settings-store';
-import { useLocalazyConfigStore } from './stores/localazy-config-store';
 import { useSingletonForm } from './composables/use-singleton-form';
+import { useLocalazyBoot } from './composables/use-localazy-boot';
 import { useDirectusNotificationsStore } from './composables/use-directus-stores';
 
 const settingsCollectionName = LOCALAZY_COLLECTIONS.settings;
 
-const installer = useLocalazyInstallerStore();
-const { installed } = storeToRefs(installer);
-
 const settingsStore = useLocalazySettingsStore();
-const { data: localazyData } = storeToRefs(useLocalazyConfigStore());
-
 const { edits: settingsEdits, changesExist, save: saveSettings, loading: saving } = useSingletonForm(settingsStore);
 
 const notificationsStore = useDirectusNotificationsStore();
-const localazyStore = useLocalazyStore();
-const { hydrateLocalazyData } = localazyStore;
-const { hydrating, hydrated } = storeToRefs(localazyStore);
+const { installed, hydrating, hydrated, localazyData, boot } = useLocalazyBoot();
 
-// Fire-and-forget at component setup; errors land in the errors store inside `run()`.
-void installer.run().then(() => hydrateLocalazyData({ localazyData }));
+onBeforeMount(() => {
+  // Errors land in the errors store inside `boot()`; no need to await or handle here.
+  void boot();
+});
 
 async function onSaveChanges() {
   await saveSettings();

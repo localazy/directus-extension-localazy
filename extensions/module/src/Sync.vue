@@ -65,7 +65,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeMount, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import Navigation from './components/Navigation.vue';
 import CollectionItem from './components/Sync/CollectionItem.vue';
@@ -79,11 +79,9 @@ import ConfigNotice from './components/ConfigNotice.vue';
 import { useProgressTrackerStore } from './stores/progress-tracker-store';
 import TranslationStringsContent from './components/Sync/TranslationStringsContent.vue';
 import { useSyncContainerActions } from './composables/use-sync-container-actions';
-import { useLocalazyInstallerStore } from './stores/localazy-installer-store';
-import { useLocalazyConfigStore } from './stores/localazy-config-store';
 import { useLocalazyTransferSetupStore } from './stores/localazy-transfer-setup-store';
-import { useLocalazyStore } from './stores/localazy-store';
 import { useLocalazyConfigurationStatus } from './composables/use-localazy-configuration-status';
+import { useLocalazyBoot } from './composables/use-localazy-boot';
 import { EnabledField } from '../../common/models/collections-data/content-transfer-setup';
 import { EnabledFieldsService } from '../../common/utilities/enabled-fields-service';
 import { defaultConfiguration } from './data/default-configuration';
@@ -119,27 +117,23 @@ const { onSaveSettings, onExport, onImport, onFinishAction, showProgress, loadin
   synchronizeTranslationStrings,
 });
 
-const installer = useLocalazyInstallerStore();
-const { installed } = storeToRefs(installer);
-const { data: localazyData } = storeToRefs(useLocalazyConfigStore());
+const { installed, localazyData, boot } = useLocalazyBoot();
 const { hasIncompleteConfiguration } = useLocalazyConfigurationStatus();
-const localazyStore = useLocalazyStore();
-// Bootstrap Localazy API state once the installer (and therefore the config row) is ready.
-void installer.run().then(() => localazyStore.hydrateLocalazyData({ localazyData }));
+
+onBeforeMount(() => {
+  // Errors land in the errors store inside `boot()`; no need to await or handle here.
+  void boot();
+});
 
 const iteratedCollections = computed(() =>
   showUntranslatableCollections.value ? rootCollections.value : translatableRootCollections.value,
 );
 
 const allTranslatableFields = computed(() =>
-  translatableCollections.value
-    .map((c) => [
-      {
-        collection: c.collection,
-        fields: getTranslatableFields(c.collection).translatableFields.map((f) => f.field),
-      },
-    ])
-    .flat(),
+  translatableCollections.value.map((c) => ({
+    collection: c.collection,
+    fields: getTranslatableFields(c.collection).translatableFields.map((f) => f.field),
+  })),
 );
 
 const someTranslatableFieldsChecked = computed(() => enabledFields.value.length > 0);

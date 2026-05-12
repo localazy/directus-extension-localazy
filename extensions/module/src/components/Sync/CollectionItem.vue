@@ -38,10 +38,10 @@
       v-for="field in renderedFields"
       :key="`${collection.collection}-${field.field}`"
       class="field-item"
-      :disabled="!isTranlatableField(field)"
+      :disabled="!isTranslatableField(field)"
       :value="`${collection.collection}-${field.field}`"
       :model-value="localSelections"
-      :title="!isTranlatableField(field) ? `${field.type} is not translatable` : ''"
+      :title="!isTranslatableField(field) ? `${field.type} is not translatable` : ''"
       @update:model-value="localSelections = $event"
     >
       <span>{{ field.name }}</span>
@@ -133,7 +133,7 @@ const isTranslatableCollection = computed(() =>
   props.translatableCollections.some((col) => col.collection === props.collection.collection),
 );
 
-const isTranlatableField = FieldsUtilsService.isTranslatableField;
+const isTranslatableField = FieldsUtilsService.isTranslatableField;
 
 const nestedCollections = computed(() => props.collections.filter((collection) => collection.meta?.group === props.collection.collection));
 const collection = computed(() => props.collection);
@@ -148,12 +148,12 @@ const shouldRender = computed(
 const isExpandable = computed(() => nestedCollections.value.length > 0 || renderedFields.value.length > 0);
 
 const someTranslatableFieldsChecked = computed(() => {
-  const fields = translatableFields.filter(isTranlatableField);
+  const fields = translatableFields.filter(isTranslatableField);
   return (selectionsForCollection.value?.fields || []).some((field) => fields.some((f) => f.field === field));
 });
 
 const allTranslatableFieldsChecked = computed(() => {
-  const fields = translatableFields.filter(isTranlatableField);
+  const fields = translatableFields.filter(isTranslatableField);
 
   return (
     fields.length > 0 &&
@@ -168,7 +168,7 @@ const allTranslatableFieldsChecked = computed(() => {
 });
 
 function onUpdateCollectionSelection() {
-  const fields = translatableFields.filter(isTranlatableField);
+  const fields = translatableFields.filter(isTranslatableField);
   if (allTranslatableFieldsChecked.value) {
     emits('update:selections', otherSelections.value);
   } else {

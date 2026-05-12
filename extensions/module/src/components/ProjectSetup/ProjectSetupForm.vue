@@ -56,7 +56,7 @@
 
 <script lang="ts" setup>
 import { useItems } from '@directus/extensions-sdk';
-import { PropType, Ref, computed, ref, watch, watchEffect } from 'vue';
+import { Ref, computed, ref, watch, watchEffect } from 'vue';
 import { AppCollection, Field, Item } from '@directus/types';
 import { storeToRefs } from 'pinia';
 import { getLocalazyLanguages } from '@localazy/languages';
@@ -69,28 +69,18 @@ import LogoutButton from './LogoutButton.vue';
 import { useDirectusCollectionsStoreRefs, useDirectusFieldsStore } from '../../composables/use-directus-stores';
 import { useLocalazyConfigStore } from '../../stores/localazy-config-store';
 
-const props = defineProps({
-  edits: {
-    type: Object as PropType<Settings>,
-    required: true,
-  },
+const localEdits = defineModel<Settings>('edits', { required: true });
+
+defineProps({
   collection: {
     type: String,
     required: true,
   },
 });
 
-const emit = defineEmits(['update:edits']);
-
 const { data: localazyData } = storeToRefs(useLocalazyConfigStore());
 
 const isDemo = computed(() => getConfig().APP_MODE === 'demo');
-const localEdits = computed<Settings>({
-  get: () => props.edits,
-  set: (value) => {
-    emit('update:edits', value);
-  },
-});
 
 const { collections } = useDirectusCollectionsStoreRefs();
 const { getFieldsForCollectionSorted } = useDirectusFieldsStore();
@@ -135,7 +125,9 @@ const possibleLanguageCollections = (collections?.value as AppCollection[])
   });
 
 const possibleLanguageCodeFields = computed((): SelectItem[] => {
-  const fields = props.edits.language_collection ? (getFieldsForCollectionSorted(props.edits.language_collection) as Field[]) : [];
+  const fields = localEdits.value.language_collection
+    ? (getFieldsForCollectionSorted(localEdits.value.language_collection) as Field[])
+    : [];
 
   return fields
     .filter((field) => field.type === 'string')

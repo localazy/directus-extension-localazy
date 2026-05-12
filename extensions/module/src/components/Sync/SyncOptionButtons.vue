@@ -34,17 +34,10 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
+const localShowUntranslatableField = defineModel<boolean>('showUntranslatableField', { required: true });
+const localShowUntranslatableCollections = defineModel<boolean>('showUntranslatableCollections', { required: true });
 
 const props = defineProps({
-  showUntranslatableField: {
-    type: Boolean,
-    required: true,
-  },
-  showUntranslatableCollections: {
-    type: Boolean,
-    required: true,
-  },
   allTranslatableFieldsChecked: {
     type: Boolean,
     required: true,
@@ -55,17 +48,7 @@ const props = defineProps({
   },
 });
 
-const emits = defineEmits(['select-all', 'deselect-all', 'update:showUntranslatableField', 'update:showUntranslatableCollections']);
-
-const localShowUntranslatableField = computed({
-  get: () => props.showUntranslatableField,
-  set: (value: boolean) => emits('update:showUntranslatableField', value),
-});
-
-const localShowUntranslatableCollections = computed({
-  get: () => props.showUntranslatableCollections,
-  set: (value: boolean) => emits('update:showUntranslatableCollections', value),
-});
+const emits = defineEmits(['select-all', 'deselect-all']);
 
 function onUpdateCollectionSelection() {
   if (props.allTranslatableFieldsChecked) {

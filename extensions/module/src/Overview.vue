@@ -22,28 +22,25 @@
 </template>
 
 <script lang="ts" setup>
+import { onBeforeMount } from 'vue';
 import { storeToRefs } from 'pinia';
 import Navigation from './components/Navigation.vue';
-import { useLocalazyStore } from './stores/localazy-store';
 import ErrorsNotice from './components/ErrorsNotice.vue';
 import ConfigNotice from './components/ConfigNotice.vue';
 import ConnectionOverview from './components/Overview/ConnectionOverview.vue';
 import ConnectionLanguages from './components/Overview/ConnectionLanguages.vue';
-import { useLocalazyInstallerStore } from './stores/localazy-installer-store';
 import { useLocalazySettingsStore } from './stores/localazy-settings-store';
-import { useLocalazyConfigStore } from './stores/localazy-config-store';
 import { useLocalazyConfigurationStatus } from './composables/use-localazy-configuration-status';
+import { useLocalazyBoot } from './composables/use-localazy-boot';
 
-const installer = useLocalazyInstallerStore();
-const { installed } = storeToRefs(installer);
 const { data: settings } = storeToRefs(useLocalazySettingsStore());
-const { data: localazyData } = storeToRefs(useLocalazyConfigStore());
 const { hasIncompleteConfiguration } = useLocalazyConfigurationStatus();
-const localazyStore = useLocalazyStore();
-const { hydrated } = storeToRefs(localazyStore);
+const { installed, hydrated, localazyData, boot } = useLocalazyBoot();
 
-// Fire-and-forget at component setup; errors land in the errors store inside `run()`.
-void installer.run().then(() => localazyStore.hydrateLocalazyData({ localazyData }));
+onBeforeMount(() => {
+  // Errors land in the errors store inside `boot()`; no need to await or handle here.
+  void boot();
+});
 </script>
 
 <style lang="scss" scoped>
