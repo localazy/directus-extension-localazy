@@ -34,7 +34,8 @@ export const useErrorsStore = defineStore('errorsStore', () => {
 
   function addLocalazyError(error: LocalazyError, data: AddLocalazyError) {
     errors.value.localazy[data.type].push(error);
-    AnalyticsService.trackError({
+    // Analytics is fire-and-forget; error tracking shouldn't itself fail and block the flow.
+    void AnalyticsService.trackError({
       userId: data.userId,
       orgId: data.orgId,
       message: error.message,

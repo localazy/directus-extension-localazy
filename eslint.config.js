@@ -72,18 +72,17 @@ export default tseslint.config(
     },
   },
 
-  // Type-aware Promise-safety rule. Scoped to TS/Vue because it requires
-  // type information (only enabled in those file types via projectService).
-  // Catches the bug class that produced the missing-await in
-  // sync-hook/src/index.ts. Set to 'warn' because the codebase has a baseline
-  // of intentional fire-and-forget patterns (Vue setup() top-level awaits,
-  // event-handler callbacks) — see Stage 2 task for incremental cleanup.
+  // Type-aware Promise-safety rule. Catches the bug class that produced the
+  // missing-await in sync-hook/src/index.ts. The baseline of intentional
+  // fire-and-forget patterns (Vue setup() top-level hydrations, analytics
+  // calls, etc.) has been triaged — each site is either awaited or prefixed
+  // with `void`. Set to 'error' so a new floating Promise blocks CI.
   // no-misused-promises is intentionally off: it produces false positives
   // against Directus' action() callback signature, which accepts async fns.
   {
     files: ['**/*.ts', '**/*.vue'],
     rules: {
-      '@typescript-eslint/no-floating-promises': 'warn',
+      '@typescript-eslint/no-floating-promises': 'error',
     },
   },
 

@@ -205,7 +205,7 @@ export abstract class BaseContentSynchronizationService {
 
     keyIds.forEach((keyId) => {
       add(async () => {
-        LocalazyApiThrottleService.updateKey(localazyData.access_token, {
+        await LocalazyApiThrottleService.updateKey(localazyData.access_token, {
           project: projectId,
           key: keyId,
           deprecated: 0,

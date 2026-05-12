@@ -45,9 +45,9 @@ const { hydrateDirectusData, localazyData, hasIncompleteConfiguration, settings,
 const localazyStore = useLocalazyStore();
 const { hydrated } = storeToRefs(localazyStore);
 
-hydrateDirectusData().then(() => {
-  localazyStore.hydrateLocalazyData({ localazyData });
-});
+// Fire-and-forget hydration at component setup time. Errors are captured inside
+// each hydrate function via the errors store.
+void hydrateDirectusData().then(() => localazyStore.hydrateLocalazyData({ localazyData }));
 </script>
 
 <style lang="scss" scoped>

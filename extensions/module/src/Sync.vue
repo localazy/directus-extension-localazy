@@ -116,9 +116,9 @@ const {
   contentTransferSetup,
 } = useHydrate();
 
-hydrateDirectusData().then(() => {
-  localazyStore.hydrateLocalazyData({ localazyData });
-});
+// Fire-and-forget hydration at component setup time. Errors are captured inside
+// each hydrate function via the errors store.
+void hydrateDirectusData().then(() => localazyStore.hydrateLocalazyData({ localazyData }));
 
 const iteratedCollections = computed(() =>
   showUntranslatableCollections.value ? rootCollections.value : translatableRootCollections.value,

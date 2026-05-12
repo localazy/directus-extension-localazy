@@ -94,7 +94,8 @@ watch(
   () => props.settings,
   (s) => {
     if (s?.language_collection && s?.language_code_field) {
-      fetchDirectusLanguages(s?.language_collection, s?.language_code_field).then((languages) => {
+      // Fire-and-forget: rejection logs through fetchDirectusLanguages' own try/catch.
+      void fetchDirectusLanguages(s.language_collection, s.language_code_field).then((languages) => {
         directusLanguages.value = languages;
       });
     }

@@ -75,9 +75,9 @@ watch(
   { immediate: true, deep: true },
 );
 
-hydrateDirectusData().then(() => {
-  hydrateLocalazyData({ localazyData });
-});
+// Fire-and-forget hydration at component setup time. Errors are captured inside
+// each hydrate function via the errors store.
+void hydrateDirectusData().then(() => hydrateLocalazyData({ localazyData }));
 
 const changesExist = computed(() => !isEqual(settingsEdits.value, configuration.value.settings));
 

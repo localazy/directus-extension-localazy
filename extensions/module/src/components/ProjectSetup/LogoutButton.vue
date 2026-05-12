@@ -65,7 +65,8 @@ const onLogout = async () => {
       emit('update:localazyData', newData);
       await hydrateLocalazyData({ force: true, localazyData: newData });
       if (orgId && userId && name) {
-        AnalyticsService.trackLogOut({
+        // Analytics is fire-and-forget; logout shouldn't block on telemetry.
+        void AnalyticsService.trackLogOut({
           userId,
           orgId,
           name,

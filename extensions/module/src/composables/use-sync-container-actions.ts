@@ -93,7 +93,8 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
       message: 'Preparing Directus data for import',
     });
     const token = computed(() => configuration.value.localazy_data.access_token);
-    onSaveSettings(payload);
+    // Save settings is fire-and-forget; errors surface via the errors store inside onSaveSettings.
+    void onSaveSettings(payload);
     try {
       const exportLanguages = await resolveExportLanguages(configuration.value.settings);
       const [translationStrings, collectionsContent] = await Promise.all([
@@ -126,7 +127,8 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
       id: ProgressTrackerId.RETRIEVING_LANGUAGES,
       message: 'Retrieving target languages',
     });
-    onSaveSettings(payload);
+    // Save settings is fire-and-forget; errors surface via the errors store inside onSaveSettings.
+    void onSaveSettings(payload);
     try {
       const importLanguages = await resolveImportLanguages(configuration.value.settings);
       const result = await useImportFromLocalazy().importContentFromLocalazy({
@@ -140,7 +142,8 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
           id: ProgressTrackerId.IMPORT_FINISHED,
           message: 'Import finished',
         });
-        AnalyticsService.trackDownloadFromLocalazy(
+        // Analytics is fire-and-forget; download flow shouldn't block on telemetry.
+        void AnalyticsService.trackDownloadFromLocalazy(
           ExportToLocalazyCommonService.getPayloadForUploadAnalytics({
             userId: localazyUser.value.id,
             orgId: localazyProject.value?.orgId || '',

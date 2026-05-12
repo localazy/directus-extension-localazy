@@ -77,7 +77,8 @@ export const useExportToLocalazy = (token: Ref<string>) => {
         id: ProgressTrackerId.EXPORT_FINISHED,
         message: nothingToExport ? 'Nothing to export from selected sources' : 'Export finished',
       });
-      AnalyticsService.trackUploadToLocalazy(
+      // Analytics is fire-and-forget; export completion shouldn't block on telemetry.
+      void AnalyticsService.trackUploadToLocalazy(
         ExportToLocalazyCommonService.getPayloadForUploadAnalytics({
           userId: localazyUser.value.id,
           orgId: localazyProject.value.orgId || '',

@@ -12,7 +12,9 @@ export const useInitSyncContainer = () => {
   const synchronizeTranslationStrings = ref(defaultConfiguration().content_transfer_setup.translation_strings);
   const { settings, localazyData, contentTransferSetup, hydrateDirectusData } = useHydrate();
 
-  hydrateDirectusData().then(() => {
+  // Fire-and-forget hydration during container init; errors are captured by the
+  // errors store inside hydrateDirectusData.
+  void hydrateDirectusData().then(() => {
     if (settings.value) {
       configuration.value.settings = cloneDeep(settings.value);
     }
