@@ -70,3 +70,7 @@ rm -rf development/data development/uploads development/extensions
 | `npm run build:development` | Unminified build (faster, used by `dev`).                                           |
 
 CI (`.github/workflows/qa.yml`) runs lint → format → test → build (production) on every PR. Release (`.github/workflows/release.yml`) is triggered by pushes to `main` and uses `localazy/release@v2` to bump versions, generate the changelog, build, and publish to npm.
+
+## Coding conventions
+
+- **Avoid `as any` and `as unknown` casts unless truly necessary.** Both bypass TypeScript's safety net and tend to mask real bugs. Prefer real types — even partial ones via `Partial<T>` / `Pick<T, K>` — or narrow the consumer's signature so the cast isn't needed. When a cast is unavoidable (mocking a complex third-party type in a test is the most common case), use a single targeted cast (`as TargetType`) rather than the `as unknown as TargetType` double-cast escape hatch, and keep its scope as small as possible.
