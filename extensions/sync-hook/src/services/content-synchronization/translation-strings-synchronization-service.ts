@@ -122,7 +122,10 @@ class TranslationStringsSynchronizationService extends BaseContentSynchronizatio
           importContent.content.translationStrings.forEach((translationString) => {
             const { directusId } = translationString;
             if (itemIds.includes(directusId)) {
-              deleletedTranslationStrings.add(translationString.localazyKey.id);
+              // Each language has its own Localazy key id; deprecate them all, not just one.
+              Object.values(translationString.localazyKeys).forEach((localazyKey) => {
+                deleletedTranslationStrings.add(localazyKey.id);
+              });
             }
           });
 

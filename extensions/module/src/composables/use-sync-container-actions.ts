@@ -235,12 +235,15 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
         }
       };
 
-      await upsertFromLocalazyContent(result.content, settings.value, { onWritten });
-
       // Final flush — guarantees the last batch lands even if it didn't cross the
-      // throttle threshold. Await this one so progress UI's success state reflects a
-      // durably-persisted cursor.
-      await persistCursor(inMemoryCursor);
+      // throttle threshold. The `finally` makes the contract literal: even if
+      // `upsertFromLocalazyContent` throws midway, whatever the writers already
+      // accumulated via `onWritten` still gets persisted.
+      try {
+        await upsertFromLocalazyContent(result.content, settings.value, { onWritten });
+      } finally {
+        await persistCursor(inMemoryCursor);
+      }
 
       const elapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
       addProgressMessage({

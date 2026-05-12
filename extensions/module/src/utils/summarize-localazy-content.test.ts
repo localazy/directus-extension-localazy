@@ -20,7 +20,7 @@ function makeTranslationStringBlock(key: string, translations: Record<string, st
   return {
     key,
     directusId: '',
-    localazyKey: k(key),
+    localazyKeys: Object.fromEntries(Object.keys(translations).map((lang) => [lang, k(`${key}-${lang}`)])),
     translations,
   };
 }

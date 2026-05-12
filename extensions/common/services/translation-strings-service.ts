@@ -92,7 +92,7 @@ export class TranslationStringsService {
       const payloadMap = new Map();
 
       translationStrings.forEach((item) => {
-        const existingKey: Omit<LocalazyTranslationStringBlock, 'localazyKey'> = payloadMap.get(item.key) || {
+        const existingKey: Omit<LocalazyTranslationStringBlock, 'localazyKeys' | 'directusId'> = payloadMap.get(item.key) || {
           key: item.key,
           translations: {},
         };

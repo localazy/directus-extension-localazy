@@ -189,9 +189,12 @@ describe('translationStringsSynchronizationService.deprecateDeletedTranslationSt
         success: true,
         content: {
           translationStrings: [
-            { directusId: 'kept-id', localazyKey: { id: 'lk-kept' } },
-            { directusId: 'deleted-id-a', localazyKey: { id: 'lk-a' } },
-            { directusId: 'deleted-id-b', localazyKey: { id: 'lk-b' } },
+            // Each Directus translation string has one Localazy key per language;
+            // we exercise both single-language and multi-language cases here so the
+            // deprecation flow emits IDs for every language a deleted string had.
+            { directusId: 'kept-id', localazyKeys: { en: { id: 'lk-kept' } } },
+            { directusId: 'deleted-id-a', localazyKeys: { en: { id: 'lk-a-en' }, de: { id: 'lk-a-de' } } },
+            { directusId: 'deleted-id-b', localazyKeys: { en: { id: 'lk-b' } } },
           ],
         },
       },
@@ -208,6 +211,6 @@ describe('translationStringsSynchronizationService.deprecateDeletedTranslationSt
     expect(deprecateSpy).toHaveBeenCalledOnce();
     const [, projectId, keyIds] = deprecateSpy.mock.calls[0]!;
     expect(projectId).toBe('p1');
-    expect(new Set(keyIds as string[])).toEqual(new Set(['lk-a', 'lk-b']));
+    expect(new Set(keyIds as string[])).toEqual(new Set(['lk-a-en', 'lk-a-de', 'lk-b']));
   });
 });

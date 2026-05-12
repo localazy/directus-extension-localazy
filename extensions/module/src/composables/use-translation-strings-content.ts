@@ -61,11 +61,11 @@ export const useTranslationStringsContent = () => {
       if (options.onWritten) {
         const triples: WrittenTriple[] = [];
         data.forEach((block) => {
-          Object.keys(block.translations).forEach((language) => {
+          Object.entries(block.localazyKeys).forEach(([language, localazyKey]) => {
             triples.push({
               language,
-              keyId: block.localazyKey.id,
-              event: block.localazyKey.event,
+              keyId: localazyKey.id,
+              event: localazyKey.event,
             });
           });
         });

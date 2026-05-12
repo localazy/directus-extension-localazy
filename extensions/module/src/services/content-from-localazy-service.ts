@@ -64,13 +64,18 @@ export class ContentFromLocalazyService {
     const directusId = data.key.key[2] || '';
     const translationStringKey = translationStrings.get(directusKey) || {
       key: directusKey,
+      directusId,
+      localazyKeys: {},
       translations: {},
     };
 
     translationStrings.set(directusKey, {
       ...translationStringKey,
-      localazyKey: data.key,
       directusId,
+      localazyKeys: {
+        ...translationStringKey.localazyKeys,
+        [data.language]: data.key,
+      },
       translations: {
         ...translationStringKey.translations,
         [data.language]: data.key.value.toString(),
