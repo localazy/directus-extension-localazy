@@ -8,7 +8,7 @@ on:
 
 jobs:
   check:
-    name: Lint, format & build
+    name: Lint, format, test & build
     runs-on: [self-hosted, Linux]
     steps:
       - name: Checkout repository
@@ -25,14 +25,8 @@ jobs:
       - name: Set production config
         run: npm run set-production-config
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Format check
-        run: npm run format
-
-      - name: Test
-        run: npm run test
+      - name: Check (lint + format + test)
+        run: npm run check
 
       - name: Build (production)
         run: npm run build
