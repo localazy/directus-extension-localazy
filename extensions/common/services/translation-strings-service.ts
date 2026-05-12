@@ -69,11 +69,11 @@ export class TranslationStringsService {
       try {
         const result = await this.directusApi.fetchTranslationStrings();
         translationStrings = this.normalizeDirectus10TranslationStrings(result as Directus10TranslationApiResult[]);
-      } catch (e: any) {
+      } catch (_e: unknown) {
         try {
           translationStrings = await this.fetchTranslationStringsFromSettings();
           return translationStrings;
-        } catch (e2: any) {
+        } catch (_e2: unknown) {
           return [];
         }
       }

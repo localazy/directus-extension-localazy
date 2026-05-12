@@ -7,7 +7,7 @@ import { KeyValueEntry } from '../../../common/models/localazy-key-entry';
 import { TranslatableContent } from '../../../common/models/translatable-content';
 import { AnalyticsService } from '../../../common/services/analytics-service';
 import { ContentFromCollections } from '../../../common/utilities/content-from-collections-service';
-import { useEnhancedAsyncQueue } from './use-async-queue';
+import { createAsyncQueue } from '../../../common/utilities/async-queue';
 import { useProgressTrackerStore } from '../stores/progress-tracker-store';
 import { useLocalazyStore } from '../stores/localazy-store';
 import { useErrorsStore } from '../stores/errors-store';
@@ -20,7 +20,7 @@ type ExportContentToLocalazy = {
 
 export const useExportToLocalazy = (token: Ref<string>) => {
   const loading = ref(false);
-  const { execute, add } = useEnhancedAsyncQueue();
+  const { execute, add } = createAsyncQueue();
   const { addProgressMessage, upsertProgressMessage } = useProgressTrackerStore();
   const { addLocalazyError } = useErrorsStore();
   const { localazyProject, projectId, localazyUser } = storeToRefs(useLocalazyStore());

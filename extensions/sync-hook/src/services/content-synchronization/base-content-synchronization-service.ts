@@ -8,7 +8,7 @@ import { ExportToLocalazyService } from '../export-to-localazy-service';
 import { importFromLocalazyService } from '../import-from-localazy-service';
 import { ContentTransferSetupDatabase } from '../../../../common/models/collections-data/content-transfer-setup';
 import { EnabledFieldsService } from '../../../../common/utilities/enabled-fields-service';
-import { useEnhancedAsyncQueue } from '../../../../module/src/composables/use-async-queue';
+import { createAsyncQueue } from '../../../../common/utilities/async-queue';
 import { LocalazyApiThrottleService } from '../../../../common/services/localazy-api-throttle-service';
 import { DirectusLocalazyLanguage } from '../../../../common/models/directus-localazy-language';
 import { DirectusLocalazyAdapter } from '../../../../common/services/directus-localazy-adapter';
@@ -206,7 +206,7 @@ export abstract class BaseContentSynchronizationService {
   }
 
   protected async deprecateLocalazyKeys(localazyData: LocalazyData, projectId: string, keyIds: string[]) {
-    const { add, execute } = useEnhancedAsyncQueue();
+    const { add, execute } = createAsyncQueue();
 
     keyIds.forEach((keyId) => {
       add(async () => {

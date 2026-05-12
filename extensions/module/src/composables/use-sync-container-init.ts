@@ -23,7 +23,7 @@ export const useInitSyncContainer = () => {
       try {
         enabledFields.value = EnabledFieldsService.parseFromDatabase(contentTransferSetup.value.enabled_fields);
         synchronizeTranslationStrings.value = contentTransferSetup.value.translation_strings;
-      } catch (e) {
+      } catch (_e) {
         enabledFields.value = [];
       }
       configuration.value.content_transfer_setup = cloneDeep(contentTransferSetup.value);

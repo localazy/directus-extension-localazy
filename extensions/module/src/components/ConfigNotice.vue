@@ -65,7 +65,6 @@ const marketPlaceUrl = computed(() => {
   }
   return '';
 });
-const appMode = computed(() => getConfig().APP_MODE);
 const isDemo = computed(() => getConfig().APP_MODE === 'demo');
 </script>
 

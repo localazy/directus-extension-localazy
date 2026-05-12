@@ -4,7 +4,7 @@ export class EnabledFieldsService {
   static parseFromDatabase(enabledFields: string): EnabledField[] {
     try {
       return JSON.parse(enabledFields);
-    } catch (e) {
+    } catch (_e) {
       return [];
     }
   }

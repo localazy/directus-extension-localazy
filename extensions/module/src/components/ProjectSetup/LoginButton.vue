@@ -93,7 +93,7 @@ const onLoginClick = async () => {
         title: 'You are now logged in to Localazy',
       });
     }
-  } catch (e) {
+  } catch (_e) {
     loginButtonData.value.error = true;
   } finally {
     loginButtonData.value.isLoading = false;

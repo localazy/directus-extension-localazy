@@ -2,7 +2,7 @@ import { Item, Relation, Field } from '@directus/types';
 import { merge } from 'lodash';
 import { ContentFromCollections } from '../utilities/content-from-collections-service';
 import { EnabledField } from '../models/collections-data/content-transfer-setup';
-import { useEnhancedAsyncQueue } from '../../module/src/composables/use-async-queue';
+import { createAsyncQueue } from '../utilities/async-queue';
 import { Settings } from '../models/collections-data/settings';
 import { TranslatableContent } from '../models/translatable-content';
 import { FieldsUtilsService } from '../utilities/fields-utils-service';
@@ -119,7 +119,7 @@ export class TranslatableCollectionsService {
 
   async fetchContentFromTranslatableCollections(options: TranslatableCollectionsServiceOptions) {
     const { enabledFields, settings, languages, translatableCollections } = options;
-    const { add, execute } = useEnhancedAsyncQueue();
+    const { add, execute } = createAsyncQueue();
     const translatableContent: TranslatableContent = { sourceLanguage: {}, otherLanguages: {} };
 
     const enabledTranslatableCollections = translatableCollections.filter((collection) =>

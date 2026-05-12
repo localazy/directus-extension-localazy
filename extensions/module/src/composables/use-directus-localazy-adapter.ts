@@ -6,7 +6,7 @@ import {
   LocalazyCollectionItem,
   LocalazyItemsInLanguage,
 } from '../../../common/models/localazy-content';
-import { useEnhancedAsyncQueue } from './use-async-queue';
+import { createAsyncQueue } from '../../../common/utilities/async-queue';
 import { TranslationPayload } from '../models/directus/translation-payload';
 import { mergeTranslationPayload } from '../utils/merge-translation-payload';
 import { useErrorsStore } from '../stores/errors-store';
@@ -154,7 +154,7 @@ export const useDirectusLocalazyAdapter = () => {
   }
 
   async function upsertFromLocalazyContent(contentItems: LocalazyContent) {
-    const { add, execute } = useEnhancedAsyncQueue();
+    const { add, execute } = createAsyncQueue();
     contentItems.collections.forEach((content, collection) => {
       add(async () => upsertItemsFromSingleCollection(collection, content));
     });
