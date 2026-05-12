@@ -1,4 +1,5 @@
 import { CreateMissingLanguagesInDirectus } from '../../../common/enums/create-missing-languages-in-directus';
+import { CURSOR_VERSION } from '../../../common/models/collections-data/sync-state';
 import { Configuration } from '../models/configuration';
 
 export const defaultConfiguration = (): Configuration => ({
@@ -27,5 +28,11 @@ export const defaultConfiguration = (): Configuration => ({
     project_url: '',
     project_name: '',
     org_id: '',
+  },
+  sync_state: {
+    processed_keys: '{}',
+    cursor_project_id: '',
+    cursor_version: CURSOR_VERSION,
+    last_sync_at: null,
   },
 });

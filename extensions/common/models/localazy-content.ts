@@ -26,7 +26,10 @@ export interface LocalazyCollectionBlock {
 export type LocalazyTranslationStringBlock = {
   key: string;
   directusId: string;
-  localazyKey: Key;
+  // Per-language Localazy Key — each language has its own (id, event) pair.
+  // Required for the incremental sync cursor; collapsing into a single Key would mean
+  // the cursor records the wrong-language id and never matches on the next sync.
+  localazyKeys: Record<string, Key>;
   translations: {
     [language: string]: string;
   };

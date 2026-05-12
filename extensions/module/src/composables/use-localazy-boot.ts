@@ -20,12 +20,18 @@ import { useLocalazyStore } from '../stores/localazy-store';
 export const useLocalazyBoot = () => {
   const installer = useLocalazyInstallerStore();
   const { installed } = storeToRefs(installer);
-  const { data: localazyData } = storeToRefs(useLocalazyConfigStore());
+  const configStore = useLocalazyConfigStore();
+  const { data: localazyData } = storeToRefs(configStore);
   const localazyStore = useLocalazyStore();
   const { hydrating, hydrated } = storeToRefs(localazyStore);
 
   async function boot(): Promise<void> {
     await installer.run();
+    // Wait for the config singleton's first reload to settle. Without this the
+    // hydrate below reads stale defaults (no access_token) on a hard refresh,
+    // which renders the Overview as "Not connected to Localazy" until the user
+    // navigates away and back.
+    await configStore.firstLoad;
     await localazyStore.hydrateLocalazyData({ localazyData });
   }
 

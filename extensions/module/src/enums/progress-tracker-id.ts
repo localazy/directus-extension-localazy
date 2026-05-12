@@ -7,6 +7,13 @@ export enum ProgressTrackerId {
   LOADED_LOCALAZY_PROJECT,
   IMPORTED_CONTENT_CHUNK,
   UPDATING_DIRECTUS_COLLECTION,
+  // Incremental download sync progress markers — keep IDs stable; the progress modal
+  // de-dupes by id so reusing one updates the existing line in place.
+  SYNC_MODE_HEADER,
+  FETCHING_TRANSLATIONS,
+  CHANGES_SUMMARY,
+  UPDATING_TRANSLATION_STRINGS,
+  UP_TO_DATE,
 
   NOTHING_TO_IMPORT,
   NOT_CONNECTED_TO_LOCALAZY,

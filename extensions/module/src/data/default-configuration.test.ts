@@ -4,6 +4,7 @@ import { defaultConfiguration } from './default-configuration';
 import { createSettingsFields } from './fields/settings/create';
 import { createContentTransferSetupsFields } from './fields/content-transfer-setup/create';
 import { createLocalazyDataFields } from './fields/localazy-data/create';
+import { createSyncStateFields } from './fields/sync-state/create';
 
 /**
  * Guard test for the installer's heal path.
@@ -26,6 +27,7 @@ const SECTIONS: Array<{ section: Section; fields: () => Array<DeepPartial<Field>
   { section: 'settings', fields: createSettingsFields },
   { section: 'content_transfer_setup', fields: createContentTransferSetupsFields },
   { section: 'localazy_data', fields: createLocalazyDataFields },
+  { section: 'sync_state', fields: createSyncStateFields },
 ];
 
 describe('defaultConfiguration <-> field declarations', () => {
