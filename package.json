@@ -32,6 +32,8 @@
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "build-scripts": "npm run set-production-config && node ./scripts/copy-license.mjs",
     "set-production-config": "npm run set-config -- --mode=production",
     "set-config": "node ./scripts/set-config.mjs"
@@ -48,6 +50,7 @@
     "prettier": "^3.8.3",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.59.3",
+    "vitest": "^4.1.6",
     "vue-eslint-parser": "^10.4.0",
     "vue-tsc": "^3.1.8"
   }
