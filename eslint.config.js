@@ -50,7 +50,7 @@ export default tseslint.config(
       'no-useless-assignment': 'warn',
 
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
 
       'vue/multi-word-component-names': 'off',
       'vue/max-len': ['error', { code: 140 }],

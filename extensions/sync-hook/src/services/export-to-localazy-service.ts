@@ -4,9 +4,8 @@ import { Settings } from '../../../common/models/collections-data/settings';
 import { KeyValueEntry } from '../../../common/models/localazy-key-entry';
 import { TranslatableContent } from '../../../common/models/translatable-content';
 import { ContentFromCollections } from '../../../common/utilities/content-from-collections-service';
-import { useEnhancedAsyncQueue } from '../../../module/src/composables/use-async-queue';
+import { createAsyncQueue } from '../../../common/utilities/async-queue';
 import { DirectusLocalazyAdapter } from '../../../common/services/directus-localazy-adapter';
-import { LocalazyApiThrottleService } from '../../../common/services/localazy-api-throttle-service';
 import { trackLocalazyError } from '../functions/track-error';
 import { ExportToLocalazyCommonService } from '../../../common/services/export-to-localazy-common-service';
 import { LocalazyData } from '../../../common/models/collections-data/localazy-data';
@@ -26,21 +25,6 @@ type CreateExportPromisesForLanguage = {
 };
 
 export class ExportToLocalazyService {
-  private async loadProject(token: string) {
-    if (!token) {
-      return null;
-    }
-
-    try {
-      const projects = await LocalazyApiThrottleService.listProjects(token, { organization: true, languages: true });
-      const localazyProject = projects[0] || null;
-      return localazyProject;
-    } catch (e: any) {
-      trackLocalazyError(e, 'loadProject');
-      return null;
-    }
-  }
-
   private createExportPromisesForLanguage(options: CreateExportPromisesForLanguage) {
     const { content, language, access_token, projectId } = options;
     const contentChunks = ContentFromCollections.splitContentIntoChunks(content);
@@ -61,7 +45,7 @@ export class ExportToLocalazyService {
     }
 
     try {
-      const { add, execute } = useEnhancedAsyncQueue();
+      const { add, execute } = createAsyncQueue();
 
       if (localazyProject) {
         const directusSourceLanguageAsLocalazyLanguage = DirectusLocalazyAdapter.mapDirectusToLocalazySourceLanguage(
