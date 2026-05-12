@@ -7,10 +7,6 @@ This is a monorepo consisting of following Localazy extensions for [Directus](ht
 
 Please refer to [Localazy Directus Extension](extensions/module/README.md) and [Localazy Directus Extension Automation](extensions/sync-hook/README.md) for more information about each extension.
 
-### Upgrading from 1.x
-
-The 2.x line requires Directus 11+. If you're upgrading from a 1.x release or staying on Directus 10, see [MIGRATION.md](MIGRATION.md).
-
 ## Contributing
 
 ### Prerequisites
