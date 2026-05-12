@@ -7,9 +7,9 @@ on:
       - next
 
 jobs:
-  lint:
-    name: Lint & build package
-    runs-on: [ self-hosted, Linux ]
+  check:
+    name: Lint, format & build
+    runs-on: [self-hosted, Linux]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,8 +22,14 @@ jobs:
       - name: Install deps
         run: npm ci
 
-      - name: Build & lint
-        run: |
-          npm run set-production-config
-          npm run lint
-          npm run build:development
+      - name: Set production config
+        run: npm run set-production-config
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format
+
+      - name: Build
+        run: npm run build:development
