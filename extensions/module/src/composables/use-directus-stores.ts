@@ -1,6 +1,6 @@
 import { useStores } from '@directus/extensions-sdk';
 import { computed, type ComputedRef } from 'vue';
-import type { AppCollection, Collection } from '@directus/types';
+import type { AppCollection, Collection, Relation } from '@directus/types';
 
 /**
  * Shape of the Directus admin's collections Pinia store that this extension uses.
@@ -40,4 +40,14 @@ export const useDirectusCollectionsStoreRefs = (): CollectionsStoreRefs => {
     collections: computed(() => store.collections),
     allCollections: computed(() => store.allCollections),
   };
+};
+
+/** Subset of Directus' relations Pinia store that this extension depends on. */
+type RelationsStore = {
+  getRelationsForField: (collection: string, field: string) => Relation[];
+};
+
+export const useDirectusRelationsStore = (): RelationsStore => {
+  const stores = useStores();
+  return stores.useRelationsStore() as RelationsStore;
 };

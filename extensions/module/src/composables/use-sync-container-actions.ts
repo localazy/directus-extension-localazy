@@ -137,7 +137,7 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
         enabledFields: enabledFields.value,
       });
       if (result.success) {
-        await upsertFromLocalazyContent(result.content);
+        await upsertFromLocalazyContent(result.content, configuration.value.settings);
         addProgressMessage({
           id: ProgressTrackerId.IMPORT_FINISHED,
           message: 'Import finished',
