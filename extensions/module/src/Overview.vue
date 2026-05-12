@@ -7,7 +7,7 @@
     <template #navigation>
       <Navigation />
     </template>
-    <div v-if="hydrated && hydratedDirectusData" class="panel page">
+    <div v-if="hydrated && installed" class="panel page">
       <config-notice class="notice" :has-incomplete-configuration="hasIncompleteConfiguration" />
       <errors-notice class="notice" :localazy-data="localazyData" />
 
@@ -29,15 +29,21 @@ import ErrorsNotice from './components/ErrorsNotice.vue';
 import ConfigNotice from './components/ConfigNotice.vue';
 import ConnectionOverview from './components/Overview/ConnectionOverview.vue';
 import ConnectionLanguages from './components/Overview/ConnectionLanguages.vue';
-import { useHydrate } from './composables/use-hydrate';
+import { useLocalazyInstallerStore } from './stores/localazy-installer-store';
+import { useLocalazySettingsStore } from './stores/localazy-settings-store';
+import { useLocalazyConfigStore } from './stores/localazy-config-store';
+import { useLocalazyConfigurationStatus } from './composables/use-localazy-configuration-status';
 
-const { hydrateDirectusData, localazyData, hasIncompleteConfiguration, settings, hydratedDirectusData } = useHydrate();
+const installer = useLocalazyInstallerStore();
+const { installed } = storeToRefs(installer);
+const { data: settings } = storeToRefs(useLocalazySettingsStore());
+const { data: localazyData } = storeToRefs(useLocalazyConfigStore());
+const { hasIncompleteConfiguration } = useLocalazyConfigurationStatus();
 const localazyStore = useLocalazyStore();
 const { hydrated } = storeToRefs(localazyStore);
 
-// Fire-and-forget hydration at component setup time. Errors are captured inside
-// each hydrate function via the errors store.
-void hydrateDirectusData().then(() => localazyStore.hydrateLocalazyData({ localazyData }));
+// Fire-and-forget at component setup; errors land in the errors store inside `run()`.
+void installer.run().then(() => localazyStore.hydrateLocalazyData({ localazyData }));
 </script>
 
 <style lang="scss" scoped>

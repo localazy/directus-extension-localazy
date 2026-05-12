@@ -13,70 +13,70 @@
     <template #navigation>
       <Navigation />
     </template>
-    <div v-if="hydrated && hydratedDirectusData" class="panel page">
+    <div v-if="hydrated && installed" class="panel page">
       <errors-notice class="errors-notice" :localazy-data="localazyData" />
 
-      <advanced-settings-form v-if="settingsCollection" v-model:edits="settingsEdits" :collection="settingsCollection.collection" />
+      <advanced-settings-form v-model:edits="settingsEdits" :collection="settingsCollectionName" />
     </div>
   </private-view>
 </template>
 
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
-import { cloneDeep, isEqual, merge } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash';
 import { storeToRefs } from 'pinia';
 import { useStores } from '@directus/extensions-sdk';
 import { Settings } from '../../common/models/collections-data/settings';
 import AdvancedSettingsForm from './components/AdvancedSettings/AdvancedSettingsForm.vue';
 import Navigation from './components/Navigation.vue';
 import { useLocalazyStore } from './stores/localazy-store';
-import { defaultConfiguration } from './data/default-configuration';
 import ErrorsNotice from './components/ErrorsNotice.vue';
-import { useDirectusApi } from './composables/use-directus-api';
-import { useHydrate } from './composables/use-hydrate';
+import { useLocalazyInstallerStore, LOCALAZY_COLLECTIONS } from './stores/localazy-installer-store';
+import { useLocalazySettingsStore } from './stores/localazy-settings-store';
+import { useLocalazyConfigStore } from './stores/localazy-config-store';
 
-type Configuration = {
-  settings: Settings;
-};
+const settingsCollectionName = LOCALAZY_COLLECTIONS.settings;
 
-const configuration = ref<Configuration>(defaultConfiguration());
-const settingsEdits = ref<Settings>(cloneDeep(configuration.value.settings));
+const installer = useLocalazyInstallerStore();
+const { installed } = storeToRefs(installer);
+
+const settingsStore = useLocalazySettingsStore();
+const { data: settings } = storeToRefs(settingsStore);
+const { data: localazyData } = storeToRefs(useLocalazyConfigStore());
+
+const settingsEdits = ref<Settings>(cloneDeep(settings.value));
 const loading = ref(false);
 
 const { useNotificationsStore } = useStores();
 const notificationsStore = useNotificationsStore();
-const { upsertDirectusItem } = useDirectusApi();
 const localazyStore = useLocalazyStore();
-const { hydrateDirectusData, localazyData, settingsCollection, settings, hydratedDirectusData } = useHydrate();
-const { hydrateLocalazyData, hydrated } = localazyStore;
-const { hydrating } = storeToRefs(localazyStore);
+const { hydrateLocalazyData } = localazyStore;
+const { hydrating, hydrated } = storeToRefs(localazyStore);
 
+// Reseat editing state when the source-of-truth settings change (e.g. after install
+// completes, or after another tab saves). The form composable in PR 22 will own this
+// pattern — for now we keep the historical shape so the diff stays focused.
 watch(
   settings,
   (s) => {
-    configuration.value.settings = merge(configuration.value.settings, s);
-    settingsEdits.value = cloneDeep(configuration.value.settings);
+    settingsEdits.value = cloneDeep(s);
   },
   { immediate: true, deep: true },
 );
 
-// Fire-and-forget hydration at component setup time. Errors are captured inside
-// each hydrate function via the errors store.
-void hydrateDirectusData().then(() => hydrateLocalazyData({ localazyData }));
+// Fire-and-forget at component setup; errors land in the errors store inside `run()`.
+void installer.run().then(() => hydrateLocalazyData({ localazyData }));
 
-const changesExist = computed(() => !isEqual(settingsEdits.value, configuration.value.settings));
+const changesExist = computed(() => !isEqual(settingsEdits.value, settings.value));
 
 async function onSaveChanges() {
   loading.value = true;
-  if (settingsCollection.value) {
-    await upsertDirectusItem(settingsCollection.value.collection, settings.value, settingsEdits.value, { ignoreEmpty: true });
-    configuration.value.settings = cloneDeep(settingsEdits.value);
-    notificationsStore.add({
-      title: 'Settings saved',
-    });
-    await hydrateDirectusData({ force: true });
+  try {
+    await settingsStore.save(settingsEdits.value);
+    notificationsStore.add({ title: 'Settings saved' });
+  } finally {
+    loading.value = false;
   }
-  loading.value = false;
 }
 </script>
 

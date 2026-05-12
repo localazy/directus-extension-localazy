@@ -1,4 +1,3 @@
-import { AppCollection } from '@directus/types';
 import { isEqual, merge } from 'lodash';
 import { Ref, computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -8,41 +7,27 @@ import { EnabledFieldsService } from '../../../common/utilities/enabled-fields-s
 import { useExportToLocalazy } from './use-export-to-localazy';
 import { useImportFromLocalazy } from './use-import-from-localazy';
 import { useLocalazyStore } from '../stores/localazy-store';
-import { useDirectusApi } from './use-directus-api';
+import { useLocalazySettingsStore } from '../stores/localazy-settings-store';
+import { useLocalazyConfigStore } from '../stores/localazy-config-store';
+import { useLocalazyTransferSetupStore } from '../stores/localazy-transfer-setup-store';
 import { useProgressTrackerStore } from '../stores/progress-tracker-store';
 import { useDirectusLanguages } from './use-directus-languages';
 import { useCollectionsOrganizer } from './use-collections-organizer';
 import { useDirectusLocalazyAdapter } from './use-directus-localazy-adapter';
 import { useTranslatableCollections } from './use-translatable-collections';
 import { useTranslationStringsContent } from './use-translation-strings-content';
-import { ContentTransferSetupDatabase, EnabledField } from '../../../common/models/collections-data/content-transfer-setup';
-import { Configuration } from '../models/configuration';
+import { EnabledField } from '../../../common/models/collections-data/content-transfer-setup';
 import { AnalyticsService } from '../../../common/services/analytics-service';
 import { ExportToLocalazyCommonService } from '../../../common/services/export-to-localazy-common-service';
 
 type UseSyncContainerActions = {
-  configuration: Ref<Configuration>;
   enabledFields: Ref<EnabledField[]>;
   synchronizeTranslationStrings: Ref<boolean>;
 };
 
-type OnSaveSettingsParams = {
-  notify?: boolean;
-  contentTransferSetupCollection: AppCollection | null;
-  contentTransferSetup: ContentTransferSetupDatabase | null;
-};
-
-type OnExportParams = {
-  contentTransferSetupCollection: AppCollection | null;
-  contentTransferSetup: ContentTransferSetupDatabase | null;
-};
-
-type OnImportParams = OnExportParams;
-
 export const useSyncContainerActions = (data: UseSyncContainerActions) => {
-  const { configuration, enabledFields, synchronizeTranslationStrings } = data;
+  const { enabledFields, synchronizeTranslationStrings } = data;
 
-  const { upsertDirectusItem } = useDirectusApi();
   const { resolveExportLanguages, resolveImportLanguages } = useDirectusLanguages();
   const { fetchContentFromTranslatableCollections } = useTranslatableCollections();
   const { fetchTranslationStrings } = useTranslationStringsContent();
@@ -56,71 +41,71 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
   const localazyStore = useLocalazyStore();
   const { localazyUser, localazyProject } = storeToRefs(localazyStore);
 
+  const settingsStore = useLocalazySettingsStore();
+  const { data: settings } = storeToRefs(settingsStore);
+  const configStore = useLocalazyConfigStore();
+  const { data: localazyData } = storeToRefs(configStore);
+  const transferSetupStore = useLocalazyTransferSetupStore();
+  const { data: transferSetup } = storeToRefs(transferSetupStore);
+
   const loading = ref(false);
   const showProgress = ref(false);
 
   const hasChanges = computed(
     () =>
-      synchronizeTranslationStrings.value !== configuration.value.content_transfer_setup.translation_strings ||
-      !isEqual(EnabledFieldsService.parseFromDatabase(configuration.value.content_transfer_setup.enabled_fields), enabledFields.value),
+      synchronizeTranslationStrings.value !== transferSetup.value.translation_strings ||
+      !isEqual(EnabledFieldsService.parseFromDatabase(transferSetup.value.enabled_fields), enabledFields.value),
   );
 
-  async function onSaveSettings(payload: OnSaveSettingsParams) {
-    const { contentTransferSetupCollection, contentTransferSetup, notify } = payload;
+  async function onSaveSettings({ notify = false }: { notify?: boolean } = {}) {
     if (!hasChanges.value) {
       return;
     }
-
-    if (contentTransferSetupCollection && contentTransferSetup) {
-      contentTransferSetup.enabled_fields = EnabledFieldsService.prepareForDatabase(enabledFields.value);
-      await upsertDirectusItem(contentTransferSetupCollection.collection, contentTransferSetup, {
-        enabled_fields: EnabledFieldsService.prepareForDatabase(enabledFields.value),
-        translation_strings: synchronizeTranslationStrings.value,
-      });
-      if (notify) {
-        notificationsStore.add({
-          title: 'Settings saved',
-        });
-      }
+    await transferSetupStore.save({
+      enabled_fields: EnabledFieldsService.prepareForDatabase(enabledFields.value),
+      translation_strings: synchronizeTranslationStrings.value,
+    });
+    if (notify) {
+      notificationsStore.add({ title: 'Settings saved' });
     }
   }
 
-  async function onExport(payload: OnExportParams) {
+  async function onExport() {
     loading.value = true;
     showProgress.value = true;
     addProgressMessage({
       id: ProgressTrackerId.PREPARING_IMPORT,
       message: 'Preparing Directus data for import',
     });
-    const token = computed(() => configuration.value.localazy_data.access_token);
+    const token = computed(() => localazyData.value.access_token);
     // Save settings is fire-and-forget; errors surface via the errors store inside onSaveSettings.
-    void onSaveSettings(payload);
+    void onSaveSettings();
     try {
-      const exportLanguages = await resolveExportLanguages(configuration.value.settings);
+      const exportLanguages = await resolveExportLanguages(settings.value);
       const [translationStrings, collectionsContent] = await Promise.all([
         fetchTranslationStrings({
           languages: exportLanguages,
-          settings: configuration.value.settings,
+          settings: settings.value,
           synchronizeTranslationStrings: synchronizeTranslationStrings.value,
         }),
         fetchContentFromTranslatableCollections({
           languages: exportLanguages,
           translatableCollections: translatableCollections.value,
           enabledFields: enabledFields.value,
-          settings: configuration.value.settings,
+          settings: settings.value,
         }),
       ]);
 
       await useExportToLocalazy(token).exportContentToLocalazy({
         content: merge(collectionsContent, translationStrings),
-        settings: configuration.value.settings,
+        settings: settings.value,
       });
     } finally {
       loading.value = false;
     }
   }
 
-  async function onImport(payload: OnImportParams) {
+  async function onImport() {
     showProgress.value = true;
     loading.value = true;
     addProgressMessage({
@@ -128,16 +113,16 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
       message: 'Retrieving target languages',
     });
     // Save settings is fire-and-forget; errors surface via the errors store inside onSaveSettings.
-    void onSaveSettings(payload);
+    void onSaveSettings();
     try {
-      const importLanguages = await resolveImportLanguages(configuration.value.settings);
+      const importLanguages = await resolveImportLanguages(settings.value);
       const result = await useImportFromLocalazy().importContentFromLocalazy({
         languages: importLanguages,
-        localazyData: configuration.value.localazy_data,
+        localazyData: localazyData.value,
         enabledFields: enabledFields.value,
       });
       if (result.success) {
-        await upsertFromLocalazyContent(result.content, configuration.value.settings);
+        await upsertFromLocalazyContent(result.content, settings.value);
         addProgressMessage({
           id: ProgressTrackerId.IMPORT_FINISHED,
           message: 'Import finished',
@@ -147,8 +132,8 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
           ExportToLocalazyCommonService.getPayloadForUploadAnalytics({
             userId: localazyUser.value.id,
             orgId: localazyProject.value?.orgId || '',
-            localazyProject: configuration.value.localazy_data.project_name,
-            settings: configuration.value.settings,
+            localazyProject: localazyData.value.project_name,
+            settings: settings.value,
             languages: Object.keys(importLanguages),
           }),
         );
