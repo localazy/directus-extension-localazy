@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { createSingletonStore } from '../composables/use-localazy-singleton';
+import { createSingletonStore } from './singleton-factory';
 import { LOCALAZY_COLLECTIONS } from './localazy-installer-store';
 import { defaultConfiguration } from '../data/default-configuration';
 import type { ContentTransferSetupDatabase } from '../../../common/models/collections-data/content-transfer-setup';
