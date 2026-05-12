@@ -155,7 +155,7 @@ const languageRows = computed((): Row[] => {
 </script>
 
 <style lang="scss" scoped>
-@import '../../styles/mixins/common';
+@use '../../styles/mixins/common' as *;
 
 .languages-table {
   @include common;

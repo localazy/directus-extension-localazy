@@ -49,7 +49,7 @@ describe('translationStringsSynchronizationService.exportTranslationString', () 
     vi.restoreAllMocks();
   });
 
-  it('logs and returns early when the Localazy collections are missing from the schema', async () => {
+  it('logs at debug and returns early when the Localazy collections are missing from the schema', async () => {
     const logger = makeLogger();
     const exportSpy = vi.spyOn(proto, 'exportToLocalazy').mockResolvedValue(undefined);
 
@@ -59,7 +59,8 @@ describe('translationStringsSynchronizationService.exportTranslationString', () 
       ItemsService: vi.fn(),
     });
 
-    expect(logger.error).toHaveBeenCalledWith('Localazy: Incomplete configuration');
+    expect(logger.debug).toHaveBeenCalledWith('Localazy: not configured yet — skipping translation strings export');
+    expect(logger.error).not.toHaveBeenCalled();
     expect(exportSpy).not.toHaveBeenCalled();
   });
 

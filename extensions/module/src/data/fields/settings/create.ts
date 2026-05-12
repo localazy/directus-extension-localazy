@@ -24,6 +24,9 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
       readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
+    schema: {
+      default_value: '',
+    },
   },
   {
     field: 'language_code_field',
@@ -32,6 +35,9 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
       interface: 'input',
       readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: '',
     },
   },
   {
@@ -42,6 +48,9 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
       readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
+    schema: {
+      default_value: '',
+    },
   },
   {
     field: 'localazy_oauth_response',
@@ -50,6 +59,9 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
       interface: 'input-multiline',
       readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: '',
     },
   },
   {
@@ -61,6 +73,9 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
       readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
+    schema: {
+      default_value: true,
+    },
   },
   {
     field: 'automated_deprecation',
@@ -70,6 +85,9 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
       special: ['cast-boolean'],
       readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: true,
     },
   },
   {
