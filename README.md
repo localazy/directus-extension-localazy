@@ -6,10 +6,13 @@ This is a monorepo consisting of following Localazy extensions for [Directus](ht
 Please refer to [Localazy Directus Extension](extensions/module/README.md) and [Localazy Directus Extension Automation](extensions/sync-hook/README.md) for more information about each extension. 
 
 ## Contributing
-> Check that your [Docker](https://www.docker.com/products/docker-desktop/) engine is running
+Requires Node 22 (see `.nvmrc`). No Docker.
+
+- Run `npm install` once at the repo root (workspaces install all sub-packages).
 - Run `npm run dev`
-  - This will start the dockerized environment and will automatically synchronize any changes you make to the Directus' extensions folder
-  - In order to propagate the changes, the docker container is always restarted. Depending on your computing power, this could take a second or two.
+  - Performs an initial build of both extensions, then starts a local Directus instance against SQLite under `development/data/` with both extensions watch-rebuilding on change.
+  - Directus auto-reloads the extensions when their `dist/` changes, so saved edits land in the running admin without a manual restart.
+  - To reset state, delete `development/data/`.
 - Open `http://localhost:8055/admin`
   - user: admin@example.com
   - pwd: d1r3ctu5
