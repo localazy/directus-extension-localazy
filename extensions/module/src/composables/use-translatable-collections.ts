@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { useApi, useStores } from '@directus/extensions-sdk';
+import { useApi } from '@directus/extensions-sdk';
 import {
   TranslatableCollectionsService,
   TranslatableCollectionsServiceOptions,
@@ -9,23 +9,24 @@ import { TranslatableContent } from '../../../common/models/translatable-content
 import { DirectusDataModel } from '../../../common/interfaces/directus-data-model';
 import { FieldsUtilsService } from '../../../common/utilities/fields-utils-service';
 import { DirectusModuleApi } from '../services/directus-module-api';
-import { useDirectusCollectionsStore } from './use-directus-stores';
+import { useDirectusCollectionsStore, useDirectusFieldsStore, useDirectusRelationsStore } from './use-directus-stores';
 
 export const useTranslatableCollections = () => {
   const loading = ref(false);
-  const { useFieldsStore, useRelationsStore } = useStores();
-  const fieldsStore = useFieldsStore();
-  const relationsStore = useRelationsStore();
+  const fieldsStore = useDirectusFieldsStore();
+  const relationsStore = useDirectusRelationsStore();
   const directusApi = new DirectusModuleApi(useApi(), useDirectusCollectionsStore());
 
   // The TranslatableCollectionsService expects a small adapter (DirectusDataModel) so the
   // common-side code doesn't depend on the SDK's store types directly. Inline it here —
   // there's exactly one construction site, so the previous separate composable was
-  // indirection without payoff.
+  // indirection without payoff. The interface returns Promises because the hook
+  // implementation is genuinely async (DB calls); we resolve synchronously here.
   const translatableCollectionsContent: DirectusDataModel = {
-    getFieldsForCollection: (collection) => fieldsStore.getFieldsForCollection(collection),
+    getFieldsForCollection: async (collection) => fieldsStore.getFieldsForCollection(collection),
     getRelationsForField: (collection, field) => relationsStore.getRelationsForField(collection, field),
-    getTranslationTypeFields: (collection) => fieldsStore.getFieldsForCollection(collection).filter(FieldsUtilsService.isTranslationField),
+    getTranslationTypeFields: async (collection) =>
+      fieldsStore.getFieldsForCollection(collection).filter(FieldsUtilsService.isTranslationField),
   };
 
   const translatableCollectionsService = new TranslatableCollectionsService({

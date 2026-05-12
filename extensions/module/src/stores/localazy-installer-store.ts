@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { useApi, useStores } from '@directus/extensions-sdk';
+import { useApi } from '@directus/extensions-sdk';
 import type { DeepPartial, Field } from '@directus/types';
 import { sleep } from '../../../common/utilities/sleep';
 import { getConfig } from '../../../common/config/get-config';
 import { useErrorsStore } from './errors-store';
-import { useDirectusCollectionsStore } from '../composables/use-directus-stores';
+import { useDirectusCollectionsStore, useDirectusFieldsStore } from '../composables/use-directus-stores';
 import { defaultConfiguration } from '../data/default-configuration';
 import { createSettingsFields } from '../data/fields/settings/create';
 import { createContentTransferSetupsFields } from '../data/fields/content-transfer-setup/create';
@@ -51,8 +51,7 @@ export const useLocalazyInstallerStore = defineStore('localazyInstaller', () => 
   const api = useApi();
   const { addDirectusError } = useErrorsStore();
   const collectionsStore = useDirectusCollectionsStore();
-  const { useFieldsStore } = useStores();
-  const fieldsStore = useFieldsStore();
+  const fieldsStore = useDirectusFieldsStore();
 
   const installing = ref(false);
   const installed = ref(false);

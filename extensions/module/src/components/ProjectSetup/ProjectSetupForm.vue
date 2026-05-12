@@ -55,7 +55,7 @@
 </template>
 
 <script lang="ts" setup>
-import { useItems, useStores } from '@directus/extensions-sdk';
+import { useItems } from '@directus/extensions-sdk';
 import { PropType, Ref, computed, ref, watch, watchEffect } from 'vue';
 import { AppCollection, Field, Item } from '@directus/types';
 import { storeToRefs } from 'pinia';
@@ -66,7 +66,7 @@ import { getConfig } from '../../../../common/config/get-config';
 import { DirectusLocalazyAdapter } from '../../../../common/services/directus-localazy-adapter';
 import LoginButton from './LoginButton.vue';
 import LogoutButton from './LogoutButton.vue';
-import { useDirectusCollectionsStoreRefs } from '../../composables/use-directus-stores';
+import { useDirectusCollectionsStoreRefs, useDirectusFieldsStore } from '../../composables/use-directus-stores';
 import { useLocalazyConfigStore } from '../../stores/localazy-config-store';
 
 const props = defineProps({
@@ -92,9 +92,8 @@ const localEdits = computed<Settings>({
   },
 });
 
-const { useFieldsStore } = useStores();
 const { collections } = useDirectusCollectionsStoreRefs();
-const { getFieldsForCollectionSorted } = useFieldsStore();
+const { getFieldsForCollectionSorted } = useDirectusFieldsStore();
 const languageCollectionName = computed(() => localEdits.value.language_collection);
 
 const languagesMap = computed(() => {
