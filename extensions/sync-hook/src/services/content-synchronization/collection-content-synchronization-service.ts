@@ -7,20 +7,21 @@ import { ContentTransferSetupDatabase } from '../../../../common/models/collecti
 import { ApiTranslatableCollectionsService } from '../translatable-collections-service';
 import { EnabledFieldsService } from '../../../../common/utilities/enabled-fields-service';
 import { trackDirectusError } from '../../functions/track-error';
+import type { DirectusLogger, FieldsServiceCtor, ItemsServiceCtor } from '../../types/directus-services';
 
 type ExportCollectionContent = {
   schema: SchemaOverview;
-  ItemsService: any;
-  FieldsService: any;
-  logger: any;
+  ItemsService: ItemsServiceCtor;
+  FieldsService: FieldsServiceCtor;
+  logger: DirectusLogger;
   keys: string[];
   collection: string;
 };
 
 type FetchTranslatableCollectionsContent = {
   schema: SchemaOverview;
-  ItemsService: any;
-  FieldsService: any;
+  ItemsService: ItemsServiceCtor;
+  FieldsService: FieldsServiceCtor;
   keys: string[];
   collection: string;
   settings: Settings;
@@ -29,10 +30,10 @@ type FetchTranslatableCollectionsContent = {
 
 type DeprecateDeletedCollectionItems = {
   schema: SchemaOverview;
-  logger: any;
+  logger: DirectusLogger;
   collection: string;
   itemIds: string[];
-  ItemsService: any;
+  ItemsService: ItemsServiceCtor;
 };
 
 class CollectionContentSynchronizationService extends BaseContentSynchronizationService {
@@ -151,7 +152,7 @@ class CollectionContentSynchronizationService extends BaseContentSynchronization
 
     const translatableCollectionsService = new ApiTranslatableCollectionsService(ItemsService, schema, FieldsService);
 
-    const exportLanguages = await this.resolveExportLanguages(ItemsService, settings);
+    const exportLanguages = await this.resolveExportLanguages(ItemsService, schema, settings);
     const collectionsContent = translatableCollectionsService.fetchContentFromTranslatableCollections({
       translatableCollections: [
         {

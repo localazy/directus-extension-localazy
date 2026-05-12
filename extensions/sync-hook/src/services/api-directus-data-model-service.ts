@@ -1,20 +1,21 @@
 import { Field, Relation, SchemaOverview } from '@directus/types';
 import { DirectusDataModel } from '../../../common/interfaces/directus-data-model';
 import { FieldsUtilsService } from '../../../common/utilities/fields-utils-service';
+import type { FieldsServiceCtor } from '../types/directus-services';
 
 export class ApiDirectusDataModelService implements DirectusDataModel {
-  private FieldsService!: any;
+  private FieldsService: FieldsServiceCtor;
 
-  private schema!: SchemaOverview;
+  private schema: SchemaOverview;
 
-  constructor(schema: SchemaOverview, FieldsService: any) {
+  constructor(schema: SchemaOverview, FieldsService: FieldsServiceCtor) {
     this.FieldsService = FieldsService;
     this.schema = schema;
   }
 
-  async getFieldsForCollection(collection: string) {
-    const fields: Field[] = await new this.FieldsService({ schema: this.schema }).readAll(collection);
-    return fields;
+  async getFieldsForCollection(collection: string): Promise<Field[]> {
+    const service = new this.FieldsService({ schema: this.schema, accountability: null });
+    return (await service.readAll(collection)) as Field[];
   }
 
   /** Copied from Directus internals */

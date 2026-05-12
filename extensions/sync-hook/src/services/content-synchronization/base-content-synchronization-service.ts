@@ -14,6 +14,8 @@ import { DirectusLocalazyLanguage } from '../../../../common/models/directus-loc
 import { DirectusLocalazyAdapter } from '../../../../common/services/directus-localazy-adapter';
 import { LocalazyPaymentStatus } from '../../../../common/utilities/localazy-payment-status';
 import { LocalazyData } from '../../../../common/models/collections-data/localazy-data';
+import type { ItemsServiceCtor } from '../../types/directus-services';
+import { DirectusApiService } from '../directus-service';
 
 type ExportToLocalazy = {
   schema: SchemaOverview;
@@ -26,7 +28,7 @@ type ExportToLocalazy = {
 type FetchLocalazyContent = {
   languages: DirectusLocalazyLanguage[];
   schema: SchemaOverview;
-  ItemsService: any;
+  ItemsService: ItemsServiceCtor;
   localazyProject?: Project;
   settings?: Settings | null;
   localazyData?: LocalazyData | null;
@@ -57,27 +59,20 @@ export abstract class BaseContentSynchronizationService {
     }
   }
 
-  protected async resolveLocalazySettings(ItemsService: any, schema: SchemaOverview) {
+  protected async resolveLocalazySettings(ItemsService: ItemsServiceCtor, schema: SchemaOverview) {
     try {
       // accountability: null runs with administrator permissions, which is what we want
       // here — Localazy's settings tables shouldn't be subject to the triggering user's
       // read permissions. emitEvents is not set because this code path only reads from
       // Directus; if future work adds writes here, those calls must pass { emitEvents: false }
       // to prevent the hook from recursively triggering itself.
-      const localazySettings = new ItemsService('localazy_settings', { schema, accountability: null });
-      const localazyContentTransferSetup = new ItemsService('localazy_content_transfer_setup', { schema, accountability: null });
-      const settings: Settings = (
-        await localazySettings.readByQuery({
-          fields: '*',
-          limit: 1,
-        })
-      )[0];
-      const contentTransferSetup: ContentTransferSetupDatabase = (
-        await localazyContentTransferSetup.readByQuery({
-          fields: '*',
-          limit: 1,
-        })
-      )[0];
+      const localazySettings = new ItemsService<Settings>('localazy_settings', { schema, accountability: null });
+      const localazyContentTransferSetup = new ItemsService<ContentTransferSetupDatabase>('localazy_content_transfer_setup', {
+        schema,
+        accountability: null,
+      });
+      const [settings = null] = await localazySettings.readByQuery({ fields: ['*'], limit: 1 });
+      const [contentTransferSetup = null] = await localazyContentTransferSetup.readByQuery({ fields: ['*'], limit: 1 });
 
       return {
         settings,
@@ -92,15 +87,10 @@ export abstract class BaseContentSynchronizationService {
     }
   }
 
-  protected async resolveLocalazyData(ItemsService: any, schema: SchemaOverview) {
+  protected async resolveLocalazyData(ItemsService: ItemsServiceCtor, schema: SchemaOverview) {
     try {
-      const localazyData = new ItemsService('localazy_config_data', { schema, accountability: null });
-      const data: LocalazyData = (
-        await localazyData.readByQuery({
-          fields: '*',
-          limit: 1,
-        })
-      )[0];
+      const localazyData = new ItemsService<LocalazyData>('localazy_config_data', { schema, accountability: null });
+      const [data = null] = await localazyData.readByQuery({ fields: ['*'], limit: 1 });
 
       return {
         localazyData: data,
@@ -226,13 +216,16 @@ export abstract class BaseContentSynchronizationService {
     await execute({ delayBetween: 100 });
   }
 
-  protected async resolveExportLanguages(ItemsService: any, settings: Settings) {
+  protected async resolveExportLanguages(ItemsService: ItemsServiceCtor, schema: SchemaOverview, settings: Settings) {
     try {
-      const synchronizationLanguagesService = new SynchronizationLanguagesService(ItemsService);
+      // SynchronizationLanguagesService expects a DirectusApi instance, not the raw
+      // ItemsService constructor. Wrap it via DirectusApiService.
+      const directusApi = new DirectusApiService(ItemsService, schema);
+      const synchronizationLanguagesService = new SynchronizationLanguagesService(directusApi);
       const exportLanguages = await synchronizationLanguagesService.resolveExportLanguages(settings);
       return exportLanguages;
-    } catch (e: any) {
-      trackDirectusError(e, 'resolveExportLanguages');
+    } catch (e: unknown) {
+      trackDirectusError(e instanceof Error ? e : new Error(String(e)), 'resolveExportLanguages');
       return [];
     }
   }

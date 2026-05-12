@@ -6,11 +6,12 @@ import {
   TranslatableCollectionsService,
   TranslatableCollectionsServiceOptions,
 } from '../../../common/services/translatable-collections-service';
+import type { FieldsServiceCtor, ItemsServiceCtor } from '../types/directus-services';
 
 export class ApiTranslatableCollectionsService {
-  private translatableCollectionsService!: TranslatableCollectionsService;
+  private translatableCollectionsService: TranslatableCollectionsService;
 
-  constructor(ItemsService: any, schema: SchemaOverview, FieldsService: any) {
+  constructor(ItemsService: ItemsServiceCtor, schema: SchemaOverview, FieldsService: FieldsServiceCtor) {
     this.translatableCollectionsService = new TranslatableCollectionsService({
       directusApi: new DirectusApiService(ItemsService, schema),
       translatableCollectionsContent: new ApiDirectusDataModelService(schema, FieldsService),
@@ -20,8 +21,8 @@ export class ApiTranslatableCollectionsService {
   async fetchContentFromTranslatableCollections(options: TranslatableCollectionsServiceOptions) {
     try {
       return this.translatableCollectionsService.fetchContentFromTranslatableCollections(options);
-    } catch (e: any) {
-      trackDirectusError(e, 'fetchContentFromTranslatableCollection');
+    } catch (e: unknown) {
+      trackDirectusError(e instanceof Error ? e : new Error(String(e)), 'fetchContentFromTranslatableCollection');
       return {
         sourceLanguage: {},
         otherLanguages: {},

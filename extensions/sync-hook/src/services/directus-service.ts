@@ -1,13 +1,15 @@
-import { Query, Item, SchemaOverview } from '@directus/types';
+import type { CollectionOverview, Item, MutationOptions, Query, SchemaOverview } from '@directus/types';
 import { DirectusApi } from '../../../common/interfaces/directus-api';
+import { DirectusApiResultTranslationString } from '../../../common/models/translation-string';
 import { useGetCollectionFromSchema } from '../composables/use-get-collection-from-schema';
+import type { ItemsServiceCtor } from '../types/directus-services';
 
 export class DirectusApiService implements DirectusApi {
-  protected schema!: SchemaOverview;
+  protected schema: SchemaOverview;
 
-  protected ItemsService!: any;
+  protected ItemsService: ItemsServiceCtor;
 
-  constructor(ItemsService: any, schema: any) {
+  constructor(ItemsService: ItemsServiceCtor, schema: SchemaOverview) {
     this.ItemsService = ItemsService;
     this.schema = schema;
   }
@@ -16,20 +18,22 @@ export class DirectusApiService implements DirectusApi {
     const targetCollection = this.getCollection(collection);
 
     if (targetCollection?.singleton === true) {
-      this.upsertSingleton(collection, data);
+      await this.upsertSingleton(collection, data);
     } else {
-      this.updateOne(collection, itemId, data);
+      await this.updateOne(collection, itemId, data);
     }
   }
 
   async createDirectusItem<T extends Item>(collection: string, data: T) {
     const targetCollection = this.getCollection(collection);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id, ...payload } = data;
+    const { id: _id, ...rest } = data;
+    // rest is Omit<T, 'id'>, which is structurally a Partial<T> minus the id slot.
+    // createOne accepts Partial<T>; the cast bridges generic variance.
+    const payload = rest as Partial<T>;
     if (targetCollection?.singleton === true) {
-      this.upsertSingleton(collection, data);
+      await this.upsertSingleton(collection, data);
     } else {
-      this.createOne(collection, payload);
+      await this.createOne(collection, payload);
     }
   }
 
@@ -42,33 +46,33 @@ export class DirectusApiService implements DirectusApi {
   }
 
   async fetchDirectusItems<T extends Item>(collection: string, query: Query = {}): Promise<T[]> {
-    return this.readByQuery(collection, query);
+    return this.readByQuery<T>(collection, query);
   }
 
   async fetchSettings() {
-    const result = await this.readByQuery('directus_settings', {
+    const result = await this.readByQuery<Item>('directus_settings', {
       fields: ['translation_strings'],
       limit: -1,
     });
-    return result[0];
+    return result[0] ?? null;
   }
 
   async fetchTranslationStrings() {
-    return this.readByQuery('directus_translations', {
+    return this.readByQuery<DirectusApiResultTranslationString>('directus_translations', {
       limit: -1,
     });
   }
 
-  getCollection(collection: string) {
+  getCollection(collection: string): CollectionOverview | null {
     const { getCollection } = useGetCollectionFromSchema(this.schema);
-    return getCollection(collection) as SchemaOverview['collections'][0] | null;
+    return getCollection(collection);
   }
 
   async upsertTranslationString<T extends Item>(payload: T) {
     await this.upsertOne('directus_translations', payload);
   }
 
-  async updateSettings(payload: any) {
+  async updateSettings<T extends Item>(payload: T) {
     await this.upsertSingleton('directus_settings', payload);
   }
 
@@ -77,23 +81,28 @@ export class DirectusApiService implements DirectusApi {
   // triggering user's permissions. emitEvents is set to false on writes so a hook-driven
   // write doesn't recursively re-trigger the same hook.
 
-  private readByQuery(collection: string, query: any) {
-    return new this.ItemsService(collection, { schema: this.schema, accountability: null }).readByQuery(query);
+  private readByQuery<T extends Item>(collection: string, query: Query): Promise<T[]> {
+    const service = new this.ItemsService<T>(collection, { schema: this.schema, accountability: null });
+    return service.readByQuery(query);
   }
 
-  private createOne(collection: string, payload: any) {
-    return new this.ItemsService(collection, { schema: this.schema, accountability: null }).createOne(payload, { emitEvents: false });
+  private createOne<T extends Item>(collection: string, payload: Partial<T>) {
+    const service = new this.ItemsService<T>(collection, { schema: this.schema, accountability: null });
+    return service.createOne(payload, { emitEvents: false } as MutationOptions);
   }
 
-  private updateOne(collection: string, id: string | number, payload: any) {
-    return new this.ItemsService(collection, { schema: this.schema, accountability: null }).updateOne(id, payload, { emitEvents: false });
+  private updateOne<T extends Item>(collection: string, id: string | number, payload: Partial<T>) {
+    const service = new this.ItemsService<T>(collection, { schema: this.schema, accountability: null });
+    return service.updateOne(id, payload, { emitEvents: false } as MutationOptions);
   }
 
-  private upsertSingleton(collection: string, payload: any) {
-    return new this.ItemsService(collection, { schema: this.schema, accountability: null }).upsertSingleton(payload, { emitEvents: false });
+  private upsertSingleton<T extends Item>(collection: string, payload: Partial<T>) {
+    const service = new this.ItemsService<T>(collection, { schema: this.schema, accountability: null });
+    return service.upsertSingleton(payload, { emitEvents: false } as MutationOptions);
   }
 
-  private upsertOne(collection: string, payload: any) {
-    return new this.ItemsService(collection, { schema: this.schema, accountability: null }).upsertOne(payload, { emitEvents: false });
+  private upsertOne<T extends Item>(collection: string, payload: Partial<T>) {
+    const service = new this.ItemsService<T>(collection, { schema: this.schema, accountability: null });
+    return service.upsertOne(payload, { emitEvents: false } as MutationOptions);
   }
 }
