@@ -1,6 +1,6 @@
 <template>
   <div>
-    <v-checkbox class="collection-item collection-item-clickable" :model-value="!!shouldSynchronize" @update:model-value="onToggle">
+    <v-checkbox v-model="shouldSynchronize" class="collection-item collection-item-clickable">
       <span>
         <v-icon color="var(--primary)" class="collection-icon" name="translate" />
         <span class="collection-name"
@@ -21,18 +21,9 @@
 </template>
 
 <script lang="ts" setup>
-const props = defineProps({
-  shouldSynchronize: {
-    type: Boolean,
-    required: true,
-  },
-});
-
-const emits = defineEmits(['update:shouldSynchronize']);
-
-function onToggle() {
-  emits('update:shouldSynchronize', props.shouldSynchronize);
-}
+// Previously this component had a hand-rolled v-model that re-emitted the OLD prop
+// value, so the toggle silently no-op'd. defineModel binds correctly to v-checkbox.
+const shouldSynchronize = defineModel<boolean>('shouldSynchronize', { required: true });
 </script>
 
 <style lang="scss" scoped>
@@ -44,35 +35,6 @@ function onToggle() {
   font-weight: 500;
   margin-top: 8px !important;
   margin-bottom: 8px !important;
-}
-
-.collection-item-unclickable {
-  font-weight: 400;
-  margin-bottom: 0px !important;
-}
-
-.field-item {
-  margin-left: 28px;
-  margin-bottom: 8px !important;
-}
-
-.collection-group {
-  display: block;
-}
-
-.collection-group-chevron {
-  margin-right: 0 !important;
-  color: var(--foreground-subdued);
-  transform: rotate(0deg);
-  transition: transform var(--medium) var(--transition);
-
-  &:hover {
-    color: var(--foreground-normal);
-  }
-
-  &.active {
-    transform: rotate(90deg);
-  }
 }
 
 .open-in-new {

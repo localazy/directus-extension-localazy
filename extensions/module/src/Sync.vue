@@ -55,7 +55,7 @@
       </div>
 
       <progress-tracker-modal
-        :show-progress="showProgress"
+        v-model:show-progress="showProgress"
         :loading="loading"
         :progress-tracker="progressTracker"
         @finish="onFinishAction"

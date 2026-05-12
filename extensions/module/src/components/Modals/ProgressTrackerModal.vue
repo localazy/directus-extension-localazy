@@ -1,5 +1,5 @@
 <template>
-  <v-dialog :model-value="showProgress">
+  <v-dialog v-model="showProgress">
     <v-card>
       <v-card-title>Progress Status</v-card-title>
       <v-card-text>
@@ -24,11 +24,9 @@
 import { PropType } from 'vue';
 import { ProgressTracker } from '../../models/progress-tracker';
 
+const showProgress = defineModel<boolean>('showProgress', { required: true });
+
 defineProps({
-  showProgress: {
-    type: Boolean,
-    required: true,
-  },
   progressTracker: {
     type: Array as PropType<ProgressTracker>,
     required: true,
@@ -39,7 +37,7 @@ defineProps({
   },
 });
 
-defineEmits(['update:showProgress', 'finish']);
+defineEmits(['finish']);
 </script>
 
 <style scoped lang="scss"></style>

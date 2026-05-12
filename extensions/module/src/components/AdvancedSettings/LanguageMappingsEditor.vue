@@ -46,22 +46,13 @@ import { ref, watch } from 'vue';
 import { LanguageMappings } from '../../../../common/models/language-mapping';
 import { LanguageMappingService } from '../../../../common/services/language-mapping-service';
 
-const props = defineProps({
-  modelValue: {
-    type: String,
-    default: '[]',
-  },
-});
-
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: string): void;
-}>();
+const modelValue = defineModel<string>({ default: '[]' });
 
 const parsedMappings = ref<LanguageMappings>([]);
 const validationErrors = ref<string[]>([]);
 
 watch(
-  () => props.modelValue,
+  modelValue,
   (value) => {
     try {
       parsedMappings.value = JSON.parse(value || '[]') as LanguageMappings;
@@ -76,7 +67,7 @@ function emitChange() {
   const json = JSON.stringify(parsedMappings.value);
   const validation = LanguageMappingService.validateMappings(json);
   validationErrors.value = validation.errors;
-  emit('update:modelValue', json);
+  modelValue.value = json;
 }
 
 function addMapping() {
