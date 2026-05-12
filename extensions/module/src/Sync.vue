@@ -12,9 +12,9 @@
       <sync-action-buttons
         :has-changes="hasChanges"
         :disable-sync="!someTranslatableFieldsChecked && !synchronizeTranslationStrings"
-        @upload="onExport({ contentTransferSetupCollection, contentTransferSetup })"
-        @download="onImport({ contentTransferSetupCollection, contentTransferSetup })"
-        @save-settings="onSaveSettings({ contentTransferSetupCollection, contentTransferSetup, notify: true })"
+        @upload="onExport"
+        @download="onImport"
+        @save-settings="onSaveSettings({ notify: true })"
       />
     </template>
 
@@ -31,7 +31,7 @@
         @deselect-all="deselectAll"
       />
 
-      <div v-if="hydratedDirectusData" class="page">
+      <div v-if="installed" class="page">
         <div class="collection-list">
           <collection-item
             v-for="col in iteratedCollections"
@@ -80,8 +80,10 @@ import { useProgressTrackerStore } from './stores/progress-tracker-store';
 import TranslationStringsContent from './components/Sync/TranslationStringsContent.vue';
 import { useInitSyncContainer } from './composables/use-sync-container-init';
 import { useSyncContainerActions } from './composables/use-sync-container-actions';
-import { useHydrate } from './composables/use-hydrate';
+import { useLocalazyInstallerStore } from './stores/localazy-installer-store';
+import { useLocalazyConfigStore } from './stores/localazy-config-store';
 import { useLocalazyStore } from './stores/localazy-store';
+import { useLocalazyConfigurationStatus } from './composables/use-localazy-configuration-status';
 
 const { translatableRootCollections, rootCollections, translatableCollections, collections } = useCollectionsOrganizer();
 const { getTranslatableFields } = useGetFieldsForTranslationRelation();
@@ -89,26 +91,19 @@ const { progressTracker } = storeToRefs(useProgressTrackerStore());
 
 const showUntranslatableField = ref(false);
 const showUntranslatableCollections = ref(false);
-const { configuration, enabledFields, synchronizeTranslationStrings } = useInitSyncContainer();
+const { enabledFields, synchronizeTranslationStrings } = useInitSyncContainer();
 const { onSaveSettings, onExport, onImport, onFinishAction, showProgress, loading, hasChanges } = useSyncContainerActions({
-  configuration,
   enabledFields,
   synchronizeTranslationStrings,
 });
+
+const installer = useLocalazyInstallerStore();
+const { installed } = storeToRefs(installer);
+const { data: localazyData } = storeToRefs(useLocalazyConfigStore());
+const { hasIncompleteConfiguration } = useLocalazyConfigurationStatus();
 const localazyStore = useLocalazyStore();
-
-const {
-  hydrateDirectusData,
-  localazyData,
-  hasIncompleteConfiguration,
-  hydratedDirectusData,
-  contentTransferSetupCollection,
-  contentTransferSetup,
-} = useHydrate();
-
-// Fire-and-forget hydration at component setup time. Errors are captured inside
-// each hydrate function via the errors store.
-void hydrateDirectusData().then(() => localazyStore.hydrateLocalazyData({ localazyData }));
+// Bootstrap Localazy API state once the installer (and therefore the config row) is ready.
+void installer.run().then(() => localazyStore.hydrateLocalazyData({ localazyData }));
 
 const iteratedCollections = computed(() =>
   showUntranslatableCollections.value ? rootCollections.value : translatableRootCollections.value,

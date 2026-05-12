@@ -4,18 +4,8 @@
 
     <div class="form grid">
       <div class="full">
-        <logout-button
-          v-if="isLoggedIn"
-          :localazy-data="localazyData"
-          :localazy-data-collection="localazyDataCollection"
-          @update:localazy-data="emit('update:localazyData', $event)"
-        />
-        <login-button
-          v-else
-          :localazy-data="localazyData"
-          :localazy-data-collection="localazyDataCollection"
-          @update:localazy-data="emit('update:localazyData', $event)"
-        />
+        <logout-button v-if="isLoggedIn" />
+        <login-button v-else />
       </div>
     </div>
 
@@ -68,6 +58,7 @@
 import { useItems, useStores } from '@directus/extensions-sdk';
 import { PropType, Ref, computed, ref, watch, watchEffect } from 'vue';
 import { AppCollection, Field, Item } from '@directus/types';
+import { storeToRefs } from 'pinia';
 import { getLocalazyLanguages } from '@localazy/languages';
 import { SelectItem } from '../../models/directus/internals/select-item';
 import { Settings } from '../../../../common/models/collections-data/settings';
@@ -75,10 +66,8 @@ import { getConfig } from '../../../../common/config/get-config';
 import { DirectusLocalazyAdapter } from '../../../../common/services/directus-localazy-adapter';
 import LoginButton from './LoginButton.vue';
 import LogoutButton from './LogoutButton.vue';
-import { LocalazyData } from '../../../../common/models/collections-data/localazy-data';
 import { useDirectusCollectionsStoreRefs } from '../../composables/use-directus-stores';
-
-type Collection = AppCollection | null;
+import { useLocalazyConfigStore } from '../../stores/localazy-config-store';
 
 const props = defineProps({
   edits: {
@@ -89,17 +78,11 @@ const props = defineProps({
     type: String,
     required: true,
   },
-  localazyData: {
-    type: Object as PropType<LocalazyData | null>,
-    required: true,
-  },
-  localazyDataCollection: {
-    type: Object as PropType<Collection | null>,
-    required: true,
-  },
 });
 
-const emit = defineEmits(['update:edits', 'update:localazyData']);
+const emit = defineEmits(['update:edits']);
+
+const { data: localazyData } = storeToRefs(useLocalazyConfigStore());
 
 const isDemo = computed(() => getConfig().APP_MODE === 'demo');
 const localEdits = computed<Settings>({
@@ -122,7 +105,7 @@ const languagesMap = computed(() => {
   });
   return map;
 });
-const isLoggedIn = computed(() => !!props.localazyData?.access_token);
+const isLoggedIn = computed(() => !!localazyData.value.access_token);
 
 const isNotRecognizedLocalazyLanguage = computed(() => {
   const directusSourceLanguage = localEdits.value.source_language;

@@ -1,39 +1,46 @@
-import { cloneDeep } from 'lodash';
-import { ref } from 'vue';
-import { defaultConfiguration } from '../data/default-configuration';
-import { Configuration } from '../models/configuration';
+import { ref, watch } from 'vue';
+import { storeToRefs } from 'pinia';
 import { EnabledField } from '../../../common/models/collections-data/content-transfer-setup';
 import { EnabledFieldsService } from '../../../common/utilities/enabled-fields-service';
-import { useHydrate } from './use-hydrate';
+import { defaultConfiguration } from '../data/default-configuration';
+import { useLocalazyInstallerStore } from '../stores/localazy-installer-store';
+import { useLocalazyTransferSetupStore } from '../stores/localazy-transfer-setup-store';
 
+/**
+ * Owns the editable sync-container state that lives across `Sync.vue`:
+ *   - `enabledFields` — parsed from the transfer-setup row, edited in the UI before save
+ *   - `synchronizeTranslationStrings` — boolean toggle, also edited before save
+ *
+ * The source of truth is the transfer-setup store; this composable seeds the editable
+ * refs from it on first install and on subsequent saves.
+ */
 export const useInitSyncContainer = () => {
-  const configuration = ref<Configuration>(defaultConfiguration());
+  const installer = useLocalazyInstallerStore();
+  const transferSetupStore = useLocalazyTransferSetupStore();
+  const { data: transferSetup } = storeToRefs(transferSetupStore);
+
   const enabledFields = ref<EnabledField[]>([]);
   const synchronizeTranslationStrings = ref(defaultConfiguration().content_transfer_setup.translation_strings);
-  const { settings, localazyData, contentTransferSetup, hydrateDirectusData } = useHydrate();
 
-  // Fire-and-forget hydration during container init; errors are captured by the
-  // errors store inside hydrateDirectusData.
-  void hydrateDirectusData().then(() => {
-    if (settings.value) {
-      configuration.value.settings = cloneDeep(settings.value);
-    }
-    if (localazyData.value) {
-      configuration.value.localazy_data = cloneDeep(localazyData.value);
-    }
-    if (contentTransferSetup.value) {
+  // Boot the installer fire-and-forget; errors land in the errors store inside `run()`.
+  void installer.run();
+
+  // Seed editable state from the transfer-setup store whenever it changes (initial
+  // load, post-save reload, or rare cases like another tab saving the same record).
+  watch(
+    transferSetup,
+    (setup) => {
       try {
-        enabledFields.value = EnabledFieldsService.parseFromDatabase(contentTransferSetup.value.enabled_fields);
-        synchronizeTranslationStrings.value = contentTransferSetup.value.translation_strings;
-      } catch (_e) {
+        enabledFields.value = EnabledFieldsService.parseFromDatabase(setup.enabled_fields);
+      } catch {
         enabledFields.value = [];
       }
-      configuration.value.content_transfer_setup = cloneDeep(contentTransferSetup.value);
-    }
-  });
+      synchronizeTranslationStrings.value = setup.translation_strings;
+    },
+    { immediate: true, deep: true },
+  );
 
   return {
-    configuration,
     enabledFields,
     synchronizeTranslationStrings,
   };
