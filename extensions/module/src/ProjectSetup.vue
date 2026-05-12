@@ -1,15 +1,5 @@
 <template>
-  <private-view>
-    <template #title-outer:prepend>
-      <v-button class="header-icon" rounded disabled icon secondary>
-        <v-icon name="lan" />
-      </v-button>
-    </template>
-
-    <template #title>
-      <h1 class="type-title">Project setup</h1>
-    </template>
-
+  <private-view title="Project setup" icon="lan">
     <template #headline>
       <v-breadcrumb :items="[{ name: 'Localazy', to: '/localazy' }]" />
     </template>

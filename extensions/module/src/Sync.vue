@@ -1,17 +1,7 @@
 <template>
-  <private-view>
-    <template #title-outer:prepend>
-      <v-button class="header-icon" rounded disabled icon secondary>
-        <v-icon name="translate" />
-      </v-button>
-    </template>
-
+  <private-view title="Import & Export" icon="translate">
     <template #headline>
       <v-breadcrumb :items="[{ name: 'Localazy', to: '/localazy' }]" />
-    </template>
-
-    <template #title>
-      <h1 class="type-title title">Import & Export</h1>
     </template>
 
     <template #navigation>
@@ -172,12 +162,5 @@ function deselectAll() {
   padding-top: 8px;
   margin-top: 8px;
   border-top: 1px solid var(--border-normal);
-}
-
-.title {
-  display: none;
-  @media screen and (min-width: 1400px) {
-    display: block;
-  }
 }
 </style>
