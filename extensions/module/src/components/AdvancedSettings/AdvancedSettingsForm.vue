@@ -69,6 +69,8 @@
           Automatically create missing languages in Directus when importing translations from Localazy.
         </p>
       </div>
+
+      <LanguageMappingsEditor v-model="localEdits.language_mappings" />
     </div>
   </div>
 </template>
@@ -78,6 +80,7 @@ import { PropType, computed, ref } from 'vue';
 import { Item } from '@directus/types';
 import { Settings } from '../../../../common/models/collections-data/settings';
 import { CreateMissingLanguagesInDirectus } from '../../../../common/enums/create-missing-languages-in-directus';
+import LanguageMappingsEditor from './LanguageMappingsEditor.vue';
 
 const props = defineProps({
   edits: {
