@@ -1,6 +1,6 @@
 {
   "name": "localazy-directus-common",
-  "description": "Please enter a description for your extension",
+  "description": "Internal shared code for the Localazy Directus module + sync-hook extensions. Not published to npm.",
   "version": "1.0.10",
   "keywords": [],
   "type": "module",
