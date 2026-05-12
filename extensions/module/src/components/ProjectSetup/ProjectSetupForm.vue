@@ -194,7 +194,7 @@ watch(
 </script>
 
 <style lang="scss" scoped>
-@import '../../styles/mixins/form-grid';
+@use '../../styles/mixins/form-grid' as *;
 .form {
   @include form-grid;
   max-width: 1300px;

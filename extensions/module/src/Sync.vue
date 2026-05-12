@@ -151,7 +151,7 @@ function deselectAll() {
 </script>
 
 <style lang="scss" scoped>
-@import './styles/mixins/page';
+@use './styles/mixins/page' as *;
 .page {
   @include page;
 }

@@ -112,7 +112,7 @@ async function onReconnect() {
 </script>
 
 <style lang="scss" scoped>
-@import '../../styles/mixins/common';
+@use '../../styles/mixins/common' as *;
 
 .connection-overview {
   @include common;

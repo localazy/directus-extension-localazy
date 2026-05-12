@@ -33,7 +33,7 @@ class TranslationStringsSynchronizationService extends BaseContentSynchronizatio
   async exportTranslationString(data: ExportTranslationString) {
     const { schema, ItemsService, logger } = data;
     if (this.missingLocalazyCollections(schema)) {
-      logger.error('Localazy: Incomplete configuration');
+      logger.debug('Localazy: not configured yet — skipping translation strings export');
       return;
     }
 
@@ -81,7 +81,7 @@ class TranslationStringsSynchronizationService extends BaseContentSynchronizatio
   async deprecateDeletedTranslationStrings(options: DeprecateDeletedTranslationStrings) {
     const { itemIds, schema, ItemsService, logger } = options;
     if (this.missingLocalazyCollections(schema)) {
-      logger.error('Localazy: Incomplete configuration');
+      logger.debug('Localazy: not configured yet — skipping deletion deprecation');
       return;
     }
 

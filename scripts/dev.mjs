@@ -51,7 +51,8 @@ const directusEnv = {
   PUBLIC_URL: 'http://localhost:8055',
 };
 
-if (!existsSync(dbFile)) {
+const freshBoot = !existsSync(dbFile);
+if (freshBoot) {
   console.log('[dev] bootstrapping Directus database');
   const bootstrap = spawnSync('npx', ['directus', 'bootstrap'], { stdio: 'inherit', cwd: root, env: directusEnv });
   if (bootstrap.status !== 0) process.exit(bootstrap.status ?? 1);
@@ -96,3 +97,38 @@ spawnLong(
 
 console.log('[dev] starting Directus at http://localhost:8055');
 spawnLong('directus', 'npx', ['directus', 'start']);
+
+if (freshBoot) {
+  waitForHealth(directusEnv.PUBLIC_URL).then((ready) => {
+    if (!ready) {
+      console.warn('[dev] Directus did not become healthy in time — skipping seed');
+      return;
+    }
+    console.log('[dev] seeding demo data');
+    const seed = spawnSync('node', ['scripts/seed-dev-data.mjs'], {
+      stdio: 'inherit',
+      cwd: root,
+      env: {
+        ...process.env,
+        DIRECTUS_URL: directusEnv.PUBLIC_URL,
+        ADMIN_EMAIL: directusEnv.ADMIN_EMAIL,
+        ADMIN_PASSWORD: directusEnv.ADMIN_PASSWORD,
+      },
+    });
+    if (seed.status !== 0) console.warn('[dev] seed script exited with code', seed.status);
+  });
+}
+
+async function waitForHealth(url, timeoutMs = 60_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const r = await fetch(`${url}/server/health`);
+      if (r.ok) return true;
+    } catch {
+      // server not up yet
+    }
+    await new Promise((res) => setTimeout(res, 500));
+  }
+  return false;
+}

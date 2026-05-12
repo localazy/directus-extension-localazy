@@ -40,7 +40,7 @@ class CollectionContentSynchronizationService extends BaseContentSynchronization
   async exportCollectionContent(data: ExportCollectionContent) {
     const { schema, ItemsService, logger, collection } = data;
     if (this.missingLocalazyCollections(schema)) {
-      logger.error('Localazy: Incomplete configuration');
+      logger.debug('Localazy: not configured yet — skipping collection export');
       return;
     }
     try {
