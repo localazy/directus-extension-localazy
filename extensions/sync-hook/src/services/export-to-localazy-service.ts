@@ -1,4 +1,3 @@
-/* eslint-disable class-methods-use-this */
 import { isEmpty } from 'lodash';
 import { Project } from '@localazy/api-client';
 import { Settings } from '../../../common/models/collections-data/settings';
@@ -43,9 +42,7 @@ export class ExportToLocalazyService {
   }
 
   private createExportPromisesForLanguage(options: CreateExportPromisesForLanguage) {
-    const {
-      content, language, access_token, projectId,
-    } = options;
+    const { content, language, access_token, projectId } = options;
     const contentChunks = ContentFromCollections.splitContentIntoChunks(content);
 
     const importPromises = contentChunks.map(
@@ -56,9 +53,7 @@ export class ExportToLocalazyService {
   }
 
   async exportContentToLocalazy(data: ExportContentToLocalazy) {
-    const {
-      content, settings, localazyData, localazyProject,
-    } = data;
+    const { content, settings, localazyData, localazyProject } = data;
     const { automated_upload } = settings;
     const { access_token } = localazyData;
     if (!access_token || isEmpty(content.sourceLanguage) || !settings || !automated_upload) {
@@ -69,22 +64,28 @@ export class ExportToLocalazyService {
       const { add, execute } = useEnhancedAsyncQueue();
 
       if (localazyProject) {
-        const directusSourceLanguageAsLocalazyLanguage = DirectusLocalazyAdapter
-          .mapDirectusToLocalazySourceLanguage(localazyProject.sourceLanguage || 0, settings.source_language);
+        const directusSourceLanguageAsLocalazyLanguage = DirectusLocalazyAdapter.mapDirectusToLocalazySourceLanguage(
+          localazyProject.sourceLanguage || 0,
+          settings.source_language,
+        );
 
-        add(this.createExportPromisesForLanguage({
-          content: content.sourceLanguage,
-          language: directusSourceLanguageAsLocalazyLanguage,
-          access_token,
-          projectId: localazyProject.id,
-        }));
-        Object.entries(content.otherLanguages).forEach(([language, languageContent]) => {
-          add(this.createExportPromisesForLanguage({
-            content: languageContent,
-            language,
+        add(
+          this.createExportPromisesForLanguage({
+            content: content.sourceLanguage,
+            language: directusSourceLanguageAsLocalazyLanguage,
             access_token,
             projectId: localazyProject.id,
-          }));
+          }),
+        );
+        Object.entries(content.otherLanguages).forEach(([language, languageContent]) => {
+          add(
+            this.createExportPromisesForLanguage({
+              content: languageContent,
+              language,
+              access_token,
+              projectId: localazyProject.id,
+            }),
+          );
         });
 
         await execute({ delayBetween: 150 });

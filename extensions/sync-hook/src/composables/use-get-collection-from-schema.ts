@@ -1,4 +1,3 @@
-/* eslint-disable arrow-body-style */
 import { SchemaOverview } from '@directus/types';
 
 export const useGetCollectionFromSchema = (schema: SchemaOverview) => {

@@ -1,8 +1,6 @@
 import { defineStore } from 'pinia';
 import { Project, File } from '@localazy/api-client';
-import {
-  computed, MaybeRef, ref, toValue,
-} from 'vue';
+import { computed, MaybeRef, ref, toValue } from 'vue';
 import { LocalazyData } from '../../../common/models/collections-data/localazy-data';
 import { useErrorsStore } from './errors-store';
 import { AnalyticsService } from '../../../common/services/analytics-service';
@@ -20,9 +18,7 @@ export const useLocalazyStore = defineStore('localazyStore', () => {
   const directusFile = ref<File | null>(null);
   const hydrating = ref(false);
   const hydrated = ref(false);
-  const {
-    addLocalazyError, resetLocalazyErrors,
-  } = useErrorsStore();
+  const { addLocalazyError, resetLocalazyErrors } = useErrorsStore();
 
   const projectId = computed(() => localazyProject.value?.id || '');
   const exceededKeyLimit = computed(() => LocalazyPaymentStatus.isOverKeysLimit(localazyProject.value));
@@ -52,7 +48,9 @@ export const useLocalazyStore = defineStore('localazyStore', () => {
           });
         } catch (e: any) {
           addLocalazyError(e, {
-            type: 'project', userId: localazyDataItem.value?.user_id || '', orgId: localazyDataItem.value?.org_id || '',
+            type: 'project',
+            userId: localazyDataItem.value?.user_id || '',
+            orgId: localazyDataItem.value?.org_id || '',
           });
         }
       } else {
@@ -74,7 +72,9 @@ export const useLocalazyStore = defineStore('localazyStore', () => {
           resetLocalazyErrors();
         } catch (e: any) {
           addLocalazyError(e, {
-            type: 'file', userId: localazyDataItem.value?.user_id || '', orgId: localazyDataItem.value?.org_id || '',
+            type: 'file',
+            userId: localazyDataItem.value?.user_id || '',
+            orgId: localazyDataItem.value?.org_id || '',
           });
         }
       } else {
@@ -89,13 +89,9 @@ export const useLocalazyStore = defineStore('localazyStore', () => {
     if (hydrating.value) return;
 
     hydrating.value = true;
-    await Promise.all([
-      loadProject(options),
-    ]);
+    await Promise.all([loadProject(options)]);
 
-    await Promise.all([
-      loadFile(options),
-    ]);
+    await Promise.all([loadFile(options)]);
 
     hydrated.value = true;
     hydrating.value = false;

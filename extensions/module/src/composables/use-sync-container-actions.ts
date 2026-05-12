@@ -59,26 +59,24 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
   const loading = ref(false);
   const showProgress = ref(false);
 
-  const hasChanges = computed(() => synchronizeTranslationStrings.value !== configuration.value.content_transfer_setup.translation_strings
-  || !isEqual(
-    EnabledFieldsService.parseFromDatabase(configuration.value.content_transfer_setup.enabled_fields),
-    enabledFields.value,
-  ));
+  const hasChanges = computed(
+    () =>
+      synchronizeTranslationStrings.value !== configuration.value.content_transfer_setup.translation_strings ||
+      !isEqual(EnabledFieldsService.parseFromDatabase(configuration.value.content_transfer_setup.enabled_fields), enabledFields.value),
+  );
 
   async function onSaveSettings(payload: OnSaveSettingsParams) {
     const { contentTransferSetupCollection, contentTransferSetup, notify } = payload;
-    if (!hasChanges.value) { return; }
+    if (!hasChanges.value) {
+      return;
+    }
 
     if (contentTransferSetupCollection && contentTransferSetup) {
       contentTransferSetup.enabled_fields = EnabledFieldsService.prepareForDatabase(enabledFields.value);
-      await upsertDirectusItem(
-        contentTransferSetupCollection.collection,
-        contentTransferSetup,
-        {
-          enabled_fields: EnabledFieldsService.prepareForDatabase(enabledFields.value),
-          translation_strings: synchronizeTranslationStrings.value,
-        },
-      );
+      await upsertDirectusItem(contentTransferSetupCollection.collection, contentTransferSetup, {
+        enabled_fields: EnabledFieldsService.prepareForDatabase(enabledFields.value),
+        translation_strings: synchronizeTranslationStrings.value,
+      });
       if (notify) {
         notificationsStore.add({
           title: 'Settings saved',
@@ -131,26 +129,26 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
     onSaveSettings(payload);
     try {
       const importLanguages = await resolveImportLanguages(configuration.value.settings);
-      const result = await useImportFromLocalazy().importContentFromLocalazy(
-        {
-          languages: importLanguages,
-          localazyData: configuration.value.localazy_data,
-          enabledFields: enabledFields.value,
-        },
-      );
+      const result = await useImportFromLocalazy().importContentFromLocalazy({
+        languages: importLanguages,
+        localazyData: configuration.value.localazy_data,
+        enabledFields: enabledFields.value,
+      });
       if (result.success) {
         await upsertFromLocalazyContent(result.content);
         addProgressMessage({
           id: ProgressTrackerId.IMPORT_FINISHED,
           message: 'Import finished',
         });
-        AnalyticsService.trackDownloadFromLocalazy(ExportToLocalazyCommonService.getPayloadForUploadAnalytics({
-          userId: localazyUser.value.id,
-          orgId: localazyProject.value?.orgId || '',
-          localazyProject: configuration.value.localazy_data.project_name,
-          settings: configuration.value.settings,
-          languages: Object.keys(importLanguages),
-        }));
+        AnalyticsService.trackDownloadFromLocalazy(
+          ExportToLocalazyCommonService.getPayloadForUploadAnalytics({
+            userId: localazyUser.value.id,
+            orgId: localazyProject.value?.orgId || '',
+            localazyProject: configuration.value.localazy_data.project_name,
+            settings: configuration.value.settings,
+            languages: Object.keys(importLanguages),
+          }),
+        );
       }
     } finally {
       loading.value = false;

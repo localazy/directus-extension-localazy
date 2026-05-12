@@ -1,0 +1,8 @@
+**/dist/
+**/node_modules/
+development/data/
+development/extensions/
+development/uploads/
+extensions/common/config/config.json
+package-lock.json
+CHANGELOG.md

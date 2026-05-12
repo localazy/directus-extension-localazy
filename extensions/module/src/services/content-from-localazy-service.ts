@@ -34,7 +34,13 @@ export class ContentFromLocalazyService {
         if (collection && itemId && field && translationField) {
           this.parseCollectionItem(
             {
-              collection, itemId, translationField, field, language, key, enabledFields,
+              collection,
+              itemId,
+              translationField,
+              field,
+              language,
+              key,
+              enabledFields,
             },
             existingContentMap.collections,
           );
@@ -73,9 +79,7 @@ export class ContentFromLocalazyService {
   }
 
   private static parseCollectionItem(data: ParseCollectionItemData, existingContentMap: LocalazyContent['collections']) {
-    const {
-      collection, itemId, translationField, field, language, key, enabledFields,
-    } = data;
+    const { collection, itemId, translationField, field, language, key, enabledFields } = data;
     if (!FieldsUtilsService.isEnabledField(field, collection, enabledFields)) {
       return;
     }
@@ -83,19 +87,25 @@ export class ContentFromLocalazyService {
     const items = existingContentMap.get(collection) || { translationFields: [], items: {} };
     items.translationFields = uniq([...items.translationFields, translationField]);
 
-    existingContentMap.set(collection, mergeWithArrays(items, {
-      items: {
-        [itemId]: [
-          {
-            language,
-            items: [{
-              field,
-              translationField,
-              value: key.value,
-              localazyKey: key,
-            } as LocalazyCollectionItem],
-          }],
-      },
-    }));
+    existingContentMap.set(
+      collection,
+      mergeWithArrays(items, {
+        items: {
+          [itemId]: [
+            {
+              language,
+              items: [
+                {
+                  field,
+                  translationField,
+                  value: key.value,
+                  localazyKey: key,
+                } as LocalazyCollectionItem,
+              ],
+            },
+          ],
+        },
+      }),
+    );
   }
 }

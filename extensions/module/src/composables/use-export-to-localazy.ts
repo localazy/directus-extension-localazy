@@ -23,31 +23,27 @@ export const useExportToLocalazy = (token: Ref<string>) => {
   const { execute, add } = useEnhancedAsyncQueue();
   const { addProgressMessage, upsertProgressMessage } = useProgressTrackerStore();
   const { addLocalazyError } = useErrorsStore();
-  const {
-    localazyProject, projectId, localazyUser,
-  } = storeToRefs(useLocalazyStore());
+  const { localazyProject, projectId, localazyUser } = storeToRefs(useLocalazyStore());
 
   const createExportPromisesForLanguage = (content: KeyValueEntry, language: string) => {
     const contentChunks = ContentFromCollections.splitContentIntoChunks(content);
 
-    const importPromises = contentChunks.map(
-      (chunk, index) => async () => {
-        addProgressMessage({
-          id: ProgressTrackerId.IMPORTED_CONTENT_CHUNK,
-          message: `(${language}) Exporting ${index + 1} / ${contentChunks.length} content chunks`,
-        });
+    const importPromises = contentChunks.map((chunk, index) => async () => {
+      addProgressMessage({
+        id: ProgressTrackerId.IMPORTED_CONTENT_CHUNK,
+        message: `(${language}) Exporting ${index + 1} / ${contentChunks.length} content chunks`,
+      });
 
-        return ExportToLocalazyCommonService
-          .exportToLocalazy(token.value, projectId.value, chunk, language)
-          .then(() => {
-            upsertProgressMessage(ProgressTrackerId.IMPORTED_CONTENT_CHUNK, {
-              message: `(${language}) Export ${index + 1} / ${contentChunks.length} content chunks`,
-            });
-          }).catch((e: any) => {
-            addLocalazyError(e, { type: 'export', userId: localazyUser.value.id, orgId: localazyProject.value?.orgId || '' });
+      return ExportToLocalazyCommonService.exportToLocalazy(token.value, projectId.value, chunk, language)
+        .then(() => {
+          upsertProgressMessage(ProgressTrackerId.IMPORTED_CONTENT_CHUNK, {
+            message: `(${language}) Export ${index + 1} / ${contentChunks.length} content chunks`,
           });
-      },
-    );
+        })
+        .catch((e: any) => {
+          addLocalazyError(e, { type: 'export', userId: localazyUser.value.id, orgId: localazyProject.value?.orgId || '' });
+        });
+    });
 
     return importPromises;
   };
@@ -81,18 +77,20 @@ export const useExportToLocalazy = (token: Ref<string>) => {
         id: ProgressTrackerId.EXPORT_FINISHED,
         message: nothingToExport ? 'Nothing to export from selected sources' : 'Export finished',
       });
-      AnalyticsService.trackUploadToLocalazy(ExportToLocalazyCommonService.getPayloadForUploadAnalytics({
-        userId: localazyUser.value.id,
-        orgId: localazyProject.value.orgId || '',
-        localazyProject: localazyProject.value.name || '',
-        settings,
-        languages: Object.keys(content.otherLanguages),
-      }));
+      AnalyticsService.trackUploadToLocalazy(
+        ExportToLocalazyCommonService.getPayloadForUploadAnalytics({
+          userId: localazyUser.value.id,
+          orgId: localazyProject.value.orgId || '',
+          localazyProject: localazyProject.value.name || '',
+          settings,
+          languages: Object.keys(content.otherLanguages),
+        }),
+      );
     } else {
       addProgressMessage({
         id: ProgressTrackerId.NOT_CONNECTED_TO_LOCALAZY,
         type: 'error',
-        message: 'Couldn\'t connect to Localazy',
+        message: "Couldn't connect to Localazy",
       });
     }
   };

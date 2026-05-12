@@ -78,9 +78,7 @@ class TranslationStringsSynchronizationService extends BaseContentSynchronizatio
   }
 
   async deprecateDeletedTranslationStrings(options: DeprecateDeletedTranslationStrings) {
-    const {
-      itemIds, schema, ItemsService, logger,
-    } = options;
+    const { itemIds, schema, ItemsService, logger } = options;
     if (this.missingLocalazyCollections(schema)) {
       logger.error('Localazy: Incomplete configuration');
       return;
@@ -141,19 +139,12 @@ class TranslationStringsSynchronizationService extends BaseContentSynchronizatio
   }
 
   private async fetchTranslationStrings(data: FetchTranslationStrings): Promise<TranslatableContent> {
-    const {
-      schema, ItemsService, settings, contentTransferSetup,
-    } = data;
+    const { schema, ItemsService, settings, contentTransferSetup } = data;
     if (this.missingLocalazyCollections(schema)) {
       return { sourceLanguage: {}, otherLanguages: {} };
     }
 
-    const translationStringsService = new TranslationStringsService(
-      new DirectusApiService(
-        ItemsService,
-        schema,
-      ),
-    );
+    const translationStringsService = new TranslationStringsService(new DirectusApiService(ItemsService, schema));
 
     const exportLanguages = await this.resolveExportLanguages(ItemsService, settings);
     try {

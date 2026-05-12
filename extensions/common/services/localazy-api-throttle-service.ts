@@ -1,8 +1,4 @@
-/* eslint-disable max-classes-per-file */
-/* eslint-disable no-await-in-loop */
-import {
-  FileListKeysRequest, FilesListRequest, ImportJsonRequest, KeyUpdateRequest, ProjectsListRequest,
-} from '@localazy/api-client';
+import { FileListKeysRequest, FilesListRequest, ImportJsonRequest, KeyUpdateRequest, ProjectsListRequest } from '@localazy/api-client';
 import { sleep } from '../utilities/sleep';
 import { getLocalazyApi } from '../api/localazy-api';
 

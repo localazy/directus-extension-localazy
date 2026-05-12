@@ -1,9 +1,4 @@
-/* eslint-disable no-await-in-loop */
-/* eslint-disable no-restricted-syntax */
-/* eslint-disable no-underscore-dangle */
-import {
-  Item, Relation, Field,
-} from '@directus/types';
+import { Item, Relation, Field } from '@directus/types';
 import { merge } from 'lodash';
 import { ContentFromCollections } from '../utilities/content-from-collections-service';
 import { EnabledField } from '../models/collections-data/content-transfer-setup';
@@ -29,7 +24,7 @@ export type TranslatableCollectionsServiceOptions = {
     itemIds?: string[];
   }[];
   languages: string[];
-  enabledFields: EnabledField[],
+  enabledFields: EnabledField[];
   settings: Settings;
 };
 
@@ -37,9 +32,9 @@ type ResolveContentForCollection = {
   collection: string;
   itemIds: string[];
   translationTypeFields: Field[];
-  languagesCollectionCodeField: string,
+  languagesCollectionCodeField: string;
   languagesCollection: string;
-  languages: string[],
+  languages: string[];
 };
 
 type Constructor = {
@@ -106,7 +101,8 @@ export class TranslatableCollectionsService {
     const result = await this.directusApi.fetchDirectusItems(data.collection, payload);
 
     const translatableFieldAttributes = data.translationTypeFields.map((field) => {
-      const languageRelation = this.translatableCollectionsContent.getRelationsForField(data.collection, field.field)
+      const languageRelation = this.translatableCollectionsContent
+        .getRelationsForField(data.collection, field.field)
         .find((relation: Relation) => relation.related_collection === data.languagesCollection);
       return {
         field: field.field,
@@ -122,40 +118,43 @@ export class TranslatableCollectionsService {
   }
 
   async fetchContentFromTranslatableCollections(options: TranslatableCollectionsServiceOptions) {
-    const {
-      enabledFields, settings, languages, translatableCollections,
-    } = options;
+    const { enabledFields, settings, languages, translatableCollections } = options;
     const { add, execute } = useEnhancedAsyncQueue();
     const translatableContent: TranslatableContent = { sourceLanguage: {}, otherLanguages: {} };
 
-    const enabledTranslatableCollections = translatableCollections
-      .filter((collection) => enabledFields.find((field) => field.collection === collection.collection));
+    const enabledTranslatableCollections = translatableCollections.filter((collection) =>
+      enabledFields.find((field) => field.collection === collection.collection),
+    );
 
     enabledTranslatableCollections.forEach((data) => {
-      add(async () => this.resolveContentForCollection({
-        collection: data.collection,
-        itemIds: data.itemIds || [],
-        translationTypeFields: await this.getTranslationTypeFieldsForCollection(data.collection),
-        languages,
-        languagesCollection: settings.language_collection,
-        languagesCollectionCodeField: settings.language_code_field,
-      }));
+      add(async () =>
+        this.resolveContentForCollection({
+          collection: data.collection,
+          itemIds: data.itemIds || [],
+          translationTypeFields: await this.getTranslationTypeFieldsForCollection(data.collection),
+          languages,
+          languagesCollection: settings.language_collection,
+          languagesCollectionCodeField: settings.language_code_field,
+        }),
+      );
     });
 
     const results = await execute<ResolveContentForCollectionReturn>({ delayBetween: 50 });
 
     for (const result of results) {
       if (result.data) {
-        const collectionFields = await this.translatableCollectionsContent.getFieldsForCollection(result.data.collection) || [];
-        merge(translatableContent, ContentFromCollections
-          .createContentFromCollectionItems({
+        const collectionFields = (await this.translatableCollectionsContent.getFieldsForCollection(result.data.collection)) || [];
+        merge(
+          translatableContent,
+          ContentFromCollections.createContentFromCollectionItems({
             collection: result.data.collection,
             items: result.data.items,
             enabledFields,
             collectionFields,
             translatableFieldAttributes: result.data.translatableFieldAttributes,
             settings,
-          }));
+          }),
+        );
       }
     }
 

@@ -1,7 +1,4 @@
-/* eslint-disable class-methods-use-this */
-import {
-  Query, Item, SchemaOverview,
-} from '@directus/types';
+import { Query, Item, SchemaOverview } from '@directus/types';
 import { DirectusApi } from '../../../common/interfaces/directus-api';
 import { useGetCollectionFromSchema } from '../composables/use-get-collection-from-schema';
 
@@ -15,7 +12,7 @@ export class DirectusApiService implements DirectusApi {
     this.schema = schema;
   }
 
-  async updateDirectusItem <T extends Item>(collection: string, itemId: number | string, data: T) {
+  async updateDirectusItem<T extends Item>(collection: string, itemId: number | string, data: T) {
     const targetCollection = this.getCollection(collection);
 
     if (targetCollection?.singleton === true) {
@@ -25,7 +22,7 @@ export class DirectusApiService implements DirectusApi {
     }
   }
 
-  async createDirectusItem <T extends Item>(collection: string, data: T) {
+  async createDirectusItem<T extends Item>(collection: string, data: T) {
     const targetCollection = this.getCollection(collection);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, ...payload } = data;
@@ -36,7 +33,7 @@ export class DirectusApiService implements DirectusApi {
     }
   }
 
-  async upsertDirectusItem <T extends Item>(collection: string, item: Item & T | null, payload: T) {
+  async upsertDirectusItem<T extends Item>(collection: string, item: (Item & T) | null, payload: T) {
     if (item && item.id) {
       await this.updateDirectusItem(collection, item.id, payload);
     } else {
@@ -76,22 +73,22 @@ export class DirectusApiService implements DirectusApi {
   }
 
   private readByQuery(collection: string, query: any) {
-    return (new this.ItemsService(collection, { schema: this.schema })).readByQuery(query);
+    return new this.ItemsService(collection, { schema: this.schema }).readByQuery(query);
   }
 
   private createOne(collection: string, payload: any) {
-    return (new this.ItemsService(collection, { schema: this.schema })).createOne(payload);
+    return new this.ItemsService(collection, { schema: this.schema }).createOne(payload);
   }
 
   private updateOne(collection: string, id: string | number, payload: any) {
-    return (new this.ItemsService(collection, { schema: this.schema })).updateOne(id, payload);
+    return new this.ItemsService(collection, { schema: this.schema }).updateOne(id, payload);
   }
 
   private upsertSingleton(collection: string, payload: any) {
-    return (new this.ItemsService(collection, { schema: this.schema })).upsertSingleton(payload);
+    return new this.ItemsService(collection, { schema: this.schema }).upsertSingleton(payload);
   }
 
   private upsertOne(collection: string, payload: any) {
-    return (new this.ItemsService(collection, { schema: this.schema })).upsertOne(payload);
+    return new this.ItemsService(collection, { schema: this.schema }).upsertOne(payload);
   }
 }

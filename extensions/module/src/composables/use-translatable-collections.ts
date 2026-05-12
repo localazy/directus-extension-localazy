@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import {
-  TranslatableCollectionsService, TranslatableCollectionsServiceOptions,
+  TranslatableCollectionsService,
+  TranslatableCollectionsServiceOptions,
 } from '../../../common/services/translatable-collections-service';
 import { useDirectusApi } from './use-directus-api';
 import { useTranslatableCollectionsContent } from './use-translatable-collections-content';

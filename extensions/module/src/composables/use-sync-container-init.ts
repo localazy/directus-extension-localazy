@@ -10,9 +10,7 @@ export const useInitSyncContainer = () => {
   const configuration = ref<Configuration>(defaultConfiguration());
   const enabledFields = ref<EnabledField[]>([]);
   const synchronizeTranslationStrings = ref(defaultConfiguration().content_transfer_setup.translation_strings);
-  const {
-    settings, localazyData, contentTransferSetup, hydrateDirectusData,
-  } = useHydrate();
+  const { settings, localazyData, contentTransferSetup, hydrateDirectusData } = useHydrate();
 
   hydrateDirectusData().then(() => {
     if (settings.value) {

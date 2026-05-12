@@ -2,9 +2,8 @@ import { getLocalazyLanguages } from '@localazy/languages';
 
 export class DirectusLocalazyAdapter {
   static mapDirectusToLocalazySourceLanguage(localazySourceLanguageId: number, directusSourceLanguage: string) {
-    const directusSourceLanguageAsLocalazyLanguage = getLocalazyLanguages()
-      .find((lang) => lang.localazyId === localazySourceLanguageId)?.locale
-  || directusSourceLanguage;
+    const directusSourceLanguageAsLocalazyLanguage =
+      getLocalazyLanguages().find((lang) => lang.localazyId === localazySourceLanguageId)?.locale || directusSourceLanguage;
     return directusSourceLanguageAsLocalazyLanguage;
   }
 
@@ -28,7 +27,6 @@ export class DirectusLocalazyAdapter {
   }
 
   static resolveLocalazyLanguageId(langId: number) {
-    return getLocalazyLanguages()
-      .find((lang) => lang.localazyId === langId);
+    return getLocalazyLanguages().find((lang) => lang.localazyId === langId);
   }
 }

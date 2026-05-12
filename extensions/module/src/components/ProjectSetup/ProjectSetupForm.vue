@@ -1,8 +1,6 @@
 <template>
   <div>
-    <v-divider :inline-title="false" large>
-      Localazy project
-    </v-divider>
+    <v-divider :inline-title="false" large> Localazy project </v-divider>
 
     <div class="form grid">
       <div class="full">
@@ -10,26 +8,22 @@
           v-if="isLoggedIn"
           :localazy-data="localazyData"
           :localazy-data-collection="localazyDataCollection"
-          @update:localazy-data="emit('update:localazyData', $event)" />
+          @update:localazy-data="emit('update:localazyData', $event)"
+        />
         <login-button
           v-else
           :localazy-data="localazyData"
           :localazy-data-collection="localazyDataCollection"
-          @update:localazy-data="emit('update:localazyData', $event)" />
+          @update:localazy-data="emit('update:localazyData', $event)"
+        />
       </div>
     </div>
 
-    <v-divider :inline-title="false" large>
-      Directus project
-    </v-divider>
+    <v-divider :inline-title="false" large> Directus project </v-divider>
     <div class="form">
       <div class="half">
         <p class="type-label">Languages collection</p>
-        <v-select
-          v-model="localEdits.language_collection"
-          :items="possibleLanguageCollections"
-          :disabled="isDemo"
-        />
+        <v-select v-model="localEdits.language_collection" :items="possibleLanguageCollections" :disabled="isDemo" />
         <p class="note input-note">
           Read an <a href="https://docs.directus.io/guides/headless-cms/content-translations.html" target="_blank">official guide</a>
           how to prepare Directus for content translation
@@ -40,8 +34,8 @@
       <div class="half">
         <p class="type-label">Language code field</p>
         <v-select
-          :disabled="!localEdits.language_collection || isDemo"
           v-model="localEdits.language_code_field"
+          :disabled="!localEdits.language_collection || isDemo"
           :items="possibleLanguageCodeFields"
         />
         <p class="note input-note">
@@ -54,30 +48,25 @@
       <div class="half">
         <p class="type-label">Source language</p>
         <v-select
-          :disabled="!localEdits.language_code_field || isDemo"
           v-model="localEdits.source_language"
+          :disabled="!localEdits.language_code_field || isDemo"
           :items="languageSelectOptions"
           :class="{ 'input-error': !localEdits.language_code_field || isNotRecognizedLocalazyLanguage }"
         />
-        <p class="note input-note input-note-error" v-if="isNotRecognizedLocalazyLanguage">
+        <p v-if="isNotRecognizedLocalazyLanguage" class="note input-note input-note-error">
           Selected language doesn't match any <a href="https://www.iso.org/iso-639-language-codes.html" target="_blank">ISO 639</a>
           language code recognized by Localazy.
         </p>
-        <p class="note input-note" v-else>
-          Main language of your content
-        </p>
+        <p v-else class="note input-note">Main language of your content</p>
       </div>
       <div class="half-right" />
-
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { useItems, useStores } from '@directus/extensions-sdk';
-import {
-  PropType, Ref, computed, ref, watch, watchEffect,
-} from 'vue';
+import { PropType, Ref, computed, ref, watch, watchEffect } from 'vue';
 import { AppCollection, Field, Item } from '@directus/types';
 import { storeToRefs } from 'pinia';
 import { getLocalazyLanguages } from '@localazy/languages';
@@ -164,9 +153,7 @@ const possibleLanguageCollections = (collections?.value as AppCollection[])
   });
 
 const possibleLanguageCodeFields = computed((): SelectItem[] => {
-  const fields = props.edits.language_collection
-    ? getFieldsForCollectionSorted(props.edits.language_collection) as Field[]
-    : [];
+  const fields = props.edits.language_collection ? (getFieldsForCollectionSorted(props.edits.language_collection) as Field[]) : [];
 
   return fields
     .filter((field) => field.type === 'string')
@@ -180,13 +167,15 @@ const possibleLanguageCodeFields = computed((): SelectItem[] => {
 });
 
 const languages: Ref<Item[]> = ref([]);
-const languageSelectOptions = computed(() => languages.value.map((item) => {
-  const option: SelectItem = {
-    text: item[localEdits.value.language_code_field],
-    value: item[localEdits.value.language_code_field],
-  };
-  return option;
-}));
+const languageSelectOptions = computed(() =>
+  languages.value.map((item) => {
+    const option: SelectItem = {
+      text: item[localEdits.value.language_code_field],
+      value: item[localEdits.value.language_code_field],
+    };
+    return option;
+  }),
+);
 
 watchEffect(() => {
   const lookupLanguageCollection = possibleLanguageCollections.find((col) => col.value.toLocaleLowerCase() === 'languages');
@@ -228,7 +217,6 @@ watch(
     localEdits.value.source_language = '';
   },
 );
-
 </script>
 
 <style lang="scss" scoped>
@@ -264,7 +252,7 @@ watch(
 }
 
 .input-note-error {
-  color: var(--danger)!important;
+  color: var(--danger) !important;
 }
 
 .note {

@@ -29,8 +29,7 @@
     "host": "^10.10.0"
   },
   "scripts": {
-    "build": "directus-extension build",
-    "lint": "eslint --ext .ts,.vue src"
+    "build": "directus-extension build"
   },
   "dependencies": {
     "@localazy/api-client": "^2.1.5",
@@ -44,7 +43,7 @@
     "@directus/extensions-sdk": "^12.1.4",
     "@types/lodash": "^4.14.195",
     "sass": "^1.63.6",
-    "typescript": "^5.4.5",
+    "typescript": "^5.9.3",
     "vue": "^3.4.27"
   }
 }

@@ -20,7 +20,7 @@ export interface LocalazyCollectionBlock {
   translationFields: string[];
   items: {
     [itemId: number]: LocalazyItemsInLanguage[];
-  }
+  };
 }
 
 export type LocalazyTranslationStringBlock = {
@@ -29,7 +29,7 @@ export type LocalazyTranslationStringBlock = {
   localazyKey: Key;
   translations: {
     [language: string]: string;
-  }
+  };
 };
 
 export type LocalazyContent = {

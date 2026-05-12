@@ -1,7 +1,10 @@
 import { Item } from '@directus/types';
 import { isEqual } from 'lodash';
 import {
-  LocalazyCollectionBlock, LocalazyContent, LocalazyCollectionItem, LocalazyItemsInLanguage,
+  LocalazyCollectionBlock,
+  LocalazyContent,
+  LocalazyCollectionItem,
+  LocalazyItemsInLanguage,
 } from '../../../common/models/localazy-content';
 import { useEnhancedAsyncQueue } from './use-async-queue';
 import { TranslationPayload } from '../models/directus/translation-payload';
@@ -13,10 +16,10 @@ import { useDirectusApi } from './use-directus-api';
 import { useTranslationStringsContent } from './use-translation-strings-content';
 
 type CreatePayloadForTranslationItem = {
-  collectionItem: Item,
-  localazyItem: LocalazyCollectionItem,
-  language: string,
-  currentPayload: TranslationPayload
+  collectionItem: Item;
+  localazyItem: LocalazyCollectionItem;
+  language: string;
+  currentPayload: TranslationPayload;
 };
 
 type UpsertItemFromLocalazyContent = {
@@ -33,12 +36,8 @@ export const useDirectusLocalazyAdapter = () => {
   const { upsertTranslationStrings } = useTranslationStringsContent();
 
   function createPayloadForTranslationItem(payload: CreatePayloadForTranslationItem) {
-    const {
-      collectionItem, localazyItem, language, currentPayload,
-    } = payload;
-    const translationItem = collectionItem[localazyItem.translationField]?.find(
-      (data: any) => data.languages_code === language,
-    );
+    const { collectionItem, localazyItem, language, currentPayload } = payload;
+    const translationItem = collectionItem[localazyItem.translationField]?.find((data: any) => data.languages_code === language);
     const common = {
       localazyItem,
       translationItem,
@@ -72,23 +71,23 @@ export const useDirectusLocalazyAdapter = () => {
   }
 
   function madeUpdateChanges(updateTranslationFields: Set<string>, payload: TranslationPayload, collectionItem: Item) {
-    return updateTranslationFields.size > 0 && Array.from(updateTranslationFields.values())
-      .some((field) => {
+    return (
+      updateTranslationFields.size > 0 &&
+      Array.from(updateTranslationFields.values()).some((field) => {
         const updatePayloadForField = payload[field]?.update || [];
         const collectionItemForField = collectionItem[field] || [];
         return updatePayloadForField.some((item) => {
           const identicalCollectionItemForFieldItem = collectionItemForField.find((i: any) => isEqual(i, item));
           return identicalCollectionItemForFieldItem === undefined;
         });
-      });
+      })
+    );
   }
 
   async function upsertItemFromLocalazyContent(data: UpsertItemFromLocalazyContent) {
-    const {
-      itemsInCollection, itemId, translations, collection,
-    } = data;
+    const { itemsInCollection, itemId, translations, collection } = data;
     const collectionItem = itemsInCollection.find((i: Item) => +i.id === +itemId);
-    let payload: TranslationPayload = { };
+    let payload: TranslationPayload = {};
     const updateTranslationFields: Set<string> = new Set();
     let somethingToCreate = false;
 

@@ -1,8 +1,4 @@
-import {
-  Item, Query, Collection,
-  Field,
-  DeepPartial,
-} from '@directus/types';
+import { Item, Query, Collection, Field, DeepPartial } from '@directus/types';
 import { DirectusApiResultTranslationString } from '../models/translation-string';
 
 export type ItemOptions = {
@@ -13,8 +9,7 @@ export type ItemOptions = {
 export interface DirectusApi {
   updateDirectusItem: <T extends Item>(collection: string, itemId: number | string, data: T, options?: ItemOptions) => Promise<void>;
   createDirectusItem: <T extends Item>(collection: string, data: T, options?: ItemOptions) => Promise<void>;
-  upsertDirectusItem: <T extends Item>(ccollection: string, item: Item & T | null, payload: T, options?: ItemOptions)
-  => Promise<void>;
+  upsertDirectusItem: <T extends Item>(ccollection: string, item: (Item & T) | null, payload: T, options?: ItemOptions) => Promise<void>;
 
   fetchDirectusItems<T extends Item>(collection: string, query?: Query): Promise<T[]>;
   fetchDirectusSingletonItem<T extends Item>(collection: string, query?: Query): Promise<T>;

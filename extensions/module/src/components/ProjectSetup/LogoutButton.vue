@@ -1,17 +1,11 @@
 <template>
   <div>
-    <v-button
-      class="panel-button"
-      @click="onLogout"
-      kind="warning"
-      warning
-      :loading="loginButtonData.isLoading">Logout from Localazy
+    <v-button class="panel-button" kind="warning" warning :loading="loginButtonData.isLoading" @click="onLogout"
+      >Logout from Localazy
     </v-button>
 
-    <v-notice type="danger" class="error" v-if="loginButtonData.error">
-      <div class="message">
-        There was an error while logging out from Localazy. Please try again.
-      </div>
+    <v-notice v-if="loginButtonData.error" type="danger" class="error">
+      <div class="message">There was an error while logging out from Localazy. Please try again.</div>
     </v-notice>
   </div>
 </template>
@@ -45,9 +39,7 @@ const loginButtonData = ref({
 
 const { upsertDirectusItem } = useDirectusApi();
 const localazyStore = useLocalazyStore();
-const {
-  hydrateLocalazyData,
-} = localazyStore;
+const { hydrateLocalazyData } = localazyStore;
 const { useNotificationsStore } = useStores();
 const notificationsStore = useNotificationsStore();
 const emit = defineEmits(['update:localazyData']);
@@ -69,11 +61,7 @@ const onLogout = async () => {
         user_id: '',
         user_name: '',
       };
-      await upsertDirectusItem(
-        props.localazyDataCollection.collection,
-        props.localazyData,
-        newData,
-      );
+      await upsertDirectusItem(props.localazyDataCollection.collection, props.localazyData, newData);
       emit('update:localazyData', newData);
       await hydrateLocalazyData({ force: true, localazyData: newData });
       if (orgId && userId && name) {
@@ -93,7 +81,6 @@ const onLogout = async () => {
     loginButtonData.value.isLoading = false;
   }
 };
-
 </script>
 
 <style lang="scss" scoped>

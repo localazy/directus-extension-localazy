@@ -1,4 +1,3 @@
-/* eslint-disable class-methods-use-this */
 import { Item } from '@directus/types';
 import { TranslationString } from '../models/translation-string';
 import { Settings } from '../models/collections-data/settings';
@@ -88,9 +87,7 @@ export class TranslationStringsService {
   async upsertLegacyTranslationStrings(data: LocalazyTranslationStringBlock[]) {
     const result = await this.directusApi.fetchSettings();
     if (result) {
-      const translationStrings: TranslationString[] = Array.isArray(result.translation_strings)
-        ? result.translation_strings
-        : [];
+      const translationStrings: TranslationString[] = Array.isArray(result.translation_strings) ? result.translation_strings : [];
 
       const payloadMap = new Map();
 
@@ -134,9 +131,7 @@ export class TranslationStringsService {
   async upsertNewTranslationStrings(data: LocalazyTranslationStringBlock[]) {
     const result = await this.directusApi.fetchTranslationStrings();
 
-    const translationStrings: Directus10TranslationApiResult[] = Array.isArray(result)
-      ? result as Directus10TranslationApiResult[]
-      : [];
+    const translationStrings: Directus10TranslationApiResult[] = Array.isArray(result) ? (result as Directus10TranslationApiResult[]) : [];
 
     const existingStrings: Directus10TranslationApiResult[] = [];
     const newStrings: Omit<Directus10TranslationApiResult, 'id'>[] = [];

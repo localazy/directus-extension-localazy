@@ -15,9 +15,9 @@ type ExportCollectionContent = {
   logger: any;
   keys: string[];
   collection: string;
- };
+};
 
- type FetchTranslatableCollectionsContent = {
+type FetchTranslatableCollectionsContent = {
   schema: SchemaOverview;
   ItemsService: any;
   FieldsService: any;
@@ -30,16 +30,14 @@ type ExportCollectionContent = {
 type DeprecateDeletedCollectionItems = {
   schema: SchemaOverview;
   logger: any;
-  collection: string,
-  itemIds: string[],
+  collection: string;
+  itemIds: string[];
   ItemsService: any;
 };
 
 class CollectionContentSynchronizationService extends BaseContentSynchronizationService {
   async exportCollectionContent(data: ExportCollectionContent) {
-    const {
-      schema, ItemsService, logger, collection,
-    } = data;
+    const { schema, ItemsService, logger, collection } = data;
     if (this.missingLocalazyCollections(schema)) {
       logger.error('Localazy: Incomplete configuration');
       return;
@@ -87,9 +85,7 @@ class CollectionContentSynchronizationService extends BaseContentSynchronization
   }
 
   async deprecateDeletedCollectionItems(options: DeprecateDeletedCollectionItems) {
-    const {
-      collection, itemIds, schema, ItemsService, logger,
-    } = options;
+    const { collection, itemIds, schema, ItemsService, logger } = options;
     try {
       const { settings, contentTransferSetup } = await this.resolveLocalazySettings(ItemsService, schema);
       const { localazyData } = await this.resolveLocalazyData(ItemsService, schema);
@@ -127,7 +123,7 @@ class CollectionContentSynchronizationService extends BaseContentSynchronization
           const keysForCollection = importContent.content.collections.get(collection);
           const localazyKeysForDeprecation: Set<string> = new Set();
 
-          Object.entries((keysForCollection?.items || {})).forEach(([directusId, localazyItemsInLanguage]) => {
+          Object.entries(keysForCollection?.items || {}).forEach(([directusId, localazyItemsInLanguage]) => {
             if (directusId && itemIds.includes(directusId)) {
               localazyItemsInLanguage.forEach((localazyItem) => {
                 localazyItem.items.forEach((item) => {
@@ -151,22 +147,18 @@ class CollectionContentSynchronizationService extends BaseContentSynchronization
   }
 
   private async fetchTranslatableCollectionsContent(data: FetchTranslatableCollectionsContent): Promise<TranslatableContent> {
-    const {
-      schema, ItemsService, collection, keys, FieldsService, settings, contentTransferSetup,
-    } = data;
+    const { schema, ItemsService, collection, keys, FieldsService, settings, contentTransferSetup } = data;
 
-    const translatableCollectionsService = new ApiTranslatableCollectionsService(
-      ItemsService,
-      schema,
-      FieldsService,
-    );
+    const translatableCollectionsService = new ApiTranslatableCollectionsService(ItemsService, schema, FieldsService);
 
     const exportLanguages = await this.resolveExportLanguages(ItemsService, settings);
     const collectionsContent = translatableCollectionsService.fetchContentFromTranslatableCollections({
-      translatableCollections: [{
-        collection,
-        itemIds: keys,
-      }],
+      translatableCollections: [
+        {
+          collection,
+          itemIds: keys,
+        },
+      ],
       languages: exportLanguages,
       enabledFields: EnabledFieldsService.parseFromDatabase(contentTransferSetup.enabled_fields),
       settings,

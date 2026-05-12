@@ -48,7 +48,6 @@ const versionLabel = ref<string>(`Version ${version.value}`);
 </script>
 
 <style lang="scss" scoped>
-
 .version {
   color: var(--foreground-subdued);
   transition: color var(--fast) var(--transition);

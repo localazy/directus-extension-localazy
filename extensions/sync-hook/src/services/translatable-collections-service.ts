@@ -1,6 +1,4 @@
-import {
-  SchemaOverview,
-} from '@directus/types';
+import { SchemaOverview } from '@directus/types';
 import { trackDirectusError } from '../functions/track-error';
 import { DirectusApiService } from './directus-service';
 import { ApiDirectusDataModelService } from './api-directus-data-model-service';

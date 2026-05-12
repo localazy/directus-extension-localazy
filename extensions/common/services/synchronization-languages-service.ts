@@ -1,4 +1,3 @@
-/* eslint-disable class-methods-use-this */
 import { getLocalazyLanguages } from '@localazy/languages';
 import { Language, Project } from '@localazy/api-client';
 import { uniqWith } from 'lodash';
@@ -41,8 +40,7 @@ export class SynchronizationLanguagesService {
     const { language_code_field, language_collection, import_source_language } = settings;
     const directusLanguages = await this.fetchDirectusLanguages(language_collection, language_code_field);
     const localazyLanguages = localazyProject.languages || [];
-    const localazySourceLanguage = getLocalazyLanguages()
-      .find((lang) => lang.localazyId === localazyProject.sourceLanguage)?.locale || '';
+    const localazySourceLanguage = getLocalazyLanguages().find((lang) => lang.localazyId === localazyProject.sourceLanguage)?.locale || '';
 
     const directusExpandedLangauges = directusLanguages.map((directusLanguage) => ({
       originalForm: directusLanguage,
@@ -72,11 +70,14 @@ export class SynchronizationLanguagesService {
     }
 
     if (!import_source_language) {
-      importLanguages = importLanguages.filter((l) => DirectusLocalazyAdapter.mapLocalazyToDirectusSourceLanguage(
-        l.originalForm,
-        localazyProject.sourceLanguage,
-        settings.source_language,
-      ) !== settings.source_language);
+      importLanguages = importLanguages.filter(
+        (l) =>
+          DirectusLocalazyAdapter.mapLocalazyToDirectusSourceLanguage(
+            l.originalForm,
+            localazyProject.sourceLanguage,
+            settings.source_language,
+          ) !== settings.source_language,
+      );
     } else {
       importLanguages = importLanguages.map((l) => {
         if (l.localazyForm === localazySourceLanguage) {
@@ -94,9 +95,7 @@ export class SynchronizationLanguagesService {
   }
 
   async resolveExportLanguages(settings: Settings) {
-    const {
-      language_code_field, language_collection, source_language, upload_existing_translations,
-    } = settings;
+    const { language_code_field, language_collection, source_language, upload_existing_translations } = settings;
     const exportLanguages = upload_existing_translations
       ? await this.fetchDirectusLanguages(language_collection, language_code_field)
       : [source_language];
@@ -105,7 +104,6 @@ export class SynchronizationLanguagesService {
   }
 
   static getDirectusSourceLanguageAsLocalazyLanguage(data: GetDirectusSourceLanguageAsLocalazyLanguage) {
-    return DirectusLocalazyAdapter
-      .mapDirectusToLocalazySourceLanguage(data.localazySourceLanguage, data.directusSourceLanguage);
+    return DirectusLocalazyAdapter.mapDirectusToLocalazySourceLanguage(data.localazySourceLanguage, data.directusSourceLanguage);
   }
 }

@@ -6,15 +6,13 @@
       :model-value="allTranslatableFieldsChecked"
       @update:model-value="onUpdateCollectionSelection"
     >
-      <span class="button-label" v-if="allTranslatableFieldsChecked">Deselect all</span>
-      <span class="button-label" v-else>Select all</span>
+      <span v-if="allTranslatableFieldsChecked" class="button-label">Deselect all</span>
+      <span v-else class="button-label">Select all</span>
     </v-checkbox>
 
     <v-menu show-arrow>
       <template #activator="{ toggle }">
-        <div
-          @click="toggle"
-          class="button">
+        <div class="button" @click="toggle">
           <v-icon name="visibility" />
           <span class="button-label">Options</span>
         </div>
@@ -22,17 +20,13 @@
 
       <v-list>
         <v-list-item>
-          <v-checkbox v-model="localShowUntranslatableField">
-            Show untranslatable fields
-          </v-checkbox>
+          <v-checkbox v-model="localShowUntranslatableField"> Show untranslatable fields </v-checkbox>
         </v-list-item>
       </v-list>
 
       <v-list>
         <v-list-item>
-          <v-checkbox v-model="localShowUntranslatableCollections">
-            Show collections without translatable fields
-          </v-checkbox>
+          <v-checkbox v-model="localShowUntranslatableCollections"> Show collections without translatable fields </v-checkbox>
         </v-list-item>
       </v-list>
     </v-menu>
@@ -87,8 +81,8 @@ function onUpdateCollectionSelection() {
   display: flex;
   justify-content: space-between;
   padding: 16px 4px;
-  border-top: 2px solid #F0F4F9;
-  border-bottom: 2px solid #F0F4F9;
+  border-top: 2px solid #f0f4f9;
+  border-bottom: 2px solid #f0f4f9;
   width: 100%;
 
   & .v-icon {
@@ -97,8 +91,8 @@ function onUpdateCollectionSelection() {
 
   .checkbox-button {
     &::v-deep(.v-icon) {
-        color: var(--foreground-subdued);
-      }
+      color: var(--foreground-subdued);
+    }
 
     &:hover {
       ::v-deep(.checkbox) {

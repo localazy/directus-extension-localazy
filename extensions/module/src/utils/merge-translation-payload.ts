@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 import { Item } from '@directus/types';
 import { uniqWith } from 'lodash';
 import { TranslationPayload } from '../models/directus/translation-payload';
@@ -17,9 +16,7 @@ const areDirectusItemsEqual = (a: Item, b: Item) => a.id === b.id && a.id !== un
 const areCreateItemsEqual = (a: Item, b: Item, languagesCodeField: string) => a[languagesCodeField] === b[languagesCodeField];
 
 function resolveStagedItem(payload: TranslationPayload, data: Options) {
-  const {
-    localazyItem, translationItem, type, language, languageCodeField,
-  } = data;
+  const { localazyItem, translationItem, type, language, languageCodeField } = data;
 
   const stagedItems = payload[localazyItem.translationField]?.[type];
   if (!stagedItems) {
@@ -34,9 +31,7 @@ function resolveStagedItem(payload: TranslationPayload, data: Options) {
 }
 
 export const mergeTranslationPayload = (payload: TranslationPayload, data: Options) => {
-  const {
-    localazyItem, translationItem, type, value,
-  } = data;
+  const { localazyItem, translationItem, type, value } = data;
   const stagedItem = resolveStagedItem(payload, data);
 
   const entryItem = {
@@ -48,18 +43,12 @@ export const mergeTranslationPayload = (payload: TranslationPayload, data: Optio
   if (type === 'create') {
     payload[localazyItem.translationField] = {
       ...(payload[localazyItem.translationField] || {}),
-      create: uniqWith([
-        entryItem,
-        ...currentData,
-      ], (a, b) => areCreateItemsEqual(a, b, data.languageCodeField)),
+      create: uniqWith([entryItem, ...currentData], (a, b) => areCreateItemsEqual(a, b, data.languageCodeField)),
     };
   } else {
     payload[localazyItem.translationField] = {
       ...(payload[localazyItem.translationField] || {}),
-      update: uniqWith([
-        entryItem,
-        ...currentData,
-      ], areDirectusItemsEqual),
+      update: uniqWith([entryItem, ...currentData], areDirectusItemsEqual),
     };
   }
 

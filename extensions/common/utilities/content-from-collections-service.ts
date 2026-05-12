@@ -13,28 +13,25 @@ type CreateContentFromCollectionItems = {
   translatableFieldAttributes: {
     field: string;
     fieldLanguageCodeField: string;
-  }[]
+  }[];
   settings: Settings;
   collectionFields: Field[];
 };
 
 type CreateValueForCollectionItem = {
-  translationItem: Record<string, any>,
-  fieldName: string,
-  collection: string,
-  languageRelationField: string,
-  item: Item,
-  settings: Settings,
+  translationItem: Record<string, any>;
+  fieldName: string;
+  collection: string;
+  languageRelationField: string;
+  item: Item;
+  settings: Settings;
   collectionFields: Field[];
   isSourceLanguageItem: boolean;
 };
 
 export class ContentFromCollections extends ContentForLocalazyBase {
   static createContentFromCollectionItems(data: CreateContentFromCollectionItems) {
-    const {
-      collection, items, enabledFields, translatableFieldAttributes, settings,
-      collectionFields,
-    } = data;
+    const { collection, items, enabledFields, translatableFieldAttributes, settings, collectionFields } = data;
     const translatableContent: TranslatableContent = { sourceLanguage: {}, otherLanguages: {} };
 
     items.forEach((item) => {
@@ -55,16 +52,19 @@ export class ContentFromCollections extends ContentForLocalazyBase {
                   ? translatableContent.sourceLanguage
                   : translatableContent.otherLanguages[itemLanguage];
 
-                merge(sourceObject, this.createValueForCollectionItem({
-                  translationItem,
-                  fieldName,
-                  collection,
-                  languageRelationField: relationField.field,
-                  item,
-                  settings,
-                  collectionFields,
-                  isSourceLanguageItem,
-                }));
+                merge(
+                  sourceObject,
+                  this.createValueForCollectionItem({
+                    translationItem,
+                    fieldName,
+                    collection,
+                    languageRelationField: relationField.field,
+                    item,
+                    settings,
+                    collectionFields,
+                    isSourceLanguageItem,
+                  }),
+                );
               }
             });
         });
@@ -77,9 +77,7 @@ export class ContentFromCollections extends ContentForLocalazyBase {
   private static buildMetaObjectForCollectionItem(
     data: Pick<CreateValueForCollectionItem, 'collection' | 'languageRelationField' | 'fieldName' | 'item' | 'collectionFields'>,
   ) {
-    const {
-      collection, languageRelationField, fieldName, item, collectionFields,
-    } = data;
+    const { collection, languageRelationField, fieldName, item, collectionFields } = data;
     const fieldDetail = collectionFields.find((f) => f.field === fieldName);
 
     const meta: Record<string, any> = {
@@ -105,16 +103,7 @@ export class ContentFromCollections extends ContentForLocalazyBase {
   }
 
   private static createValueForCollectionItem(data: CreateValueForCollectionItem) {
-    const {
-      translationItem,
-      fieldName,
-      collection,
-      languageRelationField,
-      item,
-      settings,
-      collectionFields,
-      isSourceLanguageItem,
-    } = data;
+    const { translationItem, fieldName, collection, languageRelationField, item, settings, collectionFields, isSourceLanguageItem } = data;
     const sourceValue = translationItem[fieldName];
     const { skip_empty_strings } = settings;
     if (sourceValue || (!skip_empty_strings && sourceValue !== undefined)) {
