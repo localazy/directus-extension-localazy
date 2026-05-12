@@ -92,7 +92,7 @@ class TranslationStringsSynchronizationService extends BaseContentSynchronizatio
         return;
       }
 
-      if (settings.automated_deprecation !== 1) {
+      if (!settings.automated_deprecation) {
         return;
       }
       const localazyProject = await this.loadProject(localazyData.access_token);

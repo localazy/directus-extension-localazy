@@ -1,5 +1,4 @@
 import { useStores } from '@directus/extensions-sdk';
-import { storeToRefs } from 'pinia';
 import { ref, computed } from 'vue';
 import { Item, AppCollection, Field } from '@directus/types';
 import { isEqual, merge } from 'lodash';
@@ -14,6 +13,7 @@ import { defaultConfiguration } from '../data/default-configuration';
 import { sleep } from '../../../common/utilities/sleep';
 import { getConfig } from '../../../common/config/get-config';
 import { useDirectusApi } from './use-directus-api';
+import { useDirectusCollectionsStore, useDirectusCollectionsStoreRefs } from './use-directus-stores';
 
 type HydrateOptions = {
   /** Force rehydration */
@@ -54,10 +54,10 @@ const hydratedDirectusData = ref(false);
 export const useHydrate = () => {
   const { addDirectusError } = useErrorsStore();
 
-  const { useCollectionsStore, useFieldsStore } = useStores();
+  const { useFieldsStore } = useStores();
   const { getFieldsForCollection, hydrate: hydrateFieldsStore } = useFieldsStore();
-  const { collections } = storeToRefs(useCollectionsStore());
-  const { hydrate: hydrateCollectionsStore } = useCollectionsStore();
+  const { collections } = useDirectusCollectionsStoreRefs();
+  const { hydrate: hydrateCollectionsStore } = useDirectusCollectionsStore();
   const { upsertDirectusItem, upsertDirectusCollection, fetchDirectusSingletonItem, createField, createDirectusItem } = useDirectusApi();
 
   const hasIncompleteConfiguration = computed(() => {
@@ -394,15 +394,15 @@ export const useHydrate = () => {
     if (hydratingDirectusData.value) return;
     settingsCollection.value =
       settingsCollection.value === null
-        ? collections?.value.find((c: AppCollection) => c.collection === defaultOptions.collections.settings)
+        ? (collections.value.find((c: AppCollection) => c.collection === defaultOptions.collections.settings) ?? null)
         : settingsCollection.value;
     localazyDataCollection.value =
       localazyDataCollection.value === null
-        ? collections?.value.find((c: AppCollection) => c.collection === defaultOptions.collections.localazyData)
+        ? (collections.value.find((c: AppCollection) => c.collection === defaultOptions.collections.localazyData) ?? null)
         : localazyDataCollection.value;
     contentTransferSetupCollection.value =
       contentTransferSetupCollection.value === null
-        ? collections?.value.find((c: AppCollection) => c.collection === defaultOptions.collections.contentTransferSetup)
+        ? (collections.value.find((c: AppCollection) => c.collection === defaultOptions.collections.contentTransferSetup) ?? null)
         : contentTransferSetupCollection.value;
 
     hydratingDirectusData.value = true;

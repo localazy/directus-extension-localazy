@@ -30,7 +30,7 @@ function makeSchema() {
   };
 }
 
-const sampleSettings = { automated_deprecation: 1 };
+const sampleSettings = { automated_deprecation: true };
 const sampleTransferSetup = { translation_strings: true, enabled_fields: '[]' };
 const sampleLocalazyData = { access_token: 'tok' };
 const sampleProject = { id: 'p1' };
@@ -146,7 +146,7 @@ describe('translationStringsSynchronizationService.deprecateDeletedTranslationSt
   it('does nothing when automated_deprecation is disabled', async () => {
     const logger = makeLogger();
     vi.spyOn(proto, 'resolveLocalazySettings').mockResolvedValue({
-      settings: { automated_deprecation: 0 },
+      settings: { automated_deprecation: false },
       contentTransferSetup: sampleTransferSetup,
     });
     vi.spyOn(proto, 'resolveLocalazyData').mockResolvedValue({ localazyData: sampleLocalazyData });

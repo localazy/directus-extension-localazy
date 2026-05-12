@@ -12,9 +12,17 @@ export interface DirectusApi {
   upsertDirectusItem: <T extends Item>(ccollection: string, item: (Item & T) | null, payload: T, options?: ItemOptions) => Promise<void>;
 
   fetchDirectusItems<T extends Item>(collection: string, query?: Query): Promise<T[]>;
-  fetchDirectusSingletonItem<T extends Item>(collection: string, query?: Query): Promise<T>;
+  /**
+   * Singleton fetch is only used by the admin module's hydration flow,
+   * so the hook's implementation can omit it.
+   */
+  fetchDirectusSingletonItem?<T extends Item>(collection: string, query?: Query): Promise<T>;
 
-  createField(collection: string, field: DeepPartial<Field>): Promise<void>;
+  /**
+   * Field creation is only used by the admin module's hydration flow
+   * (the hook never mutates the schema), so the hook can omit it.
+   */
+  createField?(collection: string, field: DeepPartial<Field>): Promise<void>;
 
   getCollection(collection: string): Pick<Collection, 'collection'> | null;
   fetchSettings(): Promise<Item | null>;

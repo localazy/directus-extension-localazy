@@ -63,11 +63,11 @@ rm -rf development/data development/uploads development/extensions
 | `npm run lint:fix`          | Same, with autofix.                                                                 |
 | `npm run format`            | Prettier check (fails if anything isn't formatted).                                 |
 | `npm run format:fix`        | Prettier write.                                                                     |
-| `npm run typecheck`         | `vue-tsc --noEmit` — typechecks `.ts` and `.vue` files.                             |
+| `npm run typecheck`         | `vue-tsc --noEmit` — typechecks `.ts` and `.vue` files. Gated in CI.                |
 | `npm run test`              | Vitest run.                                                                         |
 | `npm run test:watch`        | Vitest in watch mode.                                                               |
 | `npm run test:coverage`     | Vitest with v8 coverage report (text + HTML at `coverage/` + lcov).                 |
-| `npm run check`             | Aggregate: `lint && format && test`.                                                |
+| `npm run check`             | Aggregate: `lint && format && typecheck && test`.                                   |
 | `npm run check:fix`         | Aggregate fix: `lint:fix && format:fix`.                                            |
 | `npm run knip`              | Detect unused files, deps, and exports. Local only (not gated in CI).               |
 | `npm run build`             | Minified production build of both extensions. This is what release publishes.       |

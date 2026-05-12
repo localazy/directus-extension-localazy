@@ -68,7 +68,6 @@
 import { useItems, useStores } from '@directus/extensions-sdk';
 import { PropType, Ref, computed, ref, watch, watchEffect } from 'vue';
 import { AppCollection, Field, Item } from '@directus/types';
-import { storeToRefs } from 'pinia';
 import { getLocalazyLanguages } from '@localazy/languages';
 import { SelectItem } from '../../models/directus/internals/select-item';
 import { Settings } from '../../../../common/models/collections-data/settings';
@@ -77,6 +76,7 @@ import { DirectusLocalazyAdapter } from '../../../../common/services/directus-lo
 import LoginButton from './LoginButton.vue';
 import LogoutButton from './LogoutButton.vue';
 import { LocalazyData } from '../../../../common/models/collections-data/localazy-data';
+import { useDirectusCollectionsStoreRefs } from '../../composables/use-directus-stores';
 
 type Collection = AppCollection | null;
 
@@ -109,8 +109,8 @@ const localEdits = computed<Settings>({
   },
 });
 
-const { useCollectionsStore, useFieldsStore } = useStores();
-const { collections } = storeToRefs(useCollectionsStore());
+const { useFieldsStore } = useStores();
+const { collections } = useDirectusCollectionsStoreRefs();
 const { getFieldsForCollectionSorted } = useFieldsStore();
 const languageCollectionName = computed(() => localEdits.value.language_collection);
 

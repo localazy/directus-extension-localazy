@@ -41,7 +41,7 @@ export class DirectusApiService implements DirectusApi {
     }
   }
 
-  async fetchDirectusItems(collection: string, query: Query = {}): Promise<Item[]> {
+  async fetchDirectusItems<T extends Item>(collection: string, query: Query = {}): Promise<T[]> {
     return this.readByQuery(collection, query);
   }
 

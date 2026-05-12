@@ -1,24 +1,29 @@
-import { useStores, useApi } from '@directus/extensions-sdk';
+import { useApi } from '@directus/extensions-sdk';
 import { Collection, DeepPartial, AppCollection, Field, Item, Query } from '@directus/types';
 import { Ref, ref } from 'vue';
-import { storeToRefs } from 'pinia';
 import { isEmpty, isEqual } from 'lodash';
 import { useErrorsStore } from '../stores/errors-store';
 import { DirectusApi, ItemOptions } from '../../../common/interfaces/directus-api';
+import { useDirectusCollectionsStore, useDirectusCollectionsStoreRefs } from './use-directus-stores';
 
-type UseDirectusApi = DirectusApi & {
-  upsertDirectusCollection: (collection: string, values: DeepPartial<Collection & { fields: Field[] }>) => Promise<AppCollection>;
-  loading: Ref<boolean>;
-};
+/**
+ * The module-side implementation of DirectusApi. fetchDirectusSingletonItem and
+ * createField are optional on the base DirectusApi (the hook doesn't need them)
+ * but always present here.
+ */
+type UseDirectusApi = DirectusApi &
+  Required<Pick<DirectusApi, 'fetchDirectusSingletonItem' | 'createField'>> & {
+    upsertDirectusCollection: (collection: string, values: DeepPartial<Collection & { fields: Field[] }>) => Promise<AppCollection>;
+    loading: Ref<boolean>;
+  };
 
 export function useDirectusApi(): UseDirectusApi {
-  const { useCollectionsStore } = useStores();
-  const { getCollection } = useCollectionsStore();
-  const { collections } = storeToRefs(useCollectionsStore());
+  const { getCollection } = useDirectusCollectionsStore();
+  const { collections } = useDirectusCollectionsStoreRefs();
   const api = useApi();
   const loading = ref(false);
   const { addDirectusError } = useErrorsStore();
-  const appCollections = collections?.value as AppCollection[];
+  const appCollections = collections.value;
 
   const updateDirectusItem = async <T extends Item>(collection: string, itemId: number | string, data: T, options: ItemOptions = {}) => {
     const resolvedPayload = options.ignoreEmpty
