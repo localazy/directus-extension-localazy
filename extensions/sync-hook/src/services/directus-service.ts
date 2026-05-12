@@ -14,16 +14,6 @@ export class DirectusApiService implements DirectusApi {
     this.schema = schema;
   }
 
-  async updateDirectusItem<T extends Item>(collection: string, itemId: number | string, data: T) {
-    const targetCollection = this.getCollection(collection);
-
-    if (targetCollection?.singleton === true) {
-      await this.upsertSingleton(collection, data);
-    } else {
-      await this.updateOne(collection, itemId, data);
-    }
-  }
-
   async createDirectusItem<T extends Item>(collection: string, data: T) {
     const targetCollection = this.getCollection(collection);
     const { id: _id, ...rest } = data;
@@ -34,14 +24,6 @@ export class DirectusApiService implements DirectusApi {
       await this.upsertSingleton(collection, data);
     } else {
       await this.createOne(collection, payload);
-    }
-  }
-
-  async upsertDirectusItem<T extends Item>(collection: string, item: (Item & T) | null, payload: T) {
-    if (item && item.id) {
-      await this.updateDirectusItem(collection, item.id, payload);
-    } else {
-      await this.createDirectusItem(collection, payload);
     }
   }
 
@@ -89,11 +71,6 @@ export class DirectusApiService implements DirectusApi {
   private createOne<T extends Item>(collection: string, payload: Partial<T>) {
     const service = new this.ItemsService<T>(collection, { schema: this.schema, accountability: null });
     return service.createOne(payload, { emitEvents: false } as MutationOptions);
-  }
-
-  private updateOne<T extends Item>(collection: string, id: string | number, payload: Partial<T>) {
-    const service = new this.ItemsService<T>(collection, { schema: this.schema, accountability: null });
-    return service.updateOne(id, payload, { emitEvents: false } as MutationOptions);
   }
 
   private upsertSingleton<T extends Item>(collection: string, payload: Partial<T>) {
