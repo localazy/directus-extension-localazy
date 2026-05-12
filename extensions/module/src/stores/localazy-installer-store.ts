@@ -10,6 +10,7 @@ import { defaultConfiguration } from '../data/default-configuration';
 import { createSettingsFields } from '../data/fields/settings/create';
 import { createContentTransferSetupsFields } from '../data/fields/content-transfer-setup/create';
 import { createLocalazyDataFields } from '../data/fields/localazy-data/create';
+import { createSyncStateFields } from '../data/fields/sync-state/create';
 
 /**
  * Collection names owned by this extension. Used by the installer and the per-singleton
@@ -20,6 +21,7 @@ export const LOCALAZY_COLLECTIONS = {
   settings: 'localazy_settings',
   contentTransferSetup: 'localazy_content_transfer_setup',
   config: 'localazy_config_data',
+  syncState: 'localazy_sync_state',
 } as const;
 
 type CollectionPlan = {
@@ -136,6 +138,11 @@ export const useLocalazyInstallerStore = defineStore('localazyInstaller', () => 
           name: LOCALAZY_COLLECTIONS.config,
           fields: createLocalazyDataFields,
           defaults: defaultConfiguration().localazy_data,
+        });
+        await ensureCollection({
+          name: LOCALAZY_COLLECTIONS.syncState,
+          fields: createSyncStateFields,
+          defaults: defaultConfiguration().sync_state,
         });
         installed.value = true;
       } catch (e: unknown) {

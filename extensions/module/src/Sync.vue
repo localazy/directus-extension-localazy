@@ -13,7 +13,8 @@
         :has-changes="hasChanges"
         :disable-sync="!someTranslatableFieldsChecked && !synchronizeTranslationStrings"
         @upload="onExport"
-        @download="onImport"
+        @download="onImport('incremental')"
+        @download-full="onImport('full')"
         @save-settings="onSaveSettings({ notify: true })"
       />
     </template>

@@ -1,4 +1,5 @@
 import { storeToRefs } from 'pinia';
+import { Key } from '@localazy/api-client';
 import { useLocalazyStore } from '../stores/localazy-store';
 import { useProgressTrackerStore } from '../stores/progress-tracker-store';
 import { ContentFromLocalazyService } from '../services/content-from-localazy-service';
@@ -13,6 +14,12 @@ type ImportContentFromLocalazy = {
   languages: DirectusLocalazyLanguage[];
   enabledFields: EnabledField[];
   localazyData: LocalazyData;
+  /**
+   * Optional post-fetch filter applied per language before content parsing. The download
+   * orchestrator injects cursor-based filtering here; passing it through this composable
+   * keeps `use-import-from-localazy` agnostic of cursor mechanics.
+   */
+  filterKeysForLanguage?: (language: string, keys: Key[]) => Key[];
 };
 
 type ImportContentFromLocalazySuccessReturn = {
@@ -41,6 +48,7 @@ export const useImportFromLocalazy = () => {
         enabledFields: data.enabledFields,
         localazyData: data.localazyData,
         localazyProject: localazyProject.value,
+        filterKeysForLanguage: data.filterKeysForLanguage,
         progressCallbacks: {
           nothingToImport: () => {
             addProgressMessage({

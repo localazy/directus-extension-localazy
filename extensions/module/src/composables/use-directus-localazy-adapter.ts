@@ -10,6 +10,7 @@ import {
 import { Settings } from '../../../common/models/collections-data/settings';
 import { createAsyncQueue } from '../../../common/utilities/async-queue';
 import { TranslationPayload } from '../models/directus/translation-payload';
+import { WrittenTriple } from '../models/sync-write-result';
 import { mergeTranslationPayload } from '../utils/merge-translation-payload';
 import { useErrorsStore } from '../stores/errors-store';
 import { ProgressTrackerId } from '../enums/progress-tracker-id';
@@ -123,7 +124,7 @@ export const useDirectusLocalazyAdapter = () => {
     );
   }
 
-  async function upsertItemFromLocalazyContent(data: UpsertItemFromLocalazyContent) {
+  async function upsertItemFromLocalazyContent(data: UpsertItemFromLocalazyContent): Promise<WrittenTriple[]> {
     const { itemsInCollection, itemId, translations, collection, translationFieldFkMap, languageCodeField } = data;
     // Stringify both sides — `+id` returns NaN for UUID primary keys, and NaN === NaN is
     // false, so the strict numeric equality used previously silently failed for any
@@ -132,9 +133,13 @@ export const useDirectusLocalazyAdapter = () => {
     let payload: TranslationPayload = {};
     const updateTranslationFields: Set<string> = new Set();
     let somethingToCreate = false;
+    // Track every `(lang, keyId, event)` triple that contributed to this PATCH. We only
+    // hand the list back to the caller after the PATCH resolves (PATCH-then-mark) — so a
+    // failed write never produces a cursor advance that would skip the same key next time.
+    const triples: WrittenTriple[] = [];
 
     if (!collectionItem) {
-      return;
+      return [];
     }
     translations.forEach((translation) => {
       translation.items.forEach((item) => {
@@ -148,6 +153,11 @@ export const useDirectusLocalazyAdapter = () => {
           languageCodeField,
         });
         payload = result.currentPayload;
+        triples.push({
+          language: translation.language,
+          keyId: item.localazyKey.id,
+          event: item.localazyKey.event,
+        });
         if (result.isCreateOperation) {
           somethingToCreate = true;
         } else {
@@ -158,10 +168,20 @@ export const useDirectusLocalazyAdapter = () => {
     const someUpdateChanges = madeUpdateChanges(updateTranslationFields, payload, collectionItem);
     if (someUpdateChanges || somethingToCreate) {
       await directusApi.updateDirectusItem(collection, itemId, payload);
+      return triples;
     }
+    // Nothing was sent to Directus (idempotent no-op) — still advance the cursor since
+    // the local row already matches the remote translation, otherwise we'd refetch it
+    // again every sync.
+    return triples;
   }
 
-  async function upsertItemsFromSingleCollection(collection: string, content: LocalazyCollectionBlock, settings: Settings) {
+  async function upsertItemsFromSingleCollection(
+    collection: string,
+    content: LocalazyCollectionBlock,
+    settings: Settings,
+    onWritten?: (triples: WrittenTriple[]) => void,
+  ) {
     try {
       // Build a map of translation field -> FK column for the language relation, and ask
       // Directus to expand each language reference (`${field}.${fk}.*`) so the FK column
@@ -191,7 +211,7 @@ export const useDirectusLocalazyAdapter = () => {
         });
 
         try {
-          await upsertItemFromLocalazyContent({
+          const triples = await upsertItemFromLocalazyContent({
             collection,
             itemsInCollection,
             itemId,
@@ -199,6 +219,11 @@ export const useDirectusLocalazyAdapter = () => {
             translationFieldFkMap,
             languageCodeField: settings.language_code_field,
           });
+          // PATCH-then-mark: only invoke the cursor sink after the write resolves. If the
+          // PATCH threw, we land in the catch below and `onWritten` is never called.
+          if (triples.length > 0 && onWritten) {
+            onWritten(triples);
+          }
         } catch (e: unknown) {
           addDirectusError(e);
           upsertProgressMessage(ProgressTrackerId.UPDATING_DIRECTUS_COLLECTION_ERROR, {
@@ -217,12 +242,31 @@ export const useDirectusLocalazyAdapter = () => {
     return {};
   }
 
-  async function upsertFromLocalazyContent(contentItems: LocalazyContent, settings: Settings) {
+  type UpsertFromLocalazyContentOptions = {
+    /**
+     * Invoked once per item with the list of `(lang, keyId, event)` triples that were
+     * successfully written. The orchestrator uses this to advance the in-memory cursor
+     * and trigger throttled flushes. Triples are reported in batches per item, not per
+     * key, to keep the callback overhead off the hot loop.
+     */
+    onWritten?: (triples: WrittenTriple[]) => void;
+  };
+
+  async function upsertFromLocalazyContent(
+    contentItems: LocalazyContent,
+    settings: Settings,
+    options: UpsertFromLocalazyContentOptions = {},
+  ) {
+    const { onWritten } = options;
     const { add, execute } = createAsyncQueue();
     contentItems.collections.forEach((content, collection) => {
-      add(async () => upsertItemsFromSingleCollection(collection, content, settings));
+      add(async () => upsertItemsFromSingleCollection(collection, content, settings, onWritten));
     });
-    add(async () => upsertTranslationStrings(Array.from(contentItems.translationStrings.values())));
+    add(async () =>
+      upsertTranslationStrings(Array.from(contentItems.translationStrings.values()), {
+        onWritten,
+      }),
+    );
 
     await execute({ delayBetween: 150 });
   }
