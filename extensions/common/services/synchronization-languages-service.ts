@@ -23,7 +23,7 @@ export class SynchronizationLanguagesService {
     const result = await this.directusApi.fetchDirectusItems(languageCollection, {
       fields: [languageCodeField],
     });
-    return result.map((item: any) => item[languageCodeField]);
+    return result.map((item) => item[languageCodeField] as string);
   }
 
   async createLanguages(settings: Settings, localazyLanguages: Language[]) {
@@ -65,7 +65,14 @@ export class SynchronizationLanguagesService {
     if (settings.create_missing_languages_in_directus !== CreateMissingLanguagesInDirectus.NO) {
       const localazyLanguagesNotInDirectus = localazyLanguages
         .filter((l) => !directusExpandedLangauges.some((directusLanguage) => directusLanguage.localazyForm === l.code))
-        .filter((l: any) => settings.create_missing_languages_in_directus === CreateMissingLanguagesInDirectus.ALL || l.enabled);
+        // Note: `enabled` isn't on @localazy/api-client's Language type. At runtime this
+        // access is always undefined, so the filter effectively only lets languages through
+        // when create_missing_languages_in_directus === ALL. Preserving existing behavior;
+        // the underlying "filter by enabled" logic was already inert.
+        .filter(
+          (l) =>
+            settings.create_missing_languages_in_directus === CreateMissingLanguagesInDirectus.ALL || (l as { enabled?: boolean }).enabled,
+        );
       await this.createLanguages(settings, localazyLanguagesNotInDirectus);
     }
 

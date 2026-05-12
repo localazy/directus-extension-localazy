@@ -61,7 +61,7 @@ export const useImportFromLocalazy = () => {
           },
         },
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       addLocalazyError(e, { type: 'import', userId: data.localazyData.user_id || '', orgId: localazyProject.value.orgId });
       return { success: false };
     }

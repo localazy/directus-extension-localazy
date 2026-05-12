@@ -9,7 +9,7 @@ type Options = {
   language: string;
   languageCodeField: string;
   type: 'update' | 'create';
-  value: Record<string, any>;
+  value: Record<string, unknown>;
 };
 
 const areDirectusItemsEqual = (a: Item, b: Item) => a.id === b.id && a.id !== undefined;

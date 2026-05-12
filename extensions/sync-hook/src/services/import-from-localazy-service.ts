@@ -85,7 +85,7 @@ class ImportFromLocalazyService {
           project: projectId,
         });
         return files.find((file) => file.name === 'directus.json') || null;
-      } catch (e: any) {
+      } catch (e: unknown) {
         trackLocalazyError(e, 'loadFile');
         return null;
       }

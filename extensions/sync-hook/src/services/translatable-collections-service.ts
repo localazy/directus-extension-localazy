@@ -22,7 +22,7 @@ export class ApiTranslatableCollectionsService {
     try {
       return this.translatableCollectionsService.fetchContentFromTranslatableCollections(options);
     } catch (e: unknown) {
-      trackDirectusError(e instanceof Error ? e : new Error(String(e)), 'fetchContentFromTranslatableCollection');
+      trackDirectusError(e, 'fetchContentFromTranslatableCollection');
       return {
         sourceLanguage: {},
         otherLanguages: {},

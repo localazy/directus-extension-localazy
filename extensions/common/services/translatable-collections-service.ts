@@ -84,14 +84,17 @@ export class TranslatableCollectionsService {
       fields: ['id', ...data.translationTypeFields.map((field) => `${field.field}.*`)],
       filter: { id: { _in: data.itemIds } },
       limit: -1,
-      deep: data.translationTypeFields.reduce((acc, field) => {
-        acc[field.field] = {
-          _filter: {
-            languages_code: { _in: data.languages },
-          },
-        };
-        return acc;
-      }, {} as any),
+      deep: data.translationTypeFields.reduce(
+        (acc, field) => {
+          acc[field.field] = {
+            _filter: {
+              languages_code: { _in: data.languages },
+            },
+          };
+          return acc;
+        },
+        {} as Record<string, { _filter: { languages_code: { _in: string[] } } }>,
+      ),
     };
 
     if (data.itemIds.length > 0) {

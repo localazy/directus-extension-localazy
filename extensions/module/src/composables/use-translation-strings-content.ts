@@ -18,7 +18,7 @@ export const useTranslationStringsContent = () => {
   async function fetchTranslationStrings(options: FetchTranslationStrings): Promise<TranslatableContent> {
     try {
       return translationStringsService.fetchTranslationStrings(options);
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
       return {
         sourceLanguage: {},
@@ -30,7 +30,7 @@ export const useTranslationStringsContent = () => {
   async function upsertTranslationStrings(data: LocalazyTranslationStringBlock[]) {
     try {
       await translationStringsService.upsertTranslationStrings(data);
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
     }
   }

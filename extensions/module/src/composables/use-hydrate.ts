@@ -126,7 +126,7 @@ export const useHydrate = () => {
         await hydrateCollectionsStore();
         await hydrateFieldsStore();
         await sleep(100);
-      } catch (e: any) {
+      } catch (e: unknown) {
         addDirectusError(e);
       }
     }
@@ -149,14 +149,14 @@ export const useHydrate = () => {
       try {
         const settingsItems = await fetchDirectusSingletonItem<Item & Settings>(settingsCollectionName);
         settingsItem.value = settingsItems || null;
-      } catch (e: any) {
+      } catch (e: unknown) {
         addDirectusError(e);
       }
     }
 
     try {
       await normalizeSettingsData(settingsCollectionName);
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
     }
   }
@@ -196,13 +196,13 @@ export const useHydrate = () => {
           defaultOptions.collections.groupingFolder,
         );
         contentTransferSetupCollection.value = result;
-      } catch (e: any) {
+      } catch (e: unknown) {
         addDirectusError(e);
       }
     } else {
       try {
         await normalizeContentTransferDataCollection(defaultOptions.collections.contentTransferSetup);
-      } catch (e: any) {
+      } catch (e: unknown) {
         addDirectusError(e);
       }
     }
@@ -294,13 +294,13 @@ export const useHydrate = () => {
       try {
         const result = await createSettingsCollection(defaultOptions.collections.settings, defaultOptions.collections.groupingFolder);
         settingsCollection.value = result;
-      } catch (e: any) {
+      } catch (e: unknown) {
         addDirectusError(e);
       }
     } else {
       try {
         await normalizeSettingsCollection(defaultOptions.collections.settings);
-      } catch (e: any) {
+      } catch (e: unknown) {
         addDirectusError(e);
       }
     }
@@ -331,13 +331,13 @@ export const useHydrate = () => {
           defaultOptions.collections.groupingFolder,
         );
         localazyDataCollection.value = result;
-      } catch (e: any) {
+      } catch (e: unknown) {
         addDirectusError(e);
       }
     } else {
       try {
         await normalizeLocalazyDataCollection(defaultOptions.collections.localazyData);
-      } catch (e: any) {
+      } catch (e: unknown) {
         addDirectusError(e);
       }
     }
@@ -349,7 +349,7 @@ export const useHydrate = () => {
       try {
         const result = await fetchDirectusSingletonItem<Item & LocalazyData>(localazyDataCollectionName);
         localazyDataItem.value = result || null;
-      } catch (e: any) {
+      } catch (e: unknown) {
         addDirectusError(e);
       }
     }
@@ -367,7 +367,7 @@ export const useHydrate = () => {
 
     try {
       await normalizeLocalazyData(localazyDataCollectionName);
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
     }
   }
@@ -378,14 +378,14 @@ export const useHydrate = () => {
       try {
         const result = await fetchDirectusSingletonItem<Item & ContentTransferSetupDatabase>(contentTransferSetupCollectionName);
         contentTransferSetupItem.value = result || null;
-      } catch (e: any) {
+      } catch (e: unknown) {
         addDirectusError(e);
       }
     }
 
     try {
       await normalizeContentTransferData(contentTransferSetupCollectionName);
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
     }
   }

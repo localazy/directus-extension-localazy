@@ -91,7 +91,7 @@ export function useDirectusApi(): UseDirectusApi {
         await updateDirectusItem(collection, item.id, resolvedPayload);
       }
       await createDirectusItem(collection, resolvedPayload);
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
       throw e;
     }
@@ -103,7 +103,7 @@ export function useDirectusApi(): UseDirectusApi {
         params: query,
       });
       return result.data.data;
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
       return [];
     }
@@ -115,7 +115,7 @@ export function useDirectusApi(): UseDirectusApi {
         params: query,
       });
       return result.data.data;
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
       throw e;
     }
@@ -137,7 +137,7 @@ export function useDirectusApi(): UseDirectusApi {
       }
       const result = await api.post<{ data: AppCollection }>('/collections', values);
       return result.data.data;
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
       throw e;
     }
@@ -152,7 +152,7 @@ export function useDirectusApi(): UseDirectusApi {
         },
       });
       return result.data.data;
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
       return null;
     }
@@ -166,7 +166,7 @@ export function useDirectusApi(): UseDirectusApi {
         },
       });
       return result.data.data;
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
       return null;
     }
@@ -192,7 +192,7 @@ export function useDirectusApi(): UseDirectusApi {
     loading.value = true;
     try {
       await api.post(`collections/${collection}/fields`, field);
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
     }
     loading.value = false;

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { translationStringsSynchronizationService } from './translation-strings-synchronization-service';
 import { BaseContentSynchronizationService } from './base-content-synchronization-service';
+import type { DirectusLogger } from '../../types/directus-services';
 
 // The service is a singleton instance of TranslationStringsSynchronizationService, which
 // extends BaseContentSynchronizationService. Most of the orchestration logic lives on the
@@ -25,7 +26,7 @@ function makeLogger() {
     debug: vi.fn(),
     trace: vi.fn(),
     silent: vi.fn(),
-  } as unknown as import('pino').Logger;
+  } as unknown as DirectusLogger;
 }
 
 function makeSchema() {

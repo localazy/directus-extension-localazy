@@ -47,7 +47,7 @@ export const useLocalazyStore = defineStore('localazyStore', () => {
             name: localazyProject.value?.name || '',
             slug: localazyProject.value?.slug || '',
           });
-        } catch (e: any) {
+        } catch (e: unknown) {
           addLocalazyError(e, {
             type: 'project',
             userId: localazyDataItem.value?.user_id || '',
@@ -71,7 +71,7 @@ export const useLocalazyStore = defineStore('localazyStore', () => {
           });
           directusFile.value = files.find((file) => file.name === 'directus.json') || null;
           resetLocalazyErrors();
-        } catch (e: any) {
+        } catch (e: unknown) {
           addLocalazyError(e, {
             type: 'file',
             userId: localazyDataItem.value?.user_id || '',

@@ -122,7 +122,7 @@ const languageRows = computed((): Row[] => {
         present: localazyLocales.includes(locale),
         presentMapped: localazyLocales.includes(localazyFormLocale),
         mappedTo: localazyFormLocale,
-        hidden: (projectLanguage as any)?.published === false,
+        hidden: (projectLanguage as { published?: boolean } | undefined)?.published === false,
       },
       directus: {
         present: directusLanguages.value.includes(locale),

@@ -53,7 +53,7 @@ export abstract class BaseContentSynchronizationService {
       const projects = await LocalazyApiThrottleService.listProjects(token, { organization: true, languages: true });
       const localazyProject = projects[0] || null;
       return localazyProject;
-    } catch (e: any) {
+    } catch (e: unknown) {
       trackLocalazyError(e, 'loadProject');
       return null;
     }
@@ -78,7 +78,7 @@ export abstract class BaseContentSynchronizationService {
         settings,
         contentTransferSetup,
       };
-    } catch (e: any) {
+    } catch (e: unknown) {
       trackLocalazyError(e, 'resolveLocalazySettings');
       return {
         settings: null,
@@ -95,7 +95,7 @@ export abstract class BaseContentSynchronizationService {
       return {
         localazyData: data,
       };
-    } catch (e: any) {
+    } catch (e: unknown) {
       trackLocalazyError(e, 'resolveLocalazyData');
       return {
         localazyData: null,
@@ -194,7 +194,7 @@ export abstract class BaseContentSynchronizationService {
         localazyData: resolvedLocalazyData,
         localazyProject: resolvedLocalazyProject,
       };
-    } catch (e: any) {
+    } catch (e: unknown) {
       trackLocalazyError(e, 'fetchLocalazyContent');
       return null;
     }
@@ -225,7 +225,7 @@ export abstract class BaseContentSynchronizationService {
       const exportLanguages = await synchronizationLanguagesService.resolveExportLanguages(settings);
       return exportLanguages;
     } catch (e: unknown) {
-      trackDirectusError(e instanceof Error ? e : new Error(String(e)), 'resolveExportLanguages');
+      trackDirectusError(e, 'resolveExportLanguages');
       return [];
     }
   }

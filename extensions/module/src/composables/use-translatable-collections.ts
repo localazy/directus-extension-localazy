@@ -21,7 +21,7 @@ export const useTranslatableCollections = () => {
     try {
       const result = await translatableCollectionsService.fetchContentFromTranslatableCollections(options);
       return result;
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
       return {
         sourceLanguage: {},
