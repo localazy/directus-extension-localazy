@@ -7,16 +7,17 @@ import { Settings } from '../../../../common/models/collections-data/settings';
 import { ContentTransferSetupDatabase } from '../../../../common/models/collections-data/content-transfer-setup';
 import { DirectusApiService } from '../directus-service';
 import { trackDirectusError } from '../../functions/track-error';
+import type { DirectusLogger, ItemsServiceCtor } from '../../types/directus-services';
 
 type ExportTranslationString = {
   schema: SchemaOverview;
-  logger: any;
-  ItemsService: any;
+  logger: DirectusLogger;
+  ItemsService: ItemsServiceCtor;
 };
 
 type FetchTranslationStrings = {
   schema: SchemaOverview;
-  ItemsService: any;
+  ItemsService: ItemsServiceCtor;
   settings: Settings;
   contentTransferSetup: ContentTransferSetupDatabase;
 };
@@ -24,8 +25,8 @@ type FetchTranslationStrings = {
 type DeprecateDeletedTranslationStrings = {
   schema: SchemaOverview;
   itemIds: string[];
-  logger: any;
-  ItemsService: any;
+  logger: DirectusLogger;
+  ItemsService: ItemsServiceCtor;
 };
 
 class TranslationStringsSynchronizationService extends BaseContentSynchronizationService {
@@ -146,7 +147,7 @@ class TranslationStringsSynchronizationService extends BaseContentSynchronizatio
 
     const translationStringsService = new TranslationStringsService(new DirectusApiService(ItemsService, schema));
 
-    const exportLanguages = await this.resolveExportLanguages(ItemsService, settings);
+    const exportLanguages = await this.resolveExportLanguages(ItemsService, schema, settings);
     try {
       const translationStrings = await translationStringsService.fetchTranslationStrings({
         languages: exportLanguages,

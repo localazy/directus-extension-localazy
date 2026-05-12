@@ -12,12 +12,20 @@ type AnyFn = (...args: unknown[]) => unknown;
 
 const proto = BaseContentSynchronizationService.prototype as unknown as Record<string, AnyFn>;
 
+// Pino's Logger has overloaded log methods that vi.fn()'s Mock<Procedure> doesn't
+// structurally satisfy. The `as unknown as Logger` cast is the test-mock escape hatch
+// CLAUDE.md allows when a single `as Target` doesn't compile.
 function makeLogger() {
   return {
-    info: vi.fn(),
-    warn: vi.fn(),
+    level: 'info',
+    fatal: vi.fn(),
     error: vi.fn(),
-  };
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+    trace: vi.fn(),
+    silent: vi.fn(),
+  } as unknown as import('pino').Logger;
 }
 
 function makeSchema() {
