@@ -1,23 +1,46 @@
 import { describe, it, expect } from 'vitest';
+import type { Organization, Project } from '@localazy/api-client';
 import { LocalazyPaymentStatus } from './localazy-payment-status';
-import type { Project } from '@localazy/api-client';
 
-function makeProject(overrides: Partial<Project['organization']> = {}): Project {
+function makeOrganization(overrides: Partial<Organization> = {}): Organization {
   return {
-    organization: {
-      usedKeys: 0,
-      availableKeys: 100,
-      figma: true,
-      ...overrides,
-    },
-  } as unknown as Project;
+    availableKeys: 100,
+    usedKeys: 0,
+    figma: true,
+    connectedApps: false,
+    releaseTags: false,
+    formatConversions: false,
+    screenshots: false,
+    screenshotsForFigma: false,
+    additionalMt: false,
+    mtPretranslate: false,
+    webhooks: false,
+    ...overrides,
+  };
+}
+
+function makeProject(orgOverrides: Partial<Organization> = {}): Project {
+  return {
+    id: 'p1',
+    orgId: 'org1',
+    name: 'Test Project',
+    slug: 'test',
+    image: '',
+    url: 'https://localazy.com/p/test',
+    description: '',
+    type: 'private',
+    tone: 'formal',
+    role: 'owner',
+    sourceLanguage: 0,
+    organization: makeOrganization(orgOverrides),
+    languages: [],
+  };
 }
 
 describe('LocalazyPaymentStatus', () => {
   describe('isOverKeysLimit', () => {
-    it('returns false when no organization is attached to the project', () => {
+    it('returns false when the project is null', () => {
       expect(LocalazyPaymentStatus.isOverKeysLimit(null)).toBe(false);
-      expect(LocalazyPaymentStatus.isOverKeysLimit({ organization: undefined } as unknown as Project)).toBe(false);
     });
 
     it('returns false when used keys are below the available limit', () => {
@@ -37,7 +60,7 @@ describe('LocalazyPaymentStatus', () => {
   });
 
   describe('lacksAccessToPlugin', () => {
-    it('returns false when no organization is attached', () => {
+    it('returns false when the project is null', () => {
       expect(LocalazyPaymentStatus.lacksAccessToPlugin(null)).toBe(false);
     });
 
@@ -51,8 +74,11 @@ describe('LocalazyPaymentStatus', () => {
   });
 
   describe('shouldDisableSyncOperations', () => {
-    it('returns true if either over-limit or no plugin access', () => {
+    it('returns true when over the keys limit', () => {
       expect(LocalazyPaymentStatus.shouldDisableSyncOperations(makeProject({ usedKeys: 200, availableKeys: 100 }))).toBe(true);
+    });
+
+    it('returns true when the organization lacks plugin access', () => {
       expect(LocalazyPaymentStatus.shouldDisableSyncOperations(makeProject({ figma: false }))).toBe(true);
     });
 
