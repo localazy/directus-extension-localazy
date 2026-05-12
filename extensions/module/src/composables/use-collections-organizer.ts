@@ -2,12 +2,12 @@ import { sortBy, uniqWith } from 'lodash';
 import { computed } from 'vue';
 import { AppCollection } from '@directus/types';
 import { useStores } from '@directus/extensions-sdk';
-import { storeToRefs } from 'pinia';
 import { FieldsUtilsService } from '../../../common/utilities/fields-utils-service';
+import { useDirectusCollectionsStoreRefs } from './use-directus-stores';
 
 export const useCollectionsOrganizer = () => {
-  const { useCollectionsStore, useFieldsStore } = useStores();
-  const { allCollections } = storeToRefs(useCollectionsStore());
+  const { useFieldsStore } = useStores();
+  const { allCollections } = useDirectusCollectionsStoreRefs();
   const { getFieldsForCollection } = useFieldsStore();
 
   const collections = computed<AppCollection[]>(() =>

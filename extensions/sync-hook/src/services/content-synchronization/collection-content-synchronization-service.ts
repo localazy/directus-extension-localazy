@@ -94,7 +94,7 @@ class CollectionContentSynchronizationService extends BaseContentSynchronization
         return;
       }
 
-      if (settings.automated_deprecation !== 1) {
+      if (!settings.automated_deprecation) {
         return;
       }
 
