@@ -65,7 +65,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import Navigation from './components/Navigation.vue';
 import CollectionItem from './components/Sync/CollectionItem.vue';
@@ -78,12 +78,15 @@ import ErrorsNotice from './components/ErrorsNotice.vue';
 import ConfigNotice from './components/ConfigNotice.vue';
 import { useProgressTrackerStore } from './stores/progress-tracker-store';
 import TranslationStringsContent from './components/Sync/TranslationStringsContent.vue';
-import { useInitSyncContainer } from './composables/use-sync-container-init';
 import { useSyncContainerActions } from './composables/use-sync-container-actions';
 import { useLocalazyInstallerStore } from './stores/localazy-installer-store';
 import { useLocalazyConfigStore } from './stores/localazy-config-store';
+import { useLocalazyTransferSetupStore } from './stores/localazy-transfer-setup-store';
 import { useLocalazyStore } from './stores/localazy-store';
 import { useLocalazyConfigurationStatus } from './composables/use-localazy-configuration-status';
+import { EnabledField } from '../../common/models/collections-data/content-transfer-setup';
+import { EnabledFieldsService } from '../../common/utilities/enabled-fields-service';
+import { defaultConfiguration } from './data/default-configuration';
 
 const { translatableRootCollections, rootCollections, translatableCollections, collections } = useCollectionsOrganizer();
 const { getTranslatableFields } = useGetFieldsForTranslationRelation();
@@ -91,7 +94,26 @@ const { progressTracker } = storeToRefs(useProgressTrackerStore());
 
 const showUntranslatableField = ref(false);
 const showUntranslatableCollections = ref(false);
-const { enabledFields, synchronizeTranslationStrings } = useInitSyncContainer();
+
+// Editable sync-container state, seeded from the transfer-setup store. The watch
+// reseats the working copy whenever the persisted setup changes — initial load,
+// post-save reload, or a rare cross-tab edit.
+const { data: transferSetup } = storeToRefs(useLocalazyTransferSetupStore());
+const enabledFields = ref<EnabledField[]>([]);
+const synchronizeTranslationStrings = ref(defaultConfiguration().content_transfer_setup.translation_strings);
+watch(
+  transferSetup,
+  (setup) => {
+    try {
+      enabledFields.value = EnabledFieldsService.parseFromDatabase(setup.enabled_fields);
+    } catch {
+      enabledFields.value = [];
+    }
+    synchronizeTranslationStrings.value = setup.translation_strings;
+  },
+  { immediate: true, deep: true },
+);
+
 const { onSaveSettings, onExport, onImport, onFinishAction, showProgress, loading, hasChanges } = useSyncContainerActions({
   enabledFields,
   synchronizeTranslationStrings,
