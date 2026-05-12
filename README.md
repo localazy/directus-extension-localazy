@@ -6,13 +6,46 @@ This is a monorepo consisting of following Localazy extensions for [Directus](ht
 Please refer to [Localazy Directus Extension](extensions/module/README.md) and [Localazy Directus Extension Automation](extensions/sync-hook/README.md) for more information about each extension. 
 
 ## Contributing
-> Check that your [Docker](https://www.docker.com/products/docker-desktop/) engine is running
-- Run `npm run dev`
-  - This will start the dockerized environment and will automatically synchronize any changes you make to the Directus' extensions folder
-  - In order to propagate the changes, the docker container is always restarted. Depending on your computing power, this could take a second or two.
-- Open `http://localhost:8055/admin`
-  - user: admin@example.com
-  - pwd: d1r3ctu5
+
+### Prerequisites
+- Node 22 (see `.nvmrc`). With nvm: `nvm use`.
+- No Docker required — the dev loop uses a local Directus instance against SQLite.
+
+### Local development
+
+1. Install dependencies once at the repo root (workspaces handle the sub-packages):
+   ```bash
+   npm install
+   ```
+2. Start the dev loop:
+   ```bash
+   npm run dev
+   ```
+   This will:
+   - Build both extensions once.
+   - Start a local Directus instance backed by a SQLite database under `development/data/`.
+   - Watch-rebuild both extensions on change; Directus auto-reloads when the bundles update, so saved edits appear in the admin without a manual restart.
+3. Open the admin UI at **http://localhost:8055/admin** and sign in:
+
+   | Field | Value |
+   |---|---|
+   | Email | `admin@example.com` |
+   | Password | `d1r3ctu5` |
+
+   These credentials are local-only — they're seeded by `scripts/dev.mjs` and live in the gitignored `development/data/data.db`.
+
+### Reset the local Directus state
+
+Delete the data directory to wipe the SQLite database, uploads, and the symlinked extensions layout. Next `npm run dev` re-bootstraps from scratch:
+```bash
+rm -rf development/data development/uploads development/extensions
+```
+
+### Useful scripts
+
+- `npm run build` — production-style build of both extensions (mode = production, minified).
+- `npm run build:development` — non-minified build (what `dev` runs internally).
+- `npm run lint` — lint both extensions.
 
 ## 📚 Documentation
 

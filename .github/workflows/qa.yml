@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - next
 
 jobs:
   lint:
@@ -16,29 +17,13 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18.18
+          node-version-file: .nvmrc
 
       - name: Install deps
-        run: |
-          npm ci
-
-          cd extensions/common
-          npm ci
-
-          cd ../module
-          npm ci
-
-          cd ../sync-hook
-          npm ci
+        run: npm ci
 
       - name: Build & lint
         run: |
           npm run set-production-config
-
-          cd extensions/module
           npm run lint
-          npm run build
-
-          cd ../sync-hook
-          npm run lint
-          npm run build
+          npm run build:development
