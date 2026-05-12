@@ -37,6 +37,17 @@ export function createSingletonStore<T extends Record<string, unknown>>(collecti
     const loading = ref(false);
     const error = ref<unknown>(null);
 
+    // Resolves once the first installer-driven reload settles (success or error).
+    // Lets `useLocalazyBoot.boot()` await the singleton's data being populated before
+    // handing the store off to downstream consumers — without this, the boot proceeds
+    // while the watcher's fire-and-forget `void reload()` is still in flight, and the
+    // first hard-refresh consumer reads stale defaults (visible bug: Overview shows
+    // "Not connected to Localazy" until you navigate away and back).
+    let firstLoadResolve!: () => void;
+    const firstLoad = new Promise<void>((resolve) => {
+      firstLoadResolve = resolve;
+    });
+
     async function reload(): Promise<void> {
       loading.value = true;
       try {
@@ -70,11 +81,11 @@ export function createSingletonStore<T extends Record<string, unknown>>(collecti
     watch(
       () => installer.installed,
       (done) => {
-        if (done) void reload();
+        if (done) void reload().finally(() => firstLoadResolve());
       },
       { immediate: true },
     );
 
-    return { data, loading, error, save, reload };
+    return { data, loading, error, save, reload, firstLoad };
   };
 }
