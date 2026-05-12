@@ -33,11 +33,12 @@
   },
   "dependencies": {
     "@localazy/api-client": "^2.1.5",
-    "@localazy/languages": "^1.0.0",
+    "axios": "^1.13.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@directus/extensions-sdk": "^17.1.4",
+    "@directus/types": "^15.0.0",
     "@types/lodash": "^4.17.1",
     "@types/node": "^22.0.0",
     "typescript": "^5.9.3"
