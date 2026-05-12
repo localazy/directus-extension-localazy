@@ -1,5 +1,6 @@
 import { Item } from '@directus/types';
 import { isEqual } from 'lodash';
+import { useApi } from '@directus/extensions-sdk';
 import {
   LocalazyCollectionBlock,
   LocalazyContent,
@@ -13,8 +14,8 @@ import { mergeTranslationPayload } from '../utils/merge-translation-payload';
 import { useErrorsStore } from '../stores/errors-store';
 import { ProgressTrackerId } from '../enums/progress-tracker-id';
 import { useProgressTrackerStore } from '../stores/progress-tracker-store';
-import { useDirectusApi } from './use-directus-api';
-import { useDirectusRelationsStore } from './use-directus-stores';
+import { DirectusModuleApi } from '../services/directus-module-api';
+import { useDirectusCollectionsStore, useDirectusRelationsStore } from './use-directus-stores';
 import { useTranslationStringsContent } from './use-translation-strings-content';
 
 type CreatePayloadForTranslationItem = {
@@ -54,7 +55,7 @@ export function extractLanguageCode(fkValue: unknown, languageCodeField: string)
 export const useDirectusLocalazyAdapter = () => {
   const { addDirectusError } = useErrorsStore();
   const { upsertProgressMessage } = useProgressTrackerStore();
-  const { fetchDirectusItems, updateDirectusItem } = useDirectusApi();
+  const directusApi = new DirectusModuleApi(useApi(), useDirectusCollectionsStore());
   const { upsertTranslationStrings } = useTranslationStringsContent();
   const relationsStore = useDirectusRelationsStore();
 
@@ -156,7 +157,7 @@ export const useDirectusLocalazyAdapter = () => {
     });
     const someUpdateChanges = madeUpdateChanges(updateTranslationFields, payload, collectionItem);
     if (someUpdateChanges || somethingToCreate) {
-      await updateDirectusItem(collection, itemId, payload);
+      await directusApi.updateDirectusItem(collection, itemId, payload);
     }
   }
 
@@ -174,7 +175,7 @@ export const useDirectusLocalazyAdapter = () => {
         fields.push(`${field}.${fkField}.*`);
       });
 
-      const itemsInCollection = await fetchDirectusItems(collection, {
+      const itemsInCollection = await directusApi.fetchDirectusItems(collection, {
         fields,
         limit: -1,
       });

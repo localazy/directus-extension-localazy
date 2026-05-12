@@ -1,15 +1,18 @@
 import { storeToRefs } from 'pinia';
-import { useDirectusApi } from './use-directus-api';
+import { useApi } from '@directus/extensions-sdk';
 import { useErrorsStore } from '../stores/errors-store';
 import { Settings } from '../../../common/models/collections-data/settings';
 import { useLocalazyStore } from '../stores/localazy-store';
 import { DirectusLocalazyLanguage } from '../../../common/models/directus-localazy-language';
 import { SynchronizationLanguagesService } from '../../../common/services/synchronization-languages-service';
+import { DirectusModuleApi } from '../services/directus-module-api';
+import { useDirectusCollectionsStore } from './use-directus-stores';
 
 export function useDirectusLanguages() {
   const { addDirectusError } = useErrorsStore();
   const { localazyProject } = storeToRefs(useLocalazyStore());
-  const synchronizationLanguagesService = new SynchronizationLanguagesService(useDirectusApi());
+  const directusApi = new DirectusModuleApi(useApi(), useDirectusCollectionsStore());
+  const synchronizationLanguagesService = new SynchronizationLanguagesService(directusApi);
 
   async function fetchDirectusLanguages(languageCollection: string, languageCodeField: string): Promise<string[]> {
     try {

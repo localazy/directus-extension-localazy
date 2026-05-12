@@ -1,17 +1,20 @@
 import { ref } from 'vue';
+import { useApi } from '@directus/extensions-sdk';
 import {
   TranslatableCollectionsService,
   TranslatableCollectionsServiceOptions,
 } from '../../../common/services/translatable-collections-service';
-import { useDirectusApi } from './use-directus-api';
 import { useTranslatableCollectionsContent } from './use-translatable-collections-content';
 import { useErrorsStore } from '../stores/errors-store';
 import { TranslatableContent } from '../../../common/models/translatable-content';
+import { DirectusModuleApi } from '../services/directus-module-api';
+import { useDirectusCollectionsStore } from './use-directus-stores';
 
 export const useTranslatableCollections = () => {
   const loading = ref(false);
+  const directusApi = new DirectusModuleApi(useApi(), useDirectusCollectionsStore());
   const translatableCollectionsService = new TranslatableCollectionsService({
-    directusApi: useDirectusApi(),
+    directusApi,
     translatableCollectionsContent: useTranslatableCollectionsContent(),
   });
   const { addDirectusError } = useErrorsStore();
