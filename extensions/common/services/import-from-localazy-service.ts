@@ -1,4 +1,3 @@
-/* eslint-disable class-methods-use-this */
 import { uniqWith } from 'lodash';
 import { Locales, Project } from '@localazy/api-client';
 import { LocalazyApiThrottleService } from './localazy-api-throttle-service';
@@ -23,7 +22,7 @@ type ImportContentFromLocalazy = {
   progressCallbacks: {
     nothingToImport: () => void;
     couldNotFetchContent: (language: string) => void;
-  }
+  };
 };
 
 type ImportContentFromLocalazySuccessReturn = {
@@ -39,9 +38,7 @@ type ImportContentFromLocalazyReturn = ImportContentFromLocalazySuccessReturn | 
 
 class ImportFromLocalazyService {
   async importContentFromLocalazy(data: ImportContentFromLocalazy): Promise<ImportContentFromLocalazyReturn> {
-    const {
-      languages, enabledFields, progressCallbacks, localazyProject, localazyData,
-    } = data;
+    const { languages, enabledFields, progressCallbacks, localazyProject, localazyData } = data;
 
     const uniqueLocalazyFormLanguages = uniqWith(languages, (a, b) => a.localazyForm === b.localazyForm);
     const directusFile = await this.loadFile(localazyData.access_token, localazyProject?.id || '');
@@ -52,14 +49,21 @@ class ImportFromLocalazyService {
     }
 
     if (localazyProject && directusFile) {
-      const sourceKeysPerLanguage = (await Promise.all(uniqueLocalazyFormLanguages
-        .map((lang) => this.fetchContentInLanguage({
-          lang,
-          directusFileId: directusFile.id,
-          localazyProject,
-          access_token: localazyData.access_token,
-        }, progressCallbacks))))
-        .flat();
+      const sourceKeysPerLanguage = (
+        await Promise.all(
+          uniqueLocalazyFormLanguages.map((lang) =>
+            this.fetchContentInLanguage(
+              {
+                lang,
+                directusFileId: directusFile.id,
+                localazyProject,
+                access_token: localazyData.access_token,
+              },
+              progressCallbacks,
+            ),
+          ),
+        )
+      ).flat();
 
       return {
         success: true,
@@ -89,16 +93,14 @@ class ImportFromLocalazyService {
   }
 
   private async fetchContentInLanguage(data: FetchContentInLanguage, progressCallbacks: ImportContentFromLocalazy['progressCallbacks']) {
-    const {
-      lang, directusFileId, localazyProject, access_token,
-    } = data;
+    const { lang, directusFileId, localazyProject, access_token } = data;
     const keys = await LocalazyApiThrottleService.listAllKeysInFileForLanguage(access_token, {
       project: localazyProject.id,
       file: directusFileId,
       lang: lang.localazyForm as Locales,
     }).catch((e) => {
       progressCallbacks.couldNotFetchContent(lang.directusForm);
-      throw (e);
+      throw e;
     });
     return {
       language: lang.directusForm,

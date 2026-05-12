@@ -1,4 +1,3 @@
-/* eslint-disable no-use-before-define */
 import { sortBy, uniqWith } from 'lodash';
 import { computed } from 'vue';
 import { AppCollection } from '@directus/types';
@@ -11,12 +10,12 @@ export const useCollectionsOrganizer = () => {
   const { allCollections } = storeToRefs(useCollectionsStore());
   const { getFieldsForCollection } = useFieldsStore();
 
-  const collections = computed<AppCollection[]>(() => (
+  const collections = computed<AppCollection[]>(() =>
     sortBy(
       allCollections?.value.filter((c: AppCollection) => c.meta),
       ['meta.sort', 'collection'],
-    )
-  ));
+    ),
+  );
 
   const translatableCollections = computed(() => {
     const collectionsToTranslate: AppCollection[] = [];

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <v-notice type="info" v-if="isDemo">
+    <v-notice v-if="isDemo" type="info">
       <div class="message">
         <div>
           <h2>This is a demo of the localization plugin by Localazy</h2>
@@ -9,40 +9,35 @@
       </div>
     </v-notice>
 
-    <v-notice type="info" v-if="hasIncompleteConfiguration">
+    <v-notice v-if="hasIncompleteConfiguration" type="info">
       <div class="message">
         <div>
           <h2>Your configuration is incomplete.</h2>
-          <div>Please fill in the project setup form in the
-            <router-link to="/localazy/project-setup">Project setup page</router-link>.
+          <div>
+            Please fill in the project setup form in the <router-link to="/localazy/project-setup">Project setup page</router-link>.
           </div>
         </div>
       </div>
     </v-notice>
 
-    <v-notice type="info" v-if="lacksAccessToPlugin">
+    <v-notice v-if="lacksAccessToPlugin" type="info">
       <div class="message">
         <div>
           <h2>You don't have access to Localazy plugin</h2>
           <div>Your current subscription doesn't include access to the Localazy plugin</div>
 
-          <div>
-            Please <a :href="marketPlaceUrl" target="_blank">upgrade your current subscription</a> to resolve it.
-          </div>
+          <div>Please <a :href="marketPlaceUrl" target="_blank">upgrade your current subscription</a> to resolve it.</div>
         </div>
       </div>
     </v-notice>
 
-    <v-notice type="info" v-else-if="exceededKeyLimit">
+    <v-notice v-else-if="exceededKeyLimit" type="info">
       <div class="message">
         <div>
           <h2>Exceed source keys limit in Localazy</h2>
-          <div>You have exceeded the available amount of source keys and export and import options are currently disabled.
-          </div>
+          <div>You have exceeded the available amount of source keys and export and import options are currently disabled.</div>
 
-          <div>
-            Please <a :href="marketPlaceUrl" target="_blank">upgrade your current subscription</a> to resolve it.
-          </div>
+          <div>Please <a :href="marketPlaceUrl" target="_blank">upgrade your current subscription</a> to resolve it.</div>
         </div>
       </div>
     </v-notice>
@@ -62,9 +57,7 @@ defineProps({
   },
 });
 
-const {
-  exceededKeyLimit, localazyProject, lacksAccessToPlugin,
-} = storeToRefs(useLocalazyStore());
+const { exceededKeyLimit, localazyProject, lacksAccessToPlugin } = storeToRefs(useLocalazyStore());
 
 const marketPlaceUrl = computed(() => {
   if (localazyProject.value) {
@@ -74,16 +67,13 @@ const marketPlaceUrl = computed(() => {
 });
 const appMode = computed(() => getConfig().APP_MODE);
 const isDemo = computed(() => getConfig().APP_MODE === 'demo');
-
 </script>
 
 <style scoped lang="scss">
-
-  .message {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-  }
-
+.message {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
 </style>

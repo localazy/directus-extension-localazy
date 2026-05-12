@@ -1,8 +1,8 @@
 export type FancySelectItem = {
- icon: string;
- value?: string | number;
- text: string;
- description?: string;
- divider?: boolean;
- iconRight?: string;
+  icon: string;
+  value?: string | number;
+  text: string;
+  description?: string;
+  divider?: boolean;
+  iconRight?: string;
 } & Record<string, any>;

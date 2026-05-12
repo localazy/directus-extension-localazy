@@ -15,38 +15,25 @@
     </template>
 
     <template #actions>
-      <v-button
-        class="panel-button"
-        @click="onSaveChanges"
-        :disabled="!changesExist"
-        :loading="hydrating || loading">Save changes
+      <v-button class="panel-button" :disabled="!changesExist" :loading="hydrating || loading" @click="onSaveChanges"
+        >Save changes
       </v-button>
     </template>
 
     <template #navigation>
       <Navigation />
     </template>
-    <div class="panel page" v-if="hydrated && hydratedDirectusData">
+    <div v-if="hydrated && hydratedDirectusData" class="panel page">
       <errors-notice class="errors-notice" :localazy-data="localazyData" />
 
-      <advanced-settings-form
-        v-if="settingsCollection"
-        v-model:edits="settingsEdits"
-        :collection="settingsCollection.collection"
-      />
-
+      <advanced-settings-form v-if="settingsCollection" v-model:edits="settingsEdits" :collection="settingsCollection.collection" />
     </div>
-
   </private-view>
 </template>
 
 <script lang="ts" setup>
-import {
-  computed, ref, watch,
-} from 'vue';
-import {
-  cloneDeep, isEqual, merge,
-} from 'lodash';
+import { computed, ref, watch } from 'vue';
+import { cloneDeep, isEqual, merge } from 'lodash';
 import { storeToRefs } from 'pinia';
 import { useStores } from '@directus/extensions-sdk';
 import { Settings } from '../../common/models/collections-data/settings';
@@ -70,12 +57,8 @@ const { useNotificationsStore } = useStores();
 const notificationsStore = useNotificationsStore();
 const { upsertDirectusItem } = useDirectusApi();
 const localazyStore = useLocalazyStore();
-const {
-  hydrateDirectusData, localazyData, settingsCollection, settings, hydratedDirectusData,
-} = useHydrate();
-const {
-  hydrateLocalazyData, hydrated,
-} = localazyStore;
+const { hydrateDirectusData, localazyData, settingsCollection, settings, hydratedDirectusData } = useHydrate();
+const { hydrateLocalazyData, hydrated } = localazyStore;
 const { hydrating } = storeToRefs(localazyStore);
 
 watch(
@@ -105,7 +88,6 @@ async function onSaveChanges() {
   }
   loading.value = false;
 }
-
 </script>
 
 <style lang="scss" scoped>

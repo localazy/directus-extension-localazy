@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { AxiosError } from 'axios';
 
 export function trackDirectusError(error: AxiosError | Error, type: string) {

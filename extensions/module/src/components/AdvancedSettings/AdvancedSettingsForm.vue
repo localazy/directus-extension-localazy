@@ -3,11 +3,7 @@
     <div class="form grid">
       <div class="half">
         <p class="type-label">Automated upload to Localazy</p>
-        <v-select
-          v-model="localEdits.automated_upload"
-          :items="automatedUploadOptions"
-        />
-
+        <v-select v-model="localEdits.automated_upload" :items="automatedUploadOptions" />
       </div>
       <div class="half-right">
         <p class="configuration-description note">
@@ -17,11 +13,7 @@
 
       <div class="half">
         <p class="type-label">Automated deprecation of Localazy source keys on deletion</p>
-        <v-select
-          v-model="localEdits.automated_deprecation"
-          :items="automatedDeprecationOptions"
-        />
-
+        <v-select v-model="localEdits.automated_deprecation" :items="automatedDeprecationOptions" />
       </div>
       <div class="half-right">
         <p class="configuration-description note">
@@ -35,58 +27,42 @@
 
       <div class="half">
         <p class="type-label">Source language synchronization</p>
-        <v-select
-          v-model="localEdits.import_source_language"
-          :items="importSourceLanguageOptions"
-        />
-
+        <v-select v-model="localEdits.import_source_language" :items="importSourceLanguageOptions" />
       </div>
       <div class="half-right">
         <p class="configuration-description note">
-          When enabled, the import process will update the source language values in Directus. <br>
+          When enabled, the import process will update the source language values in Directus. <br />
           You can choose either Directus or Localazy as the "Source of Truth" for modifying existing values to avoid conflicts.
         </p>
       </div>
 
       <div class="half">
         <p class="type-label">Export translations from Directus</p>
-        <v-select
-          v-model="localEdits.upload_existing_translations"
-          :items="uploadExistingTranslationsOptions"
-        />
-
+        <v-select v-model="localEdits.upload_existing_translations" :items="uploadExistingTranslationsOptions" />
       </div>
       <div class="half-right">
         <p class="configuration-description note">
-          Enable the option to export all translation values from Directus,
-          including content in languages other than the source language.<br>
+          Enable the option to export all translation values from Directus, including content in languages other than the source
+          language.<br />
           It is recommended to turn this feature on only for the initial synchronization and then disable it to speed up the export process.
         </p>
       </div>
 
       <div class="half">
         <p class="type-label">Empty values</p>
-        <v-select
-          v-model="localEdits.skip_empty_strings"
-          :items="skipEmptyStringsOptions"
-        />
-
+        <v-select v-model="localEdits.skip_empty_strings" :items="skipEmptyStringsOptions" />
       </div>
       <div class="half-right">
         <p class="configuration-description note">
-          Choose whether to upload empty values. <br>
-          This is useful when <span class="bold">Source language synchronization</span> is turned on since
-          this allows you to finalize the source language content in Localazy.
+          Choose whether to upload empty values. <br />
+          This is useful when <span class="bold">Source language synchronization</span> is turned on since this allows you to finalize the
+          source language content in Localazy.
         </p>
       </div>
 
       <div class="half">
         <p class="type-label">Synchronize Localazy languages</p>
-        <v-select
-          v-model="localEdits.create_missing_languages_in_directus"
-          :items="directusMissingLanguagesOptions"
-        />
-
+        <v-select v-model="localEdits.create_missing_languages_in_directus" :items="directusMissingLanguagesOptions" />
       </div>
       <div class="half-right">
         <p class="configuration-description note">
@@ -189,7 +165,6 @@ const automatedDeprecationOptions = ref<Item[]>([
     value: false,
   },
 ]);
-
 </script>
 
 <style lang="scss" scoped>

@@ -81,8 +81,18 @@ function spawnLong(label, cmd, args, env = directusEnv) {
   children.push(child);
 }
 
-spawnLong('module', 'npm', ['run', 'build', '--workspace=@localazy/directus-extension-localazy', '--', '--no-minify', '--watch'], process.env);
-spawnLong('hook', 'npm', ['run', 'build', '--workspace=@localazy/directus-extension-localazy-automation', '--', '--no-minify', '--watch'], process.env);
+spawnLong(
+  'module',
+  'npm',
+  ['run', 'build', '--workspace=@localazy/directus-extension-localazy', '--', '--no-minify', '--watch'],
+  process.env,
+);
+spawnLong(
+  'hook',
+  'npm',
+  ['run', 'build', '--workspace=@localazy/directus-extension-localazy-automation', '--', '--no-minify', '--watch'],
+  process.env,
+);
 
 console.log('[dev] starting Directus at http://localhost:8055');
 spawnLong('directus', 'npx', ['directus', 'start']);

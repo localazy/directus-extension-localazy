@@ -1,5 +1,5 @@
 <template>
-  <div class="languages-table" v-if="languageRows.length > 0">
+  <div v-if="languageRows.length > 0" class="languages-table">
     <div class="header">Language</div>
     <div class="header">Present in Localazy</div>
     <div class="header">Present in Directus</div>
@@ -11,57 +11,39 @@
       </div>
       <div class="ml-2">
         <v-icon
+          v-if="!data.directus.recoznigedInLocalazy"
           name="error"
           color="var(--danger)"
-          v-if="!data.directus.recoznigedInLocalazy"
-          title="Localazy does not recognize this language" />
+          title="Localazy does not recognize this language"
+        />
+        <v-icon v-else-if="data.localazy.hidden" name="visibility_off" title="This language is disabled in your Localazy project" />
         <v-icon
-          name="visibility_off"
-          v-else-if="data.localazy.hidden"
-          title="This language is disabled in your Localazy project" />
-        <v-icon
+          v-else-if="data.localazy.present || data.localazy.presentMapped"
           name="check"
           color="var(--success)"
-          v-else-if="data.localazy.present || data.localazy.presentMapped"
-          title="This language has been added in your Localazy project" />
-        <v-icon
-          name="clear"
-          color="var(--danger)"
-          v-else
-          title="This language has not been added in your Localazy project" />
+          title="This language has been added in your Localazy project"
+        />
+        <v-icon v-else name="clear" color="var(--danger)" title="This language has not been added in your Localazy project" />
 
-        <span v-if="!data.directus.recoznigedInLocalazy">
-          Unknown Localazy language
-        </span>
-        <span v-else-if="data.localazy.hidden">
-          Disabled
-        </span>
+        <span v-if="!data.directus.recoznigedInLocalazy"> Unknown Localazy language </span>
+        <span v-else-if="data.localazy.hidden"> Disabled </span>
         <span v-else-if="data.localazy.presentMapped && !data.localazy.present">
           Mapped to {{ data.localazy.mappedTo }}
-          <v-icon
-            small
-            name="help_outline"
-            title="This language is defined in a different form in Localazy" />
+          <v-icon small name="help_outline" title="This language is defined in a different form in Localazy" />
         </span>
       </div>
       <div class="ml-2">
         <v-icon
+          v-if="data.directus.present || data.directus.presentMapped"
           name="check"
           color="var(--success)"
-          v-if="data.directus.present || data.directus.presentMapped"
-          title="This language has been added in your Directus project" />
-        <v-icon
-          name="clear"
-          color="var(--danger)"
-          v-else
-          title="This language has not been added in your Directus project" />
+          title="This language has been added in your Directus project"
+        />
+        <v-icon v-else name="clear" color="var(--danger)" title="This language has not been added in your Directus project" />
 
         <span v-if="data.directus.presentMapped && !data.directus.present">
           Mapped to {{ data.directus.mappedTo }}
-          <v-icon
-            small
-            name="help_outline"
-            title="This language is defined in a different form in Directus" />
+          <v-icon small name="help_outline" title="This language is defined in a different form in Directus" />
         </span>
       </div>
     </template>
@@ -70,9 +52,7 @@
 
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia';
-import {
-  computed, PropType, ref, watch,
-} from 'vue';
+import { computed, PropType, ref, watch } from 'vue';
 import { findLocalazyLanguageByLocale } from '@localazy/languages';
 import { uniqWith } from 'lodash';
 import { useLocalazyStore } from '../../stores/localazy-store';
@@ -110,65 +90,68 @@ const { fetchDirectusLanguages } = useDirectusLanguages();
 
 const directusLanguages = ref<string[]>([]);
 
-watch(() => props.settings, (s) => {
-  if (s?.language_collection && s?.language_code_field) {
-    fetchDirectusLanguages(s?.language_collection, s?.language_code_field).then((languages) => {
-      directusLanguages.value = languages;
-    });
-  }
-}, { immediate: true, deep: true });
+watch(
+  () => props.settings,
+  (s) => {
+    if (s?.language_collection && s?.language_code_field) {
+      fetchDirectusLanguages(s?.language_collection, s?.language_code_field).then((languages) => {
+        directusLanguages.value = languages;
+      });
+    }
+  },
+  { immediate: true, deep: true },
+);
 
 const languageRows = computed((): Row[] => {
-  const localazyLanguages = (localazyProject.value?.languages || []);
+  const localazyLanguages = localazyProject.value?.languages || [];
   const localazyLocales = localazyLanguages.map((l) => l.code);
   // const allLanguages = uniq([...directusLanguages.value, ...localazyLocales]);
 
-  const allLanguages = [...directusLanguages.value, ...localazyLocales]
-    .map((locale) => {
-      const directusFormLocale = DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(locale);
-      const localazyFormLocale = DirectusLocalazyAdapter.transformDirectusToLocalazyLanguage(locale);
-      const localazyLanguage = findLocalazyLanguageByLocale(localazyFormLocale);
-      const projectLanguage = localazyLanguages.find((l) => l.code === localazyFormLocale);
+  const allLanguages = [...directusLanguages.value, ...localazyLocales].map((locale) => {
+    const directusFormLocale = DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(locale);
+    const localazyFormLocale = DirectusLocalazyAdapter.transformDirectusToLocalazyLanguage(locale);
+    const localazyLanguage = findLocalazyLanguageByLocale(localazyFormLocale);
+    const projectLanguage = localazyLanguages.find((l) => l.code === localazyFormLocale);
 
-      return {
-        locale,
-        localazyId: localazyLanguage?.localazyId,
-        englishName: localazyLanguage?.name,
-        localazy: {
-          present: localazyLocales.includes(locale),
-          presentMapped: localazyLocales.includes(localazyFormLocale),
-          mappedTo: localazyFormLocale,
-          hidden: (projectLanguage as any)?.published === false,
-        },
-        directus: {
-          present: directusLanguages.value.includes(locale),
-          presentMapped: directusLanguages.value.includes(directusFormLocale),
-          mappedTo: directusFormLocale,
-          recoznigedInLocalazy: !!localazyLanguage,
-        },
-      } as Row;
-    });
+    return {
+      locale,
+      localazyId: localazyLanguage?.localazyId,
+      englishName: localazyLanguage?.name,
+      localazy: {
+        present: localazyLocales.includes(locale),
+        presentMapped: localazyLocales.includes(localazyFormLocale),
+        mappedTo: localazyFormLocale,
+        hidden: (projectLanguage as any)?.published === false,
+      },
+      directus: {
+        present: directusLanguages.value.includes(locale),
+        presentMapped: directusLanguages.value.includes(directusFormLocale),
+        mappedTo: directusFormLocale,
+        recoznigedInLocalazy: !!localazyLanguage,
+      },
+    } as Row;
+  });
 
   return uniqWith(allLanguages, (arrVal, othVal) => {
     if (arrVal.directus.present !== othVal.directus.present) {
-      return DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(arrVal.locale)
-        === DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(othVal.locale);
+      return (
+        DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(arrVal.locale) ===
+        DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(othVal.locale)
+      );
     }
     return arrVal.locale === othVal.locale;
-  })
-    .sort((a, b) => {
-      const isASourceLanguage = a.localazyId === localazyProject.value?.sourceLanguage;
-      const isBSourceLanguage = b.localazyId === localazyProject.value?.sourceLanguage;
-      if (isASourceLanguage && !isBSourceLanguage) {
-        return -1;
-      }
-      if (!isASourceLanguage && isBSourceLanguage) {
-        return 1;
-      }
-      return a.locale.localeCompare(b.locale);
-    });
+  }).sort((a, b) => {
+    const isASourceLanguage = a.localazyId === localazyProject.value?.sourceLanguage;
+    const isBSourceLanguage = b.localazyId === localazyProject.value?.sourceLanguage;
+    if (isASourceLanguage && !isBSourceLanguage) {
+      return -1;
+    }
+    if (!isASourceLanguage && isBSourceLanguage) {
+      return 1;
+    }
+    return a.locale.localeCompare(b.locale);
+  });
 });
-
 </script>
 
 <style lang="scss" scoped>

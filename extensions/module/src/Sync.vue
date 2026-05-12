@@ -20,11 +20,11 @@
 
     <template #actions>
       <sync-action-buttons
+        :has-changes="hasChanges"
+        :disable-sync="!someTranslatableFieldsChecked && !synchronizeTranslationStrings"
         @upload="onExport({ contentTransferSetupCollection, contentTransferSetup })"
         @download="onImport({ contentTransferSetupCollection, contentTransferSetup })"
         @save-settings="onSaveSettings({ contentTransferSetupCollection, contentTransferSetup, notify: true })"
-        :has-changes="hasChanges"
-        :disable-sync="!someTranslatableFieldsChecked && !synchronizeTranslationStrings"
       />
     </template>
 
@@ -41,8 +41,7 @@
         @deselect-all="deselectAll"
       />
 
-      <div class="page" v-if="hydratedDirectusData">
-
+      <div v-if="hydratedDirectusData" class="page">
         <div class="collection-list">
           <collection-item
             v-for="col in iteratedCollections"
@@ -51,28 +50,27 @@
             :translatable-collections="translatableCollections"
             :collections="collections"
             :selections="enabledFields"
-            :showUntranslatableField="showUntranslatableField"
+            :show-untranslatable-field="showUntranslatableField"
             :show-untranslatable-collections="showUntranslatableCollections"
             @update:selections="enabledFields = $event"
           />
         </div>
 
         <translation-strings-content
+          v-model:should-synchronize="synchronizeTranslationStrings"
           :class="{
             'translation-strings-separator': iteratedCollections.length > 0,
           }"
-          v-model:shouldSynchronize="synchronizeTranslationStrings"
         />
       </div>
 
       <progress-tracker-modal
-        :showProgress="showProgress"
+        :show-progress="showProgress"
         :loading="loading"
         :progress-tracker="progressTracker"
         @finish="onFinishAction"
       />
     </div>
-
   </private-view>
 </template>
 
@@ -95,18 +93,14 @@ import { useSyncContainerActions } from './composables/use-sync-container-action
 import { useHydrate } from './composables/use-hydrate';
 import { useLocalazyStore } from './stores/localazy-store';
 
-const {
-  translatableRootCollections, rootCollections, translatableCollections, collections,
-} = useCollectionsOrganizer();
+const { translatableRootCollections, rootCollections, translatableCollections, collections } = useCollectionsOrganizer();
 const { getTranslatableFields } = useGetFieldsForTranslationRelation();
 const { progressTracker } = storeToRefs(useProgressTrackerStore());
 
 const showUntranslatableField = ref(false);
 const showUntranslatableCollections = ref(false);
 const { configuration, enabledFields, synchronizeTranslationStrings } = useInitSyncContainer();
-const {
-  onSaveSettings, onExport, onImport, onFinishAction, showProgress, loading, hasChanges,
-} = useSyncContainerActions({
+const { onSaveSettings, onExport, onImport, onFinishAction, showProgress, loading, hasChanges } = useSyncContainerActions({
   configuration,
   enabledFields,
   synchronizeTranslationStrings,
@@ -114,25 +108,32 @@ const {
 const localazyStore = useLocalazyStore();
 
 const {
-  hydrateDirectusData, localazyData, hasIncompleteConfiguration,
-  hydratedDirectusData, contentTransferSetupCollection, contentTransferSetup,
+  hydrateDirectusData,
+  localazyData,
+  hasIncompleteConfiguration,
+  hydratedDirectusData,
+  contentTransferSetupCollection,
+  contentTransferSetup,
 } = useHydrate();
 
 hydrateDirectusData().then(() => {
   localazyStore.hydrateLocalazyData({ localazyData });
 });
 
-const iteratedCollections = computed(() => (showUntranslatableCollections.value
-  ? rootCollections.value
-  : translatableRootCollections.value));
+const iteratedCollections = computed(() =>
+  showUntranslatableCollections.value ? rootCollections.value : translatableRootCollections.value,
+);
 
-const allTranslatableFields = computed(() => translatableCollections
-  .value.map((c) => [
-    {
-      collection: c.collection,
-      fields: getTranslatableFields(c.collection).translatableFields.map((f) => f.field),
-    },
-  ]).flat());
+const allTranslatableFields = computed(() =>
+  translatableCollections.value
+    .map((c) => [
+      {
+        collection: c.collection,
+        fields: getTranslatableFields(c.collection).translatableFields.map((f) => f.field),
+      },
+    ])
+    .flat(),
+);
 
 const someTranslatableFieldsChecked = computed(() => enabledFields.value.length > 0);
 const allTranslatableFieldsChecked = computed(() => enabledFields.value.length === allTranslatableFields.value.length);
@@ -146,7 +147,6 @@ function deselectAll() {
   enabledFields.value = [];
   synchronizeTranslationStrings.value = false;
 }
-
 </script>
 
 <style lang="scss" scoped>
@@ -156,12 +156,12 @@ function deselectAll() {
 }
 
 .panel {
- padding: var(--content-padding);
- padding-top: 0;
+  padding: var(--content-padding);
+  padding-top: 0;
 
- .collection-list {
-  margin-top: 20px;
- }
+  .collection-list {
+    margin-top: 20px;
+  }
 }
 .notice {
   margin-top: 20px;

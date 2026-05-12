@@ -13,7 +13,7 @@ export class ApiDirectusDataModelService implements DirectusDataModel {
   }
 
   async getFieldsForCollection(collection: string) {
-    const fields: Field[] = await (new this.FieldsService({ schema: this.schema })).readAll(collection);
+    const fields: Field[] = await new this.FieldsService({ schema: this.schema }).readAll(collection);
     return fields;
   }
 
@@ -21,10 +21,11 @@ export class ApiDirectusDataModelService implements DirectusDataModel {
   getRelationsForField(collection: string, field: string): Relation[] {
     const allRelations = this.schema.relations;
 
-    const relationsForField: Relation[] = this.getRelationsForCollection(collection).filter((relation: Relation) => (
-      (relation.collection === collection && relation.field === field)
-        || (relation.related_collection === collection && relation.meta?.one_field === field)
-    ));
+    const relationsForField: Relation[] = this.getRelationsForCollection(collection).filter(
+      (relation: Relation) =>
+        (relation.collection === collection && relation.field === field) ||
+        (relation.related_collection === collection && relation.meta?.one_field === field),
+    );
 
     if (relationsForField.length > 0) {
       const firstRelationForField = relationsForField[0];
@@ -34,9 +35,10 @@ export class ApiDirectusDataModelService implements DirectusDataModel {
       // we also want to return the secondary relationship (from the jt to the related)
       // so any ui elements (interfaces) can utilize the full relationship
       if (isM2M) {
-        const secondaryRelation = allRelations.find((relation) => (
-          relation.collection === firstRelationForField?.collection && relation.field === firstRelationForField?.meta?.junction_field
-        ));
+        const secondaryRelation = allRelations.find(
+          (relation) =>
+            relation.collection === firstRelationForField?.collection && relation.field === firstRelationForField?.meta?.junction_field,
+        );
 
         if (secondaryRelation) relationsForField.push(secondaryRelation);
       }

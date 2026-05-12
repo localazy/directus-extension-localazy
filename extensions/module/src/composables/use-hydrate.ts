@@ -1,9 +1,7 @@
 import { useStores } from '@directus/extensions-sdk';
 import { storeToRefs } from 'pinia';
 import { ref, computed } from 'vue';
-import {
-  Item, AppCollection, Field,
-} from '@directus/types';
+import { Item, AppCollection, Field } from '@directus/types';
 import { isEqual, merge } from 'lodash';
 import { createLocalazyDataFields } from '../data/fields/localazy-data/create';
 import { ContentTransferSetupDatabase } from '../../../common/models/collections-data/content-transfer-setup';
@@ -28,7 +26,7 @@ type Options = {
     settings: string;
     contentTransferSetup: string;
     localazyData: string;
-  }
+  };
 };
 
 type Collection = AppCollection | null;
@@ -42,9 +40,9 @@ const defaultOptions: Options = {
   },
 };
 
-const settingsItem = ref<Item & Settings | null>(null);
-const contentTransferSetupItem = ref<Item & ContentTransferSetupDatabase | null>(null);
-const localazyDataItem = ref<Item & LocalazyData | null>(null);
+const settingsItem = ref<(Item & Settings) | null>(null);
+const contentTransferSetupItem = ref<(Item & ContentTransferSetupDatabase) | null>(null);
+const localazyDataItem = ref<(Item & LocalazyData) | null>(null);
 
 const settingsCollection = ref<Collection>(null);
 const localazyDataCollection = ref<Collection>(null);
@@ -54,47 +52,41 @@ const hydratingDirectusData = ref(false);
 const hydratedDirectusData = ref(false);
 
 export const useHydrate = () => {
-  const {
-    addDirectusError,
-  } = useErrorsStore();
+  const { addDirectusError } = useErrorsStore();
 
   const { useCollectionsStore, useFieldsStore } = useStores();
   const { getFieldsForCollection, hydrate: hydrateFieldsStore } = useFieldsStore();
   const { collections } = storeToRefs(useCollectionsStore());
   const { hydrate: hydrateCollectionsStore } = useCollectionsStore();
-  const {
-    upsertDirectusItem, upsertDirectusCollection, fetchDirectusSingletonItem,
-    createField, createDirectusItem,
-  } = useDirectusApi();
+  const { upsertDirectusItem, upsertDirectusCollection, fetchDirectusSingletonItem, createField, createDirectusItem } = useDirectusApi();
 
   const hasIncompleteConfiguration = computed(() => {
-    if (!settingsItem.value) { return true; }
-    if (!localazyDataItem.value) { return true; }
-    const {
-      source_language, language_code_field, language_collection,
-    } = settingsItem.value;
+    if (!settingsItem.value) {
+      return true;
+    }
+    if (!localazyDataItem.value) {
+      return true;
+    }
+    const { source_language, language_code_field, language_collection } = settingsItem.value;
 
     return !source_language || !localazyDataItem.value.access_token || !language_code_field || !language_collection;
   });
 
   async function createContentTransferSetupCollection(collection: string, group: string) {
-    const contentCollection = await upsertDirectusCollection(
+    const contentCollection = await upsertDirectusCollection(collection, {
       collection,
-      {
+      meta: {
         collection,
-        meta: {
-          collection,
-          icon: 'translate',
-          note: 'Collection data for the Localazy plugin',
-          group,
-          hidden: getConfig().APP_MODE === 'production',
-          singleton: true,
-          archive_app_filter: true,
-        },
-        schema: {},
-        fields: createContentTransferSetupsFields(),
+        icon: 'translate',
+        note: 'Collection data for the Localazy plugin',
+        group,
+        hidden: getConfig().APP_MODE === 'production',
+        singleton: true,
+        archive_app_filter: true,
       },
-    );
+      schema: {},
+      fields: createContentTransferSetupsFields(),
+    });
     await sleep(100);
     await hydrateCollectionsStore();
     await sleep(100);
@@ -112,9 +104,8 @@ export const useHydrate = () => {
   }
 
   async function resolveFolderCollection() {
-    const createGroupingFolder = (collection: string) => upsertDirectusCollection(
-      collection,
-      {
+    const createGroupingFolder = (collection: string) =>
+      upsertDirectusCollection(collection, {
         collection,
         meta: {
           collection,
@@ -123,11 +114,10 @@ export const useHydrate = () => {
           hidden: getConfig().APP_MODE === 'production',
         },
         schema: null,
-      },
-    );
+      });
 
-    const localazyFolderCollection = collections?.value
-      .find((c: AppCollection) => c.collection === defaultOptions.collections.groupingFolder) || null;
+    const localazyFolderCollection =
+      collections?.value.find((c: AppCollection) => c.collection === defaultOptions.collections.groupingFolder) || null;
 
     if (!localazyFolderCollection) {
       try {
@@ -149,12 +139,7 @@ export const useHydrate = () => {
       const allProperties = merge({}, defaultConfiguration().settings, storedData);
       const missingSomeProperties = !isEqual(allProperties, storedData);
       if (missingSomeProperties) {
-        await upsertDirectusItem(
-          collection,
-          settingsItem.value,
-          allProperties,
-          { ignoreEmpty: true },
-        );
+        await upsertDirectusItem(collection, settingsItem.value, allProperties, { ignoreEmpty: true });
       }
     };
 
@@ -182,12 +167,7 @@ export const useHydrate = () => {
     const allProperties = merge({}, defaultConfiguration().content_transfer_setup, storedData);
     const missingSomeProperties = !isEqual(allProperties, storedData);
     if (missingSomeProperties) {
-      await upsertDirectusItem(
-        collection,
-        contentTransferSetupItem.value,
-        allProperties,
-        { ignoreEmpty: true },
-      );
+      await upsertDirectusItem(collection, contentTransferSetupItem.value, allProperties, { ignoreEmpty: true });
       contentTransferSetupItem.value = allProperties;
     }
   }
@@ -229,23 +209,20 @@ export const useHydrate = () => {
   }
 
   async function createSettingsCollection(collection: string, group: string) {
-    const newSettingsCollection = await upsertDirectusCollection(
+    const newSettingsCollection = await upsertDirectusCollection(collection, {
       collection,
-      {
+      meta: {
         collection,
-        meta: {
-          collection,
-          icon: 'translate',
-          note: 'Collection data for the Localazy plugin',
-          group,
-          hidden: getConfig().APP_MODE === 'production',
-          singleton: true,
-          archive_app_filter: true,
-        },
-        schema: {},
-        fields: createSettingsFields(),
+        icon: 'translate',
+        note: 'Collection data for the Localazy plugin',
+        group,
+        hidden: getConfig().APP_MODE === 'production',
+        singleton: true,
+        archive_app_filter: true,
       },
-    );
+      schema: {},
+      fields: createSettingsFields(),
+    });
     await sleep(100);
     await hydrateCollectionsStore();
     await sleep(100);
@@ -264,23 +241,20 @@ export const useHydrate = () => {
   }
 
   async function createLocalazyDataCollection(collection: string, group: string) {
-    const contentCollection = await upsertDirectusCollection(
+    const contentCollection = await upsertDirectusCollection(collection, {
       collection,
-      {
+      meta: {
         collection,
-        meta: {
-          collection,
-          icon: 'translate',
-          note: 'Collection data for the Localazy plugin',
-          group,
-          hidden: getConfig().APP_MODE === 'production',
-          singleton: true,
-          archive_app_filter: true,
-        },
-        schema: {},
-        fields: createLocalazyDataFields(),
+        icon: 'translate',
+        note: 'Collection data for the Localazy plugin',
+        group,
+        hidden: getConfig().APP_MODE === 'production',
+        singleton: true,
+        archive_app_filter: true,
       },
-    );
+      schema: {},
+      fields: createLocalazyDataFields(),
+    });
     await sleep(100);
     await hydrateCollectionsStore();
     await sleep(100);
@@ -386,12 +360,7 @@ export const useHydrate = () => {
       const allProperties = merge({}, defaultConfiguration().localazy_data, storedData);
       const missingSomeProperties = !isEqual(allProperties, storedData);
       if (missingSomeProperties) {
-        await upsertDirectusItem(
-          collection,
-          localazyDataItem.value,
-          allProperties,
-          { ignoreEmpty: true },
-        );
+        await upsertDirectusItem(collection, localazyDataItem.value, allProperties, { ignoreEmpty: true });
         localazyDataItem.value = allProperties;
       }
     };
@@ -407,8 +376,7 @@ export const useHydrate = () => {
     const contentTransferSetupCollectionName = contentTransferSetupCollection.value?.collection || '';
     if (!contentTransferSetupItem.value || options.force) {
       try {
-        const result = await
-        fetchDirectusSingletonItem<Item & ContentTransferSetupDatabase>(contentTransferSetupCollectionName);
+        const result = await fetchDirectusSingletonItem<Item & ContentTransferSetupDatabase>(contentTransferSetupCollectionName);
         contentTransferSetupItem.value = result || null;
       } catch (e: any) {
         addDirectusError(e);
@@ -424,15 +392,18 @@ export const useHydrate = () => {
 
   async function hydrateDirectusData(options: HydrateOptions = {}) {
     if (hydratingDirectusData.value) return;
-    settingsCollection.value = settingsCollection.value === null
-      ? collections?.value.find((c: AppCollection) => c.collection === defaultOptions.collections.settings)
-      : settingsCollection.value;
-    localazyDataCollection.value = localazyDataCollection.value === null
-      ? collections?.value.find((c: AppCollection) => c.collection === defaultOptions.collections.localazyData)
-      : localazyDataCollection.value;
-    contentTransferSetupCollection.value = contentTransferSetupCollection.value === null
-      ? collections?.value.find((c: AppCollection) => c.collection === defaultOptions.collections.contentTransferSetup)
-      : contentTransferSetupCollection.value;
+    settingsCollection.value =
+      settingsCollection.value === null
+        ? collections?.value.find((c: AppCollection) => c.collection === defaultOptions.collections.settings)
+        : settingsCollection.value;
+    localazyDataCollection.value =
+      localazyDataCollection.value === null
+        ? collections?.value.find((c: AppCollection) => c.collection === defaultOptions.collections.localazyData)
+        : localazyDataCollection.value;
+    contentTransferSetupCollection.value =
+      contentTransferSetupCollection.value === null
+        ? collections?.value.find((c: AppCollection) => c.collection === defaultOptions.collections.contentTransferSetup)
+        : contentTransferSetupCollection.value;
 
     hydratingDirectusData.value = true;
     await resolveFolderCollection();

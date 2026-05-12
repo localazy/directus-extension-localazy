@@ -7,7 +7,7 @@ import { useDirectusApi } from './use-directus-api';
 
 type FetchTranslationStrings = {
   languages: string[];
-  synchronizeTranslationStrings: boolean
+  synchronizeTranslationStrings: boolean;
   settings: Settings;
 };
 

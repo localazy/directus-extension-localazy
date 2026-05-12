@@ -17,14 +17,13 @@ export const useGetFieldsForTranslationRelation = () => {
       const relations: Relation[] = getRelationsForField(translationField.collection, translationField.field);
       if (relations.length > 0) {
         const excludedFields = relations.map((relation) => relation.field);
-        // eslint-disable-next-line vue/max-len
+
         const relatedCollection = getCollection(relations[0]!.collection); // Translations field always has 2 relations pointing to the same collection;
         if (relatedCollection) {
           const fieldsForRelatedCollection: Field[] = getFieldsForCollection(relatedCollection.collection);
           relevantFieldsInTranslatableCollection = [
             ...relevantFieldsInTranslatableCollection,
-            ...fieldsForRelatedCollection
-              .filter((field) => !excludedFields.includes(field.field)),
+            ...fieldsForRelatedCollection.filter((field) => !excludedFields.includes(field.field)),
           ];
         }
       }

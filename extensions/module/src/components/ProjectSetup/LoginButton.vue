@@ -1,15 +1,9 @@
 <template>
   <div>
-    <v-button
-      class="panel-button"
-      @click="onLoginClick"
-      :loading="loginButtonData.isLoading">Login to Localazy
-    </v-button>
+    <v-button class="panel-button" :loading="loginButtonData.isLoading" @click="onLoginClick">Login to Localazy </v-button>
 
-    <v-notice type="danger" class="error" v-if="loginButtonData.error">
-      <div class="message">
-        There was an error while trying to connect to Localazy. Please try again.
-      </div>
+    <v-notice v-if="loginButtonData.error" type="danger" class="error">
+      <div class="message">There was an error while trying to connect to Localazy. Please try again.</div>
     </v-notice>
   </div>
 </template>
@@ -50,9 +44,7 @@ const loginButtonData = ref({
 
 const { upsertDirectusItem } = useDirectusApi();
 const localazyStore = useLocalazyStore();
-const {
-  hydrateLocalazyData,
-} = localazyStore;
+const { hydrateLocalazyData } = localazyStore;
 const { useNotificationsStore } = useStores();
 const notificationsStore = useNotificationsStore();
 const emit = defineEmits(['update:localazyData']);
@@ -62,12 +54,15 @@ const onLoginClick = async () => {
     loginButtonData.value.isLoading = true;
 
     const keys = await client.public.keys();
-    const url = getOAuthAuthorizationUrl({
-      clientId: getConfig().LOCALAZY_OAUTH_APP_CLIENT_ID,
-      customId: keys.writeKey,
-      allowCreate: true,
-      minimalRole: 'owner',
-    }, getConfig().LOCALAZY_OAUTH_URL);
+    const url = getOAuthAuthorizationUrl(
+      {
+        clientId: getConfig().LOCALAZY_OAUTH_APP_CLIENT_ID,
+        customId: keys.writeKey,
+        allowCreate: true,
+        minimalRole: 'owner',
+      },
+      getConfig().LOCALAZY_OAUTH_URL,
+    );
     window.open(url);
 
     // init continuous poll
@@ -86,11 +81,7 @@ const onLoginClick = async () => {
         user_id: pollResultData.user?.id || '',
         user_name: pollResultData.user?.name || '',
       };
-      await upsertDirectusItem(
-        props.localazyDataCollection.collection,
-        props.localazyData,
-        newData,
-      );
+      await upsertDirectusItem(props.localazyDataCollection.collection, props.localazyData, newData);
       emit('update:localazyData', newData);
       await hydrateLocalazyData({ force: true, localazyData: props.localazyData });
       AnalyticsService.trackLoggedIn({
@@ -108,7 +99,6 @@ const onLoginClick = async () => {
     loginButtonData.value.isLoading = false;
   }
 };
-
 </script>
 
 <style lang="scss" scoped>

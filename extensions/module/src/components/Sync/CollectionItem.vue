@@ -3,17 +3,12 @@
     v-if="shouldRender"
     :open="isExpanded"
     :clickable="isExpandable"
-    @click="onGroupClick"
-    :arrowPlacement="false"
+    :arrow-placement="false"
     class="collection-group"
+    @click="onGroupClick"
   >
-
     <template #activator>
-      <v-list-item-icon
-        v-if="isExpandable"
-        class="collection-group-chevron"
-        :class="{ active: isExpanded }"
-      >
+      <v-list-item-icon v-if="isExpandable" class="collection-group-chevron" :class="{ active: isExpanded }">
         <v-icon name="chevron_right" />
       </v-list-item-icon>
 
@@ -26,25 +21,14 @@
         @update:model-value="onUpdateCollectionSelection"
       >
         <span>
-          <v-icon
-            :color="collection.color || 'var(--primary)'"
-            class="collection-icon"
-            :name="collection.icon"
-          />
+          <v-icon :color="collection.color || 'var(--primary)'" class="collection-icon" :name="collection.icon" />
           <span class="collection-name">{{ collection.name }}</span>
         </span>
       </v-checkbox>
 
-      <v-list-item
-        v-else
-        class="collection-item collection-item-unclickable v-list-item"
-      >
+      <v-list-item v-else class="collection-item collection-item-unclickable v-list-item">
         <span>
-          <v-icon
-            :color="collection.color || 'var(--primary)'"
-            class="collection-icon"
-            :name="collection.icon"
-          />
+          <v-icon :color="collection.color || 'var(--primary)'" class="collection-icon" :name="collection.icon" />
           <span class="collection-name">{{ collection.name }}</span>
         </span>
       </v-list-item>
@@ -58,7 +42,8 @@
       :value="`${collection.collection}-${field.field}`"
       :model-value="localSelections"
       :title="!isTranlatableField(field) ? `${field.type} is not translatable` : ''"
-      @update:model-value="localSelections = $event">
+      @update:model-value="localSelections = $event"
+    >
       <span>{{ field.name }}</span>
     </v-checkbox>
 
@@ -71,7 +56,7 @@
         :translatable-collections="translatableCollections"
         :selections="selections"
         :show-untranslatable-field="showUntranslatableField"
-        :showUntranslatableCollections="showUntranslatableCollections"
+        :show-untranslatable-collections="showUntranslatableCollections"
         @update:selections="$emit('update:selections', $event)"
       />
     </div>
@@ -116,39 +101,37 @@ const props = defineProps({
 const emits = defineEmits(['update:selections']);
 
 const localSelections = computed({
-  get() : string[] {
-    return props.selections.map((selection) => [
-      selection.collection,
-      ...selection.fields.map((field) => `${selection.collection}-${field}`),
-    ]).flat();
+  get(): string[] {
+    return props.selections
+      .map((selection) => [selection.collection, ...selection.fields.map((field) => `${selection.collection}-${field}`)])
+      .flat();
   },
   set(selections: string[]): void {
-    const collectionFieldsMap = selections
-      .reduce((acc, selection) => {
-        const [collection, field] = selection.split('-');
-        if (collection && field) {
-          if (!acc.has(collection)) {
-            acc.set(collection, []);
-          }
-          acc.get(collection)?.push(field);
+    const collectionFieldsMap = selections.reduce((acc, selection) => {
+      const [collection, field] = selection.split('-');
+      if (collection && field) {
+        if (!acc.has(collection)) {
+          acc.set(collection, []);
         }
-        return acc;
-      }, new Map<string, string[]>());
-    const updatedSelections = Object.entries(Object.fromEntries(collectionFieldsMap))
-      .map(([collection, fields]) => ({ collection, fields }));
+        acc.get(collection)?.push(field);
+      }
+      return acc;
+    }, new Map<string, string[]>());
+    const updatedSelections = Object.entries(Object.fromEntries(collectionFieldsMap)).map(([collection, fields]) => ({
+      collection,
+      fields,
+    }));
 
     emits('update:selections', updatedSelections);
   },
-
 });
 
-const selectionsForCollection = computed(() => props.selections
-  .find((selection) => selection.collection === props.collection.collection));
-const otherSelections = computed(() => props.selections
-  .filter((selection) => selection.collection !== props.collection.collection));
+const selectionsForCollection = computed(() => props.selections.find((selection) => selection.collection === props.collection.collection));
+const otherSelections = computed(() => props.selections.filter((selection) => selection.collection !== props.collection.collection));
 
-const isTranslatableCollection = computed(() => props.translatableCollections
-  .some((col) => col.collection === props.collection.collection));
+const isTranslatableCollection = computed(() =>
+  props.translatableCollections.some((col) => col.collection === props.collection.collection),
+);
 
 const isTranlatableField = FieldsUtilsService.isTranslatableField;
 
@@ -159,33 +142,33 @@ const { translatableFields, allFields } = useGetFieldsForTranslationRelation().g
 const renderedFields = computed(() => (props.showUntranslatableField ? allFields : translatableFields));
 const isExpanded = ref(renderedFields.value.length === 0);
 
-const shouldRender = computed(() => nestedCollections.value.length > 0
-|| (isTranslatableCollection.value || props.showUntranslatableCollections));
+const shouldRender = computed(
+  () => nestedCollections.value.length > 0 || isTranslatableCollection.value || props.showUntranslatableCollections,
+);
 const isExpandable = computed(() => nestedCollections.value.length > 0 || renderedFields.value.length > 0);
 
 const someTranslatableFieldsChecked = computed(() => {
-  const fields = translatableFields
-    .filter(isTranlatableField);
-  return (selectionsForCollection.value?.fields || [])
-    .some((field) => fields.some((f) => f.field === field));
+  const fields = translatableFields.filter(isTranlatableField);
+  return (selectionsForCollection.value?.fields || []).some((field) => fields.some((f) => f.field === field));
 });
 
 const allTranslatableFieldsChecked = computed(() => {
-  const fields = translatableFields
-    .filter(isTranlatableField);
+  const fields = translatableFields.filter(isTranlatableField);
 
-  return fields.length > 0
-    && isEqualWith(
+  return (
+    fields.length > 0 &&
+    isEqualWith(
       fields,
       selectionsForCollection.value?.fields || [],
-      (translatedFields: Field[], selectionFields: string[]) => translatedFields.length === selectionFields.length
-        && translatedFields.every((translatableField) => selectionFields.includes(translatableField.field)),
-    );
+      (translatedFields: Field[], selectionFields: string[]) =>
+        translatedFields.length === selectionFields.length &&
+        translatedFields.every((translatableField) => selectionFields.includes(translatableField.field)),
+    )
+  );
 });
 
 function onUpdateCollectionSelection() {
-  const fields = translatableFields
-    .filter(isTranlatableField);
+  const fields = translatableFields.filter(isTranlatableField);
   if (allTranslatableFieldsChecked.value) {
     emits('update:selections', otherSelections.value);
   } else {
@@ -205,25 +188,24 @@ function onGroupClick() {
 </script>
 
 <style lang="scss" scoped>
-
 .collection-icon {
   margin-right: 8px;
 }
 
 .collection-item-clickable {
   font-weight: 500;
-  margin-top: 8px!important;
-  margin-bottom: 8px!important;
+  margin-top: 8px !important;
+  margin-bottom: 8px !important;
 }
 
 .collection-item-unclickable {
   font-weight: 400;
-  margin-bottom: 0px!important;
+  margin-bottom: 0px !important;
 }
 
 .field-item {
   margin-left: 28px;
-  margin-bottom: 8px!important;
+  margin-bottom: 8px !important;
 }
 
 .collection-group {
@@ -231,19 +213,18 @@ function onGroupClick() {
 }
 
 .collection-group-chevron {
- margin-right: 0 !important;
- color: var(--foreground-subdued);
- transform: rotate(0deg);
- transition: transform var(--medium) var(--transition);
+  margin-right: 0 !important;
+  color: var(--foreground-subdued);
+  transform: rotate(0deg);
+  transition: transform var(--medium) var(--transition);
 
- &:hover {
-  color: var(--foreground-normal);
- }
+  &:hover {
+    color: var(--foreground-normal);
+  }
 
- &.active {
-  transform: rotate(90deg);
- }
+  &.active {
+    transform: rotate(90deg);
+  }
 }
-
 </style>
 ../../../common/utilities/fields-utils-service

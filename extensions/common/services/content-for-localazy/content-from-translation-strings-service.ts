@@ -26,9 +26,7 @@ export class ContentFromTranslationStrings extends ContentForLocalazyBase {
           translatableContent.otherLanguages[locale] = {};
         }
 
-        const sourceObject = isSourceLanguageItem
-          ? translatableContent.sourceLanguage
-          : translatableContent.otherLanguages[locale];
+        const sourceObject = isSourceLanguageItem ? translatableContent.sourceLanguage : translatableContent.otherLanguages[locale];
 
         if (sourceObject && !sourceObject.translationString) {
           sourceObject.translation_string = {};

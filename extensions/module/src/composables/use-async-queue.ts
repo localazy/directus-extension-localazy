@@ -1,9 +1,5 @@
 import { UseAsyncQueueResult, useAsyncQueue } from '@vueuse/core';
-import {
-  Ref,
-  computed,
-  nextTick, ref, unref, watchEffect,
-} from 'vue';
+import { Ref, computed, nextTick, ref, unref, watchEffect } from 'vue';
 
 type QueuedPromise<T> = () => Promise<T>;
 
@@ -23,21 +19,24 @@ export const useEnhancedAsyncQueue = () => {
     result: unref(result),
   };
 
-  const isFinished = computed(() => activeIndex.value + 1 === queuedPromises.value.length
-  && result.value.every((r: any) => r.state !== 'pending'));
+  const isFinished = computed(
+    () => activeIndex.value + 1 === queuedPromises.value.length && result.value.every((r: any) => r.state !== 'pending'),
+  );
 
   function add<T>(promise: QueuedPromise<T> | QueuedPromise<T>[]) {
     queuedPromises.value = queuedPromises.value.concat(promise);
   }
 
-  async function execute<T>(options: Partial<{delayBetween: number}> = {}): Promise<UseAsyncQueueResult<T>[]> {
+  async function execute<T>(options: Partial<{ delayBetween: number }> = {}): Promise<UseAsyncQueueResult<T>[]> {
     // isFinished.value = false;
     return new Promise((resolve) => {
       let promises = queuedPromises.value;
       if (options.delayBetween) {
         promises = queuedPromises.value.map((promise) => async () => {
           const promiseResult = await promise();
-          await new Promise((r) => { setTimeout(r, options.delayBetween); });
+          await new Promise((r) => {
+            setTimeout(r, options.delayBetween);
+          });
           return promiseResult;
         });
       }

@@ -61,14 +61,18 @@ export abstract class BaseContentSynchronizationService {
     try {
       const localazySettings = new ItemsService('localazy_settings', { schema });
       const localazyContentTransferSetup = new ItemsService('localazy_content_transfer_setup', { schema });
-      const settings: Settings = (await localazySettings.readByQuery({
-        fields: '*',
-        limit: 1,
-      }))[0];
-      const contentTransferSetup: ContentTransferSetupDatabase = (await localazyContentTransferSetup.readByQuery({
-        fields: '*',
-        limit: 1,
-      }))[0];
+      const settings: Settings = (
+        await localazySettings.readByQuery({
+          fields: '*',
+          limit: 1,
+        })
+      )[0];
+      const contentTransferSetup: ContentTransferSetupDatabase = (
+        await localazyContentTransferSetup.readByQuery({
+          fields: '*',
+          limit: 1,
+        })
+      )[0];
 
       return {
         settings,
@@ -86,10 +90,12 @@ export abstract class BaseContentSynchronizationService {
   protected async resolveLocalazyData(ItemsService: any, schema: SchemaOverview) {
     try {
       const localazyData = new ItemsService('localazy_config_data', { schema });
-      const data: LocalazyData = (await localazyData.readByQuery({
-        fields: '*',
-        limit: 1,
-      }))[0];
+      const data: LocalazyData = (
+        await localazyData.readByQuery({
+          fields: '*',
+          limit: 1,
+        })
+      )[0];
 
       return {
         localazyData: data,
@@ -103,9 +109,7 @@ export abstract class BaseContentSynchronizationService {
   }
 
   async fetchLocalazyContentInSourceLanguage(options: Omit<FetchLocalazyContent, 'languages'>) {
-    const {
-      schema, ItemsService, settings, contentTransferSetup, localazyProject, localazyData,
-    } = options;
+    const { schema, ItemsService, settings, contentTransferSetup, localazyProject, localazyData } = options;
 
     let resolvedSettings = settings || null;
     let resolvedContentTransferSetup = contentTransferSetup || null;
@@ -126,7 +130,7 @@ export abstract class BaseContentSynchronizationService {
       return null;
     }
 
-    const resolvedLocalazyProject = localazyProject || await this.loadProject(resolvedLocalazyData.access_token);
+    const resolvedLocalazyProject = localazyProject || (await this.loadProject(resolvedLocalazyData.access_token));
     if (!resolvedLocalazyProject) {
       return null;
     }
@@ -147,9 +151,7 @@ export abstract class BaseContentSynchronizationService {
   }
 
   protected async fetchLocalazyContent(options: FetchLocalazyContent) {
-    const {
-      schema, languages, ItemsService, localazyProject, settings, contentTransferSetup, localazyData,
-    } = options;
+    const { schema, languages, ItemsService, localazyProject, settings, contentTransferSetup, localazyData } = options;
     try {
       if (this.missingLocalazyCollections(schema)) {
         return null;
@@ -174,7 +176,7 @@ export abstract class BaseContentSynchronizationService {
         return null;
       }
 
-      const resolvedLocalazyProject = localazyProject || await this.loadProject(resolvedLocalazyData.access_token);
+      const resolvedLocalazyProject = localazyProject || (await this.loadProject(resolvedLocalazyData.access_token));
       if (!resolvedLocalazyProject) {
         return null;
       }
@@ -186,10 +188,8 @@ export abstract class BaseContentSynchronizationService {
         enabledFields: EnabledFieldsService.parseFromDatabase(resolvedContentTransferSetup.enabled_fields),
         progressCallbacks: {
           nothingToImport: () => trackLocalazyError(new Error('Nothing to import'), 'fetchLocalazyContent'),
-          couldNotFetchContent: (language) => trackLocalazyError(
-            new Error(`Couldn't fetch content for ${language}`),
-            'fetchLocalazyContent',
-          ),
+          couldNotFetchContent: (language) =>
+            trackLocalazyError(new Error(`Couldn't fetch content for ${language}`), 'fetchLocalazyContent'),
         },
       });
 
@@ -224,9 +224,7 @@ export abstract class BaseContentSynchronizationService {
   protected async resolveExportLanguages(ItemsService: any, settings: Settings) {
     try {
       const synchronizationLanguagesService = new SynchronizationLanguagesService(ItemsService);
-      const exportLanguages = await synchronizationLanguagesService.resolveExportLanguages(
-        settings,
-      );
+      const exportLanguages = await synchronizationLanguagesService.resolveExportLanguages(settings);
       return exportLanguages;
     } catch (e: any) {
       trackDirectusError(e, 'resolveExportLanguages');
@@ -235,9 +233,7 @@ export abstract class BaseContentSynchronizationService {
   }
 
   protected async exportToLocalazy(data: ExportToLocalazy) {
-    const {
-      schema, settings, content, localazyProject, localazyData,
-    } = data;
+    const { schema, settings, content, localazyProject, localazyData } = data;
     if (this.missingLocalazyCollections(schema)) {
       return;
     }

@@ -1,7 +1,5 @@
 import { useStores, useApi } from '@directus/extensions-sdk';
-import {
-  Collection, DeepPartial, AppCollection, Field, Item, Query,
-} from '@directus/types';
+import { Collection, DeepPartial, AppCollection, Field, Item, Query } from '@directus/types';
 import { Ref, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { isEmpty, isEqual } from 'lodash';
@@ -74,7 +72,7 @@ export function useDirectusApi(): UseDirectusApi {
     loading.value = false;
   };
 
-  const upsertDirectusItem = async <T extends Item>(collection: string, item: Item & T | null, payload: T, options: ItemOptions = {}) => {
+  const upsertDirectusItem = async <T extends Item>(collection: string, item: (Item & T) | null, payload: T, options: ItemOptions = {}) => {
     const resolvedPayload = options.ignoreEmpty
       ? Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined && value !== null && value !== ''))
       : payload;
@@ -118,8 +116,10 @@ export function useDirectusApi(): UseDirectusApi {
     }
   };
 
-  async function upsertDirectusCollection(collection: string, values: DeepPartial<Collection & { fields: Field[] }>):
-   Promise<AppCollection> {
+  async function upsertDirectusCollection(
+    collection: string,
+    values: DeepPartial<Collection & { fields: Field[] }>,
+  ): Promise<AppCollection> {
     const targetCollection = ref<AppCollection | null>(appCollections.find((c) => c.collection === collection) || null);
     try {
       if (targetCollection.value) {
@@ -127,10 +127,7 @@ export function useDirectusApi(): UseDirectusApi {
           return targetCollection.value;
         }
 
-        const result = await api.patch<{ data: AppCollection }>(
-          `/collections/${collection}`,
-          values,
-        );
+        const result = await api.patch<{ data: AppCollection }>(`/collections/${collection}`, values);
         return result.data.data;
       }
       const result = await api.post<{ data: AppCollection }>('/collections', values);

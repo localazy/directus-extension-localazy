@@ -1,15 +1,9 @@
 <template>
   <div>
     <div class="sync-action-buttons">
-      <v-button @click="$emit('upload')" :disabled="disableSyncButtons" secondary>
-        Export to Localazy
-      </v-button>
-      <v-button @click="$emit('download')" :disabled="disableSyncButtons" secondary>
-        Import to Directus
-      </v-button>
-      <v-button @click="$emit('save-settings')" :disabled="!hasChanges" secondary>
-        Save
-      </v-button>
+      <v-button :disabled="disableSyncButtons" secondary @click="$emit('upload')"> Export to Localazy </v-button>
+      <v-button :disabled="disableSyncButtons" secondary @click="$emit('download')"> Import to Directus </v-button>
+      <v-button :disabled="!hasChanges" secondary @click="$emit('save-settings')"> Save </v-button>
     </div>
   </div>
 </template>

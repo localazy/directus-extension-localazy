@@ -3,35 +3,35 @@
     <div class="flex items-center justify-between w-full">
       <div class="flex flex-col">
         <span class="font-medium">Localazy connection</span>
-        <div class="flex items-center" v-if="isConnecting">
+        <div v-if="isConnecting" class="flex items-center">
           <div class="rounded-full bg-warning w-4 h-4 mr-2" />
           <span class="font-medium">Connecting to Localazy</span>
         </div>
 
-        <div class="flex items-center" v-else-if="isConnected">
+        <div v-else-if="isConnected" class="flex items-center">
           <div class="rounded-full bg-success w-4 h-4 mr-2" />
           <div class="text-foreground-normal font-normal">
             {{ localazyProject?.name }}
           </div>
         </div>
 
-        <div class="flex items-center" v-else>
+        <div v-else class="flex items-center">
           <div class="rounded-full bg-danger w-4 h-4 mr-2" />
           <span class="font-medium">Not connected to Localazy</span>
         </div>
-
       </div>
 
-      <div class="flex ">
+      <div class="flex">
         <v-icon
           name="sync"
-          @click="onReconnect"
-          class=" mr-2"
+          class="mr-2"
           :class="{
             'disabled-link': !hasLocalazyToken,
             'cursor-pointer': hasLocalazyToken,
           }"
-          title="Reconnect to Localazy" />
+          title="Reconnect to Localazy"
+          @click="onReconnect"
+        />
 
         <component
           :is="isConnected ? 'a' : 'span'"
@@ -45,7 +45,6 @@
         >
           <v-icon name="open_in_new" />
         </component>
-
       </div>
     </div>
 
@@ -62,9 +61,7 @@
 
       <div class="flex flex-col">
         <span class="font-medium">Organization keys</span>
-        <span
-          class="font-normal"
-          :class="{ 'over-key-limit': exceededKeyLimit }">
+        <span class="font-normal" :class="{ 'over-key-limit': exceededKeyLimit }">
           {{ localazyProject?.organization.usedKeys }} / {{ localazyProject?.organization.availableKeys }}
         </span>
       </div>
@@ -94,20 +91,17 @@ const props = defineProps({
   },
 });
 
-const {
-  hydrating, localazyProject, exceededKeyLimit,
-} = storeToRefs(useLocalazyStore());
+const { hydrating, localazyProject, exceededKeyLimit } = storeToRefs(useLocalazyStore());
 
 const isConnected = computed(() => !hydrating.value && !!localazyProject.value);
 const hasLocalazyToken = computed(() => !!props.localazyData?.access_token);
 const isConnecting = computed(() => hydrating.value);
-const localazySourceLanguage = computed(() => getLocalazyLanguages()
-  .find((lang) => lang.localazyId === localazyProject.value?.sourceLanguage));
+const localazySourceLanguage = computed(() =>
+  getLocalazyLanguages().find((lang) => lang.localazyId === localazyProject.value?.sourceLanguage),
+);
 const directusSourceLanguage = computed(() => {
   if (!props.settings?.source_language) return null;
-  return findLocalazyLanguageByLocale(
-    DirectusLocalazyAdapter.transformDirectusToLocalazyLanguage(props.settings.source_language),
-  );
+  return findLocalazyLanguageByLocale(DirectusLocalazyAdapter.transformDirectusToLocalazyLanguage(props.settings.source_language));
 });
 
 async function onReconnect() {

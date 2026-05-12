@@ -10,8 +10,8 @@ type Errors = {
     file: LocalazyError[];
     import: LocalazyError[];
     export: LocalazyError[];
-  }
-  directus: string[]
+  };
+  directus: string[];
 };
 
 type CommonParams = {
@@ -19,7 +19,7 @@ type CommonParams = {
   orgId: string;
 };
 
-type AddLocalazyError = CommonParams & {type: keyof Errors['localazy'] };
+type AddLocalazyError = CommonParams & { type: keyof Errors['localazy'] };
 
 export const useErrorsStore = defineStore('errorsStore', () => {
   const errors = ref<Errors>({
@@ -70,9 +70,7 @@ export const useErrorsStore = defineStore('errorsStore', () => {
   const directusErrors = computed(() => errors.value.directus);
 
   const hasLocalazyErrors = computed(() => {
-    const {
-      project, file, import: importErrors, export: exportErrors,
-    } = errors.value.localazy;
+    const { project, file, import: importErrors, export: exportErrors } = errors.value.localazy;
     return project.length > 0 || file.length > 0 || importErrors.length > 0 || exportErrors.length > 0;
   });
 

@@ -17,19 +17,17 @@
     <template #navigation>
       <Navigation />
     </template>
-    <div class="panel page" v-if="hydrated && hydratedDirectusData">
+    <div v-if="hydrated && hydratedDirectusData" class="panel page">
       <config-notice class="notice" :has-incomplete-configuration="hasIncompleteConfiguration" />
       <errors-notice class="notice" :localazy-data="localazyData" />
 
       <connection-overview class="overview-block" :localazy-data="localazyData" :settings="settings" />
       <connection-languages class="overview-block mt-8" :settings="settings" />
-
     </div>
 
     <div v-else class="hydrating">
       <v-progress-circular indeterminate lar />
     </div>
-
   </private-view>
 </template>
 
@@ -43,16 +41,13 @@ import ConnectionOverview from './components/Overview/ConnectionOverview.vue';
 import ConnectionLanguages from './components/Overview/ConnectionLanguages.vue';
 import { useHydrate } from './composables/use-hydrate';
 
-const {
-  hydrateDirectusData, localazyData, hasIncompleteConfiguration, settings, hydratedDirectusData,
-} = useHydrate();
+const { hydrateDirectusData, localazyData, hasIncompleteConfiguration, settings, hydratedDirectusData } = useHydrate();
 const localazyStore = useLocalazyStore();
 const { hydrated } = storeToRefs(localazyStore);
 
 hydrateDirectusData().then(() => {
   localazyStore.hydrateLocalazyData({ localazyData });
 });
-
 </script>
 
 <style lang="scss" scoped>
@@ -76,7 +71,7 @@ hydrateDirectusData().then(() => {
   margin-bottom: 16px;
 }
 
-.overview-block{
+.overview-block {
   background-color: var(--background-normal);
   padding: 1rem;
 }
