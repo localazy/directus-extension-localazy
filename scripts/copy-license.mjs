@@ -1,8 +1,4 @@
-import fse from 'fs-extra';
+import { copyFileSync } from 'node:fs';
 
-const copy = () => {
-  fse.copyFileSync('./LICENSE', './extensions/module/LICENSE');
-  fse.copyFileSync('./LICENSE', './extensions/sync-hook/LICENSE');
-};
-
-copy();
+copyFileSync('./LICENSE', './extensions/module/LICENSE');
+copyFileSync('./LICENSE', './extensions/sync-hook/LICENSE');
