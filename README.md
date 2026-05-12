@@ -6,16 +6,46 @@ This is a monorepo consisting of following Localazy extensions for [Directus](ht
 Please refer to [Localazy Directus Extension](extensions/module/README.md) and [Localazy Directus Extension Automation](extensions/sync-hook/README.md) for more information about each extension. 
 
 ## Contributing
-Requires Node 22 (see `.nvmrc`). No Docker.
 
-- Run `npm install` once at the repo root (workspaces install all sub-packages).
-- Run `npm run dev`
-  - Performs an initial build of both extensions, then starts a local Directus instance against SQLite under `development/data/` with both extensions watch-rebuilding on change.
-  - Directus auto-reloads the extensions when their `dist/` changes, so saved edits land in the running admin without a manual restart.
-  - To reset state, delete `development/data/`.
-- Open `http://localhost:8055/admin`
-  - user: admin@example.com
-  - pwd: d1r3ctu5
+### Prerequisites
+- Node 22 (see `.nvmrc`). With nvm: `nvm use`.
+- No Docker required — the dev loop uses a local Directus instance against SQLite.
+
+### Local development
+
+1. Install dependencies once at the repo root (workspaces handle the sub-packages):
+   ```bash
+   npm install
+   ```
+2. Start the dev loop:
+   ```bash
+   npm run dev
+   ```
+   This will:
+   - Build both extensions once.
+   - Start a local Directus instance backed by a SQLite database under `development/data/`.
+   - Watch-rebuild both extensions on change; Directus auto-reloads when the bundles update, so saved edits appear in the admin without a manual restart.
+3. Open the admin UI at **http://localhost:8055/admin** and sign in:
+
+   | Field | Value |
+   |---|---|
+   | Email | `admin@example.com` |
+   | Password | `d1r3ctu5` |
+
+   These credentials are local-only — they're seeded by `scripts/dev.mjs` and live in the gitignored `development/data/data.db`.
+
+### Reset the local Directus state
+
+Delete the data directory to wipe the SQLite database, uploads, and the symlinked extensions layout. Next `npm run dev` re-bootstraps from scratch:
+```bash
+rm -rf development/data development/uploads development/extensions
+```
+
+### Useful scripts
+
+- `npm run build` — production-style build of both extensions (mode = production, minified).
+- `npm run build:development` — non-minified build (what `dev` runs internally).
+- `npm run lint` — lint both extensions.
 
 ## 📚 Documentation
 
