@@ -59,8 +59,13 @@ export abstract class BaseContentSynchronizationService {
 
   protected async resolveLocalazySettings(ItemsService: any, schema: SchemaOverview) {
     try {
-      const localazySettings = new ItemsService('localazy_settings', { schema });
-      const localazyContentTransferSetup = new ItemsService('localazy_content_transfer_setup', { schema });
+      // accountability: null runs with administrator permissions, which is what we want
+      // here — Localazy's settings tables shouldn't be subject to the triggering user's
+      // read permissions. emitEvents is not set because this code path only reads from
+      // Directus; if future work adds writes here, those calls must pass { emitEvents: false }
+      // to prevent the hook from recursively triggering itself.
+      const localazySettings = new ItemsService('localazy_settings', { schema, accountability: null });
+      const localazyContentTransferSetup = new ItemsService('localazy_content_transfer_setup', { schema, accountability: null });
       const settings: Settings = (
         await localazySettings.readByQuery({
           fields: '*',
@@ -89,7 +94,7 @@ export abstract class BaseContentSynchronizationService {
 
   protected async resolveLocalazyData(ItemsService: any, schema: SchemaOverview) {
     try {
-      const localazyData = new ItemsService('localazy_config_data', { schema });
+      const localazyData = new ItemsService('localazy_config_data', { schema, accountability: null });
       const data: LocalazyData = (
         await localazyData.readByQuery({
           fields: '*',

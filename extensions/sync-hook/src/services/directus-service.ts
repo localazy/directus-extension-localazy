@@ -72,23 +72,28 @@ export class DirectusApiService implements DirectusApi {
     await this.upsertSingleton('directus_settings', payload);
   }
 
+  // All ItemsService instances run with accountability: null (administrator permissions).
+  // The hook needs to read/write Localazy's internal collections regardless of the
+  // triggering user's permissions. emitEvents is set to false on writes so a hook-driven
+  // write doesn't recursively re-trigger the same hook.
+
   private readByQuery(collection: string, query: any) {
-    return new this.ItemsService(collection, { schema: this.schema }).readByQuery(query);
+    return new this.ItemsService(collection, { schema: this.schema, accountability: null }).readByQuery(query);
   }
 
   private createOne(collection: string, payload: any) {
-    return new this.ItemsService(collection, { schema: this.schema }).createOne(payload);
+    return new this.ItemsService(collection, { schema: this.schema, accountability: null }).createOne(payload, { emitEvents: false });
   }
 
   private updateOne(collection: string, id: string | number, payload: any) {
-    return new this.ItemsService(collection, { schema: this.schema }).updateOne(id, payload);
+    return new this.ItemsService(collection, { schema: this.schema, accountability: null }).updateOne(id, payload, { emitEvents: false });
   }
 
   private upsertSingleton(collection: string, payload: any) {
-    return new this.ItemsService(collection, { schema: this.schema }).upsertSingleton(payload);
+    return new this.ItemsService(collection, { schema: this.schema, accountability: null }).upsertSingleton(payload, { emitEvents: false });
   }
 
   private upsertOne(collection: string, payload: any) {
-    return new this.ItemsService(collection, { schema: this.schema }).upsertOne(payload);
+    return new this.ItemsService(collection, { schema: this.schema, accountability: null }).upsertOne(payload, { emitEvents: false });
   }
 }
