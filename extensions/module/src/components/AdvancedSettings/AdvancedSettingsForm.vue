@@ -76,27 +76,19 @@
 </template>
 
 <script lang="ts" setup>
-import { PropType, computed, ref } from 'vue';
+import { ref } from 'vue';
 import { Item } from '@directus/types';
 import { Settings } from '../../../../common/models/collections-data/settings';
 import { CreateMissingLanguagesInDirectus } from '../../../../common/enums/create-missing-languages-in-directus';
 import LanguageMappingsEditor from './LanguageMappingsEditor.vue';
 
-const props = defineProps({
-  edits: {
-    type: Object as PropType<Settings>,
-    required: true,
-  },
+const localEdits = defineModel<Settings>('edits', { required: true });
+
+defineProps({
   collection: {
     type: String,
     required: true,
   },
-});
-
-const emit = defineEmits(['update:edits']);
-const localEdits = computed<Settings>({
-  get: () => props.edits,
-  set: (value) => emit('update:edits', value),
 });
 
 const importSourceLanguageOptions = ref<Item[]>([

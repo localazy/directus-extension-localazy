@@ -73,8 +73,8 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
     loading.value = true;
     showProgress.value = true;
     addProgressMessage({
-      id: ProgressTrackerId.PREPARING_IMPORT,
-      message: 'Preparing Directus data for import',
+      id: ProgressTrackerId.PREPARING_EXPORT,
+      message: 'Preparing Directus data for export',
     });
     const token = computed(() => localazyData.value.access_token);
     // Save settings is fire-and-forget; errors surface via the errors store inside onSaveSettings.
