@@ -30,7 +30,9 @@ class LocalazyRequestProcessor {
         }
       });
 
-      this.processRequests();
+      // Intentionally fire-and-forget: addRequest returns a Promise that resolves when
+      // the queued request completes; the processor loop runs concurrently.
+      void this.processRequests();
     });
   }
 
@@ -81,9 +83,9 @@ class LocalazyRequestProcessor {
 
     this.processing = false;
 
-    // Process any queued requests
+    // Process any queued requests. Recursive fire-and-forget continues the loop.
     if (this.requests.length > 0) {
-      this.processRequests();
+      void this.processRequests();
     }
   }
 

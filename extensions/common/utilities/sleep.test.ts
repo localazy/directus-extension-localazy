@@ -10,7 +10,10 @@ describe('sleep', () => {
     vi.useFakeTimers();
     const promise = sleep(500);
     let resolved = false;
-    promise.then(() => {
+    // Fire-and-forget by design: the test awaits `promise` explicitly below
+    // (line 21) once the fake timer has advanced; this .then is only setting a
+    // flag the test reads to verify resolution timing.
+    void promise.then(() => {
       resolved = true;
     });
 

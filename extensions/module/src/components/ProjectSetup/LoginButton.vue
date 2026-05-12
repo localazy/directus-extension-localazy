@@ -84,7 +84,8 @@ const onLoginClick = async () => {
       await upsertDirectusItem(props.localazyDataCollection.collection, props.localazyData, newData);
       emit('update:localazyData', newData);
       await hydrateLocalazyData({ force: true, localazyData: props.localazyData });
-      AnalyticsService.trackLoggedIn({
+      // Analytics is fire-and-forget; we don't want to block the login flow on telemetry.
+      void AnalyticsService.trackLoggedIn({
         userId: pollResultData.user?.id || '',
         orgId: pollResultData.project?.orgId || '',
         name: pollResultData.user?.name || '',

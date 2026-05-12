@@ -40,7 +40,8 @@ export const useLocalazyStore = defineStore('localazyStore', () => {
           const projects = await LocalazyApiThrottleService.listProjects(token, { organization: true, languages: true });
           localazyProject.value = projects[0] || null;
           resetLocalazyErrors();
-          AnalyticsService.trackConnectedProject({
+          // Analytics is fire-and-forget; hydration shouldn't block on telemetry.
+          void AnalyticsService.trackConnectedProject({
             orgId: localazyProject.value?.orgId || '',
             userId: localazyDataItem.value?.user_id || '',
             name: localazyProject.value?.name || '',
