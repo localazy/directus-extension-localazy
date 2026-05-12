@@ -13,9 +13,9 @@
 <script lang="ts" setup>
 import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { useStores } from '@directus/extensions-sdk';
 import { useLocalazyStore } from '../../stores/localazy-store';
 import { useLocalazyConfigStore } from '../../stores/localazy-config-store';
+import { useDirectusNotificationsStore } from '../../composables/use-directus-stores';
 import { AnalyticsService } from '../../../../common/services/analytics-service';
 import { LocalazyData } from '../../../../common/models/collections-data/localazy-data';
 
@@ -28,8 +28,7 @@ const configStore = useLocalazyConfigStore();
 const { data: localazyData } = storeToRefs(configStore);
 const localazyStore = useLocalazyStore();
 const { hydrateLocalazyData } = localazyStore;
-const { useNotificationsStore } = useStores();
-const notificationsStore = useNotificationsStore();
+const notificationsStore = useDirectusNotificationsStore();
 
 const onLogout = async () => {
   try {

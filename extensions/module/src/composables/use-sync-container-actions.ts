@@ -1,7 +1,6 @@
 import { isEqual, merge } from 'lodash';
 import { Ref, computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { useStores } from '@directus/extensions-sdk';
 import { ProgressTrackerId } from '../enums/progress-tracker-id';
 import { EnabledFieldsService } from '../../../common/utilities/enabled-fields-service';
 import { useExportToLocalazy } from './use-export-to-localazy';
@@ -19,6 +18,7 @@ import { useTranslationStringsContent } from './use-translation-strings-content'
 import { EnabledField } from '../../../common/models/collections-data/content-transfer-setup';
 import { AnalyticsService } from '../../../common/services/analytics-service';
 import { ExportToLocalazyCommonService } from '../../../common/services/export-to-localazy-common-service';
+import { useDirectusNotificationsStore } from './use-directus-stores';
 
 type UseSyncContainerActions = {
   enabledFields: Ref<EnabledField[]>;
@@ -34,8 +34,7 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
   const { translatableCollections } = useCollectionsOrganizer();
   const { upsertFromLocalazyContent } = useDirectusLocalazyAdapter();
 
-  const { useNotificationsStore } = useStores();
-  const notificationsStore = useNotificationsStore();
+  const notificationsStore = useDirectusNotificationsStore();
 
   const { addProgressMessage, resetProgressTracker } = useProgressTrackerStore();
   const localazyStore = useLocalazyStore();

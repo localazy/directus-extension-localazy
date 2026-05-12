@@ -1,12 +1,11 @@
 import { Field, Relation } from '@directus/types';
-import { useStores } from '@directus/extensions-sdk';
 import { FieldsUtilsService } from '../../../common/utilities/fields-utils-service';
+import { useDirectusCollectionsStore, useDirectusFieldsStore, useDirectusRelationsStore } from './use-directus-stores';
 
 export const useGetFieldsForTranslationRelation = () => {
-  const { useFieldsStore, useRelationsStore, useCollectionsStore } = useStores();
-  const { getFieldsForCollection } = useFieldsStore();
-  const { getRelationsForField } = useRelationsStore();
-  const { getCollection } = useCollectionsStore();
+  const { getFieldsForCollection } = useDirectusFieldsStore();
+  const { getRelationsForField } = useDirectusRelationsStore();
+  const { getCollection } = useDirectusCollectionsStore();
 
   const getTranslatableFields = (collection: string) => {
     const fields: Field[] = getFieldsForCollection(collection);

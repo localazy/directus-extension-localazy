@@ -23,7 +23,6 @@
 
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia';
-import { useStores } from '@directus/extensions-sdk';
 import AdvancedSettingsForm from './components/AdvancedSettings/AdvancedSettingsForm.vue';
 import Navigation from './components/Navigation.vue';
 import { useLocalazyStore } from './stores/localazy-store';
@@ -32,6 +31,7 @@ import { useLocalazyInstallerStore, LOCALAZY_COLLECTIONS } from './stores/locala
 import { useLocalazySettingsStore } from './stores/localazy-settings-store';
 import { useLocalazyConfigStore } from './stores/localazy-config-store';
 import { useSingletonForm } from './composables/use-singleton-form';
+import { useDirectusNotificationsStore } from './composables/use-directus-stores';
 
 const settingsCollectionName = LOCALAZY_COLLECTIONS.settings;
 
@@ -43,8 +43,7 @@ const { data: localazyData } = storeToRefs(useLocalazyConfigStore());
 
 const { edits: settingsEdits, changesExist, save: saveSettings, loading: saving } = useSingletonForm(settingsStore);
 
-const { useNotificationsStore } = useStores();
-const notificationsStore = useNotificationsStore();
+const notificationsStore = useDirectusNotificationsStore();
 const localazyStore = useLocalazyStore();
 const { hydrateLocalazyData } = localazyStore;
 const { hydrating, hydrated } = storeToRefs(localazyStore);

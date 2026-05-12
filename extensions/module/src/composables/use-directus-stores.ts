@@ -1,6 +1,21 @@
 import { useStores } from '@directus/extensions-sdk';
 import { computed, type ComputedRef } from 'vue';
-import type { AppCollection, Collection, Relation } from '@directus/types';
+import type { AppCollection, Collection, Field, Relation } from '@directus/types';
+
+/**
+ * One file for every Directus Pinia store this extension consumes. SDK 17 widened
+ * `useStores()`'s return type so the inner stores no longer expose their member
+ * typings — without these wrappers, every call site needs an `as Type` cast.
+ *
+ * Rule of thumb for this codebase:
+ *   - Directus stores (anything reached via `useStores()`)  →  always use the
+ *     wrappers in this file, never the raw `useStores().useXStore()`.
+ *   - Our own Pinia stores (errors, localazy, progress-tracker, etc.)  →  consume
+ *     directly with `storeToRefs` for state refs; no wrappers needed (types are
+ *     already correct).
+ *   - Never direct-destructure state from a Pinia store — silently breaks
+ *     reactivity. State always goes through `storeToRefs`.
+ */
 
 /**
  * Shape of the Directus admin's collections Pinia store that this extension uses.
@@ -50,4 +65,26 @@ type RelationsStore = {
 export const useDirectusRelationsStore = (): RelationsStore => {
   const stores = useStores();
   return stores.useRelationsStore() as RelationsStore;
+};
+
+/** Subset of Directus' fields Pinia store that this extension depends on. */
+type FieldsStore = {
+  getFieldsForCollection: (collection: string) => Field[];
+  getFieldsForCollectionSorted: (collection: string) => Field[];
+  hydrate: () => Promise<void>;
+};
+
+export const useDirectusFieldsStore = (): FieldsStore => {
+  const stores = useStores();
+  return stores.useFieldsStore() as FieldsStore;
+};
+
+/** Subset of Directus' notifications Pinia store that this extension depends on. */
+type NotificationsStore = {
+  add: (notification: { title: string; type?: 'info' | 'success' | 'warning' | 'error' }) => void;
+};
+
+export const useDirectusNotificationsStore = (): NotificationsStore => {
+  const stores = useStores();
+  return stores.useNotificationsStore() as NotificationsStore;
 };
