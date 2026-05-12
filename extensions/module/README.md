@@ -18,8 +18,15 @@
 
 ## 📄 Prerequisites
 
-- Directus `^10.10.0`+
+- Directus 11+ (see compatibility table below).
 - [Your project is set up for translations](https://docs.directus.io/guides/headless-cms/content-translations.html)
+
+## 🧭 Compatibility
+
+| Extension version | Directus   | Notes                                                                                                      |
+| ----------------- | ---------- | ---------------------------------------------------------------------------------------------------------- |
+| `2.x`             | `^11.0.0`  | Current.                                                                                                   |
+| `1.x`             | `^10.10.0` | Frozen. Pin with `npm install @localazy/directus-extension-localazy@^1` if you can't upgrade Directus yet. |
 
 ## 🔧 Install
 

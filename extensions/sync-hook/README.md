@@ -16,8 +16,15 @@
 
 ## 📄 Prerequisites
 
-- Installed & enabled [Directus Extension Localazy](https://github.com/localazy/directus-extension-localazy/tree/main/extensions/module)
-- Directus `^10.10.0`+
+- Installed & enabled [Directus Extension Localazy](https://github.com/localazy/directus-extension-localazy/tree/main/extensions/module).
+- Directus 11+ (see compatibility table below).
+
+## 🧭 Compatibility
+
+| Extension version | Directus   | Notes                                                                                                                 |
+| ----------------- | ---------- | --------------------------------------------------------------------------------------------------------------------- |
+| `2.x`             | `^11.0.0`  | Current.                                                                                                              |
+| `1.x`             | `^10.10.0` | Frozen. Pin with `npm install @localazy/directus-extension-localazy-automation@^1` if you can't upgrade Directus yet. |
 
 ## 🔧 Install
 
