@@ -47,6 +47,9 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
   const transferSetupStore = useLocalazyTransferSetupStore();
   const { data: transferSetup } = storeToRefs(transferSetupStore);
 
+  const accessToken = computed(() => localazyData.value.access_token);
+  const exportService = useExportToLocalazy(accessToken);
+
   const loading = ref(false);
   const showProgress = ref(false);
 
@@ -76,7 +79,6 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
       id: ProgressTrackerId.PREPARING_EXPORT,
       message: 'Preparing Directus data for export',
     });
-    const token = computed(() => localazyData.value.access_token);
     // Save settings is fire-and-forget; errors surface via the errors store inside onSaveSettings.
     void onSaveSettings();
     try {
@@ -95,7 +97,7 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
         }),
       ]);
 
-      await useExportToLocalazy(token).exportContentToLocalazy({
+      await exportService.exportContentToLocalazy({
         content: merge(collectionsContent, translationStrings),
         settings: settings.value,
       });

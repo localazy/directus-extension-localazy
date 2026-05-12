@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { ProgressTracker, ProgressTrackerMessage } from '../models/progress-tracker';
 import { ProgressTrackerId } from '../enums/progress-tracker-id';
 
-export const useProgressTrackerStore = defineStore('progress-tracker-store', () => {
+export const useProgressTrackerStore = defineStore('progressTrackerStore', () => {
   const progressTracker = ref<ProgressTracker>([]);
 
   function addProgressMessage(message: ProgressTrackerMessage) {

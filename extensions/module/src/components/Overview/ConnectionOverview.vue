@@ -1,5 +1,5 @@
 <template>
-  <div class="connection-overiew">
+  <div class="connection-overview">
     <div class="flex items-center justify-between w-full">
       <div class="flex flex-col">
         <span class="font-medium">Localazy connection</span>
@@ -114,7 +114,7 @@ async function onReconnect() {
 <style lang="scss" scoped>
 @import '../../styles/mixins/common';
 
-.connection-overiew {
+.connection-overview {
   @include common;
 }
 

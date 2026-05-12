@@ -1,4 +1,3 @@
-import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useLocalazyStore } from '../stores/localazy-store';
 import { useProgressTrackerStore } from '../stores/progress-tracker-store';
@@ -28,8 +27,6 @@ type ImportContentFromLocalazyErrorReturn = {
 type ImportContentFromLocalazyReturn = ImportContentFromLocalazySuccessReturn | ImportContentFromLocalazyErrorReturn;
 
 export const useImportFromLocalazy = () => {
-  const loading = ref(false);
-
   const { addProgressMessage } = useProgressTrackerStore();
   const { addLocalazyError } = useErrorsStore();
   const { localazyProject } = storeToRefs(useLocalazyStore());
@@ -68,7 +65,6 @@ export const useImportFromLocalazy = () => {
   };
 
   return {
-    loading,
     importContentFromLocalazy,
   };
 };

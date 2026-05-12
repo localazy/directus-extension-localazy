@@ -11,7 +11,7 @@
       </div>
       <div class="ml-2">
         <v-icon
-          v-if="!data.directus.recoznigedInLocalazy"
+          v-if="!data.directus.recognizedInLocalazy"
           name="error"
           color="var(--danger)"
           title="Localazy does not recognize this language"
@@ -25,7 +25,7 @@
         />
         <v-icon v-else name="clear" color="var(--danger)" title="This language has not been added in your Localazy project" />
 
-        <span v-if="!data.directus.recoznigedInLocalazy"> Unknown Localazy language </span>
+        <span v-if="!data.directus.recognizedInLocalazy"> Unknown Localazy language </span>
         <span v-else-if="data.localazy.hidden"> Disabled </span>
         <span v-else-if="data.localazy.presentMapped && !data.localazy.present">
           Mapped to {{ data.localazy.mappedTo }}
@@ -74,7 +74,7 @@ type Row = {
     present: boolean;
     presentMapped: boolean;
     mappedTo: string;
-    recoznigedInLocalazy: boolean;
+    recognizedInLocalazy: boolean;
   };
 };
 
@@ -106,7 +106,6 @@ watch(
 const languageRows = computed((): Row[] => {
   const localazyLanguages = localazyProject.value?.languages || [];
   const localazyLocales = localazyLanguages.map((l) => l.code);
-  // const allLanguages = uniq([...directusLanguages.value, ...localazyLocales]);
 
   const allLanguages = [...directusLanguages.value, ...localazyLocales].map((locale) => {
     const directusFormLocale = DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(locale);
@@ -128,7 +127,7 @@ const languageRows = computed((): Row[] => {
         present: directusLanguages.value.includes(locale),
         presentMapped: directusLanguages.value.includes(directusFormLocale),
         mappedTo: directusFormLocale,
-        recoznigedInLocalazy: !!localazyLanguage,
+        recognizedInLocalazy: !!localazyLanguage,
       },
     } as Row;
   });

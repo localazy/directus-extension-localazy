@@ -40,11 +40,9 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
 import packageJson from '../../package.json';
 
-const version = ref<string>(packageJson.version);
-const versionLabel = ref<string>(`Version ${version.value}`);
+const versionLabel = `Version ${packageJson.version}`;
 </script>
 
 <style lang="scss" scoped>
