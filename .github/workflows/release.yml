@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: localazy/release/prepare@v2
         with:
-          node-version: '18.18'
+          node-version-file: .nvmrc
           app-id: ${{ secrets.AUTH_APP_ID }}
           app-key: ${{ secrets.AUTH_APP_KEY }}
           monorepo-bump: |
@@ -44,15 +44,10 @@ jobs:
     steps:
       - uses: localazy/release/publish@v2
         with:
-          node-version: '18.18'
+          node-version-file: .nvmrc
           app-id: ${{ secrets.AUTH_APP_ID }}
           app-key: ${{ secrets.AUTH_APP_KEY }}
           run-after-install: npm run set-production-config
-          monorepo-npm-install: |
-            ''
-            'extensions/common'
-            'extensions/module'
-            'extensions/sync-hook'
           monorepo-npm-build: |
             'extensions/module'
             'extensions/sync-hook'
