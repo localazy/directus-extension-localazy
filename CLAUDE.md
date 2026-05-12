@@ -66,10 +66,14 @@ rm -rf development/data development/uploads development/extensions
 | `npm run typecheck`         | `vue-tsc --noEmit` — typechecks `.ts` and `.vue` files.                             |
 | `npm run test`              | Vitest run.                                                                         |
 | `npm run test:watch`        | Vitest in watch mode.                                                               |
+| `npm run test:coverage`     | Vitest with v8 coverage report (text + HTML at `coverage/` + lcov).                 |
+| `npm run check`             | Aggregate: `lint && format && test`.                                                |
+| `npm run check:fix`         | Aggregate fix: `lint:fix && format:fix`.                                            |
+| `npm run knip`              | Detect unused files, deps, and exports. Local only (not gated in CI).               |
 | `npm run build`             | Minified production build of both extensions. This is what release publishes.       |
 | `npm run build:development` | Unminified build (faster, used by `dev`).                                           |
 
-CI (`.github/workflows/qa.yml`) runs lint → format → test → build (production) on every PR. Release (`.github/workflows/release.yml`) is triggered by pushes to `main` and uses `localazy/release@v2` to bump versions, generate the changelog, build, and publish to npm.
+CI (`.github/workflows/qa.yml`) runs `npm run check` then a production build on every PR. Release (`.github/workflows/release.yml`) is triggered by pushes to `main` and uses `localazy/release@v2` to bump versions, generate the changelog, build, and publish to npm.
 
 ## Coding conventions
 
