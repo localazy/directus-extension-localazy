@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@localazy/api-client": "^2.1.5",
-    "@localazy/generic-connector-client": "^0.2.3",
+    "@localazy/generic-connector-client": "^0.4.0",
     "@localazy/languages": "^1.0.0",
     "axios": "^1.13.0",
     "lodash": "^4.17.21",
