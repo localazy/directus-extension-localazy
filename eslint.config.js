@@ -14,6 +14,18 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   ...vue.configs['flat/recommended'],
 
+  // Type-aware linting (lets rules like no-floating-promises and no-misused-promises work).
+  // projectService auto-discovers the relevant tsconfig per file.
+  {
+    files: ['**/*.ts', '**/*.vue'],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+
   {
     files: ['**/*.vue'],
     languageOptions: {
@@ -23,6 +35,8 @@ export default tseslint.config(
         sourceType: 'module',
         ecmaVersion: 'latest',
         extraFileExtensions: ['.vue'],
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
       },
     },
   },
@@ -55,6 +69,21 @@ export default tseslint.config(
       'vue/multi-word-component-names': 'off',
       'vue/max-len': ['error', { code: 140 }],
       'vue/no-template-target-blank': 'off',
+    },
+  },
+
+  // Type-aware Promise-safety rule. Scoped to TS/Vue because it requires
+  // type information (only enabled in those file types via projectService).
+  // Catches the bug class that produced the missing-await in
+  // sync-hook/src/index.ts. Set to 'warn' because the codebase has a baseline
+  // of intentional fire-and-forget patterns (Vue setup() top-level awaits,
+  // event-handler callbacks) — see Stage 2 task for incremental cleanup.
+  // no-misused-promises is intentionally off: it produces false positives
+  // against Directus' action() callback signature, which accepts async fns.
+  {
+    files: ['**/*.ts', '**/*.vue'],
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'warn',
     },
   },
 

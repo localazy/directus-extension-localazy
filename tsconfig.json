@@ -26,5 +26,5 @@
     "rootDir": ".",
     "types": ["node"]
   },
-  "include": ["extensions/**/*.ts", "extensions/**/*.vue"]
+  "include": ["extensions/**/*.ts", "extensions/**/*.vue", "vitest.config.ts"]
 }
