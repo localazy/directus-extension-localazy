@@ -14,6 +14,20 @@
 
 > Enhance your experience of [Directus Extension Localazy](https://github.com/localazy/directus-extension-localazy) by automating synchronization of your content whenever you make a change in Directus. No more manual uploading.
 
+## ⚠️ Installation requirements
+
+This extension is a **non-sandboxed Directus hook** — it uses Directus' `ItemsService` and `FieldsService` directly to read and modify your translatable content. Non-sandboxed extensions are not installed via the Marketplace by default.
+
+**Before installing, set this in your Directus configuration:**
+
+```env
+MARKETPLACE_TRUST=all
+```
+
+Without it, the Marketplace install will fail silently. After setting it, restart Directus, then search the Marketplace for _Localazy_.
+
+If you prefer to install manually (via `npm install`), this flag is **not** required — manual installs bypass the Marketplace sandbox check entirely.
+
 ## 📄 Prerequisites
 
 - Installed & enabled [Directus Extension Localazy](https://github.com/localazy/directus-extension-localazy/tree/main/extensions/module).
@@ -37,9 +51,7 @@ npm install @localazy/directus-extension-localazy-automation
 
 ### Via Marketplace
 
-This hook extension needs to be able to add configuration collections, add and modify your translatable content. For this reason, it is considered to be a [Non-Sandboxed Extension](https://docs.directus.io/extensions/marketplace/publishing.html#extension-types) and thus is not listed in Directus' marketplace by default.
-
-In order to be able to activate the extension via Marketplace, you need to add `MARKETPLACE_TRUST: 'all'` to your [configuration](https://docs.directus.io/self-hosted/config-options.html). Afterwards you'll be able to find the extension in the Marketplace by searching for _Localazy_.
+See [Installation requirements](#%EF%B8%8F-installation-requirements) at the top of this README — `MARKETPLACE_TRUST=all` must be set in your Directus configuration before the Marketplace will show this extension. Then search for _Localazy_.
 
 ## 📚 Documentation
 
