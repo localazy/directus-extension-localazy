@@ -11,4 +11,6 @@ export type Settings = {
   automated_deprecation: boolean;
   skip_empty_strings: boolean;
   create_missing_languages_in_directus: CreateMissingLanguagesInDirectus;
+  /** JSON-encoded array of `LanguageMapping` rows. Empty string or `"[]"` means none. */
+  language_mappings: string;
 };

@@ -12,6 +12,7 @@ import { useErrorsStore } from '../stores/errors-store';
 import { defaultConfiguration } from '../data/default-configuration';
 import { sleep } from '../../../common/utilities/sleep';
 import { getConfig } from '../../../common/config/get-config';
+import { DirectusLocalazyAdapter } from '../../../common/services/directus-localazy-adapter';
 import { useDirectusApi } from './use-directus-api';
 import { useDirectusCollectionsStore, useDirectusCollectionsStoreRefs } from './use-directus-stores';
 
@@ -158,6 +159,13 @@ export const useHydrate = () => {
       await normalizeSettingsData(settingsCollectionName);
     } catch (e: unknown) {
       addDirectusError(e);
+    }
+
+    // Seed the adapter with custom language mappings so any subsequent transform call in
+    // the module uses them. The hook initialises its own mapping service in the sync flow;
+    // the two static slots are isolated by process.
+    if (settingsItem.value) {
+      DirectusLocalazyAdapter.initializeMappings(settingsItem.value.language_mappings || '[]');
     }
   }
 

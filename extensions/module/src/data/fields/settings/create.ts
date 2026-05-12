@@ -123,4 +123,16 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
       default_value: CreateMissingLanguagesInDirectus.ONLY_NON_HIDDEN,
     },
   },
+  {
+    field: 'language_mappings',
+    type: 'text',
+    meta: {
+      interface: 'input-multiline',
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: '[]',
+    },
+  },
 ];
