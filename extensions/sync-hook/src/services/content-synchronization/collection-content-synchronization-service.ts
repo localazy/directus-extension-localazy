@@ -78,7 +78,7 @@ class CollectionContentSynchronizationService extends BaseContentSynchronization
       } else {
         logger.error('Localazy: Missing settings or content transfer setup');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       logger.info(`Localazy: Exporting ${collection} content for keys ${data.keys.join(', ')} failed`);
       logger.error(e);
       trackDirectusError(e, 'exportCollectionContent');
@@ -140,7 +140,7 @@ class CollectionContentSynchronizationService extends BaseContentSynchronization
       } else {
         logger.error('Localazy: Could not deprecate deleted collection items');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       logger.error('Localazy: Deprecating deleted collection items failed');
       logger.error(e);
       trackDirectusError(e, 'deprecateDeletedCollectionItems');

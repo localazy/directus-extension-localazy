@@ -19,7 +19,7 @@ type CreateContentFromCollectionItems = {
 };
 
 type CreateValueForCollectionItem = {
-  translationItem: Record<string, any>;
+  translationItem: Record<string, unknown>;
   fieldName: string;
   collection: string;
   languageRelationField: string;
@@ -36,12 +36,12 @@ export class ContentFromCollections extends ContentForLocalazyBase {
 
     items.forEach((item) => {
       translatableFieldAttributes.forEach((relationField) => {
-        const translations: Array<Record<string, any>> = item[relationField.field];
+        const translations: Array<Record<string, unknown>> = item[relationField.field];
         translations.forEach((translationItem) => {
           Object.keys(translationItem)
             .filter((fieldName) => FieldsUtilsService.isEnabledField(fieldName, collection, enabledFields))
             .forEach((fieldName) => {
-              const itemLanguage = translationItem[relationField.fieldLanguageCodeField];
+              const itemLanguage = translationItem[relationField.fieldLanguageCodeField] as string | undefined;
               if (itemLanguage) {
                 const isSourceLanguageItem = settings.source_language === itemLanguage;
                 if (!isSourceLanguageItem && !translatableContent.otherLanguages[itemLanguage]) {
@@ -80,7 +80,7 @@ export class ContentFromCollections extends ContentForLocalazyBase {
     const { collection, languageRelationField, fieldName, item, collectionFields } = data;
     const fieldDetail = collectionFields.find((f) => f.field === fieldName);
 
-    const meta: Record<string, any> = {
+    const meta: Record<string, unknown> = {
       add: {
         directus: {
           collection,

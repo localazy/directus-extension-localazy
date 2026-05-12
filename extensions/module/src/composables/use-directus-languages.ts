@@ -14,7 +14,7 @@ export function useDirectusLanguages() {
   async function fetchDirectusLanguages(languageCollection: string, languageCodeField: string): Promise<string[]> {
     try {
       return synchronizationLanguagesService.fetchDirectusLanguages(languageCollection, languageCodeField);
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
       return [];
     }
@@ -27,7 +27,7 @@ export function useDirectusLanguages() {
 
     try {
       return synchronizationLanguagesService.resolveImportLanguages(settings, localazyProject.value);
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
       return [];
     }
@@ -36,7 +36,7 @@ export function useDirectusLanguages() {
   async function resolveExportLanguages(settings: Settings) {
     try {
       return synchronizationLanguagesService.resolveExportLanguages(settings);
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
       return [];
     }

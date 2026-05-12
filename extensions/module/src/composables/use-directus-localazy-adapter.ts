@@ -37,7 +37,9 @@ export const useDirectusLocalazyAdapter = () => {
 
   function createPayloadForTranslationItem(payload: CreatePayloadForTranslationItem) {
     const { collectionItem, localazyItem, language, currentPayload } = payload;
-    const translationItem = collectionItem[localazyItem.translationField]?.find((data: any) => data.languages_code === language);
+    const translationItem = collectionItem[localazyItem.translationField]?.find(
+      (data: { languages_code?: string }) => data.languages_code === language,
+    );
     const common = {
       localazyItem,
       translationItem,
@@ -77,7 +79,7 @@ export const useDirectusLocalazyAdapter = () => {
         const updatePayloadForField = payload[field]?.update || [];
         const collectionItemForField = collectionItem[field] || [];
         return updatePayloadForField.some((item) => {
-          const identicalCollectionItemForFieldItem = collectionItemForField.find((i: any) => isEqual(i, item));
+          const identicalCollectionItemForFieldItem = collectionItemForField.find((i: unknown) => isEqual(i, item));
           return identicalCollectionItemForFieldItem === undefined;
         });
       })
@@ -135,7 +137,7 @@ export const useDirectusLocalazyAdapter = () => {
             itemId,
             translations,
           });
-        } catch (e: any) {
+        } catch (e: unknown) {
           addDirectusError(e);
           upsertProgressMessage(ProgressTrackerId.UPDATING_DIRECTUS_COLLECTION_ERROR, {
             type: 'error',
@@ -143,7 +145,7 @@ export const useDirectusLocalazyAdapter = () => {
           });
         }
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
       upsertProgressMessage(ProgressTrackerId.UPDATING_DIRECTUS_COLLECTION_ERROR, {
         type: 'error',

@@ -74,7 +74,7 @@ export class ExportToLocalazyService {
 
         await execute({ delayBetween: 150 });
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       trackLocalazyError(e, 'export');
     }
   }

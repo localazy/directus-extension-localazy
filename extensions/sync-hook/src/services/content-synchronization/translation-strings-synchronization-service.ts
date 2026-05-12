@@ -71,7 +71,7 @@ class TranslationStringsSynchronizationService extends BaseContentSynchronizatio
       } else {
         logger.error('Localazy: Missing settings or content transfer setup');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       logger.error('Localazy: Exporting translation strings failed');
       logger.error(e);
       trackDirectusError(e, 'exportCollectionContent');
@@ -132,7 +132,7 @@ class TranslationStringsSynchronizationService extends BaseContentSynchronizatio
       } else {
         logger.error('Localazy: Could not deprecate deleted translation strings');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       logger.error('Localazy: Deprecating deleted translation strings failed');
       logger.error(e);
       trackDirectusError(e, 'deprecateDeletedCollectionItems');
@@ -156,7 +156,7 @@ class TranslationStringsSynchronizationService extends BaseContentSynchronizatio
       });
 
       return translationStrings;
-    } catch (e: any) {
+    } catch (e: unknown) {
       trackDirectusError(e, 'fetchTranslationStrings');
       return {
         sourceLanguage: {},

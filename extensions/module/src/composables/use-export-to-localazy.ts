@@ -40,7 +40,7 @@ export const useExportToLocalazy = (token: Ref<string>) => {
             message: `(${language}) Export ${index + 1} / ${contentChunks.length} content chunks`,
           });
         })
-        .catch((e: any) => {
+        .catch((e: unknown) => {
           addLocalazyError(e, { type: 'export', userId: localazyUser.value.id, orgId: localazyProject.value?.orgId || '' });
         });
     });
