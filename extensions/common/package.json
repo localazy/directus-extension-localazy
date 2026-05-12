@@ -11,7 +11,7 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@directus/types": "^12.2.2",
+    "@directus/types": "^15.0.0",
     "@types/lodash": "^4.17.7"
   }
 }
