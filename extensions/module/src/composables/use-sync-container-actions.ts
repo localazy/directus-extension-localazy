@@ -301,14 +301,24 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
         }),
       });
 
-      await runIncrementalImport(adapters, {
+      const result = await runIncrementalImport(adapters, {
         mode,
         languages: importLanguages,
         enabledFields: enabledFields.value,
         localazyData: localazyData.value,
         localazyProject: localazyProject.value,
         settings: settings.value,
+        initiator: mode === 'full' ? 'ui-full' : 'ui-incremental',
       });
+      // When the advisory lock was held by another run, the orchestrator returns
+      // `skipped` without emitting any progress messages. The disabled Import button
+      // is the primary signal, but a contender that managed to click anyway (e.g.
+      // mid-poll) deserves explicit feedback — surface it as a Directus toast.
+      if (result.status === 'skipped') {
+        notificationsStore.add({ title: 'Sync already in progress — try again in a moment' });
+        // Close the empty progress modal so the user isn't staring at a blank panel.
+        showProgress.value = false;
+      }
     } finally {
       loading.value = false;
     }

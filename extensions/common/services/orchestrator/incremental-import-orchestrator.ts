@@ -5,10 +5,11 @@ import { DirectusLocalazyLanguage } from '../../models/directus-localazy-languag
 import { EnabledField } from '../../models/collections-data/content-transfer-setup';
 import { LocalazyData } from '../../models/collections-data/localazy-data';
 import { Settings } from '../../models/collections-data/settings';
-import { OrchestratorAdapters } from './ports';
+import { LockState, OrchestratorAdapters } from './ports';
 import { LocalazyContentSummary, summarizeLocalazyContent } from './summarize-localazy-content';
 import { upsertFromLocalazyContent } from './upsert-localazy-content';
 import { WrittenTriple } from './written-triple';
+import { SYNC_LOCK_HARD_CEILING_MS, SYNC_LOCK_HEARTBEAT_MS, SYNC_LOCK_STALE_HEARTBEAT_MS } from './lock-constants';
 
 export type SyncMode = 'incremental' | 'full';
 
@@ -37,43 +38,99 @@ export type IncrementalImportParams = {
   localazyData: LocalazyData;
   localazyProject: Project;
   settings: Settings;
-};
-
-export type IncrementalImportResult = {
   /**
-   * `completed` — at least one change applied (or attempted) this run.
-   * `up-to-date` — short-circuit: nothing new since the last sync.
-   * `aborted` — the Localazy fetch failed (`success: false`). The orchestrator returns
-   * early without persisting the cursor — there's nothing to advance.
+   * Free-form initiator label, persisted as `sync_initiator` while the lock is held.
+   * The module wires `'ui-incremental'` / `'ui-full'`; webhook flows in PR F will pass
+   * `'webhook'`. Optional so existing callers that don't care about lock attribution
+   * still work — the orchestrator falls back to the sync mode in that case.
    */
-  status: 'completed' | 'up-to-date' | 'aborted';
-  /** Total `(lang, keyId, event)` writes the orchestrator recorded via `onWritten`. */
-  itemsProcessed: number;
-  /** Wall-clock duration of the run in milliseconds. */
-  durationMs: number;
-  /** Headline summary of the fetched content. `undefined` when status is `aborted`. */
-  summary?: LocalazyContentSummary;
+  initiator?: string;
 };
 
 /**
- * Drives the incremental-download sync end-to-end:
- *   1. Loads the on-disk cursor (auto-invalidating against the current project).
- *   2. Fetches changed Localazy content through the cursor filter (or everything in
- *      full-sync mode).
- *   3. Short-circuits if there are no changes (still touches `last_sync_at` via
- *      `cursorStore.persist`).
- *   4. Upserts into Directus, recording per-item triples through a throttled flush so
- *      a long sync can checkpoint progress to disk.
- *   5. Persists the in-memory cursor unconditionally at the end (and on error — the
- *      `finally` makes the contract literal).
- *
- * Behavioural identity with the prior module-only implementation is preserved — the only
- * difference is _where_ the side effects land, not when or in what order.
+ * Shape of a completed run — used both by the public return type and by the recursive
+ * re-fire path. Kept private to this module since `runIncrementalImport`'s contract is
+ * the discriminated union below.
  */
-export async function runIncrementalImport(
+type RunOutcome = {
+  status: 'completed' | 'up-to-date' | 'aborted';
+  itemsProcessed: number;
+  durationMs: number;
+  summary?: LocalazyContentSummary;
+};
+
+export type IncrementalImportResult =
+  /**
+   * `completed` / `up-to-date` / `aborted` mirror the legacy contract: the orchestrator
+   * actually ran a sync (in some shape) and returned the usual outcome fields.
+   */
+  | (RunOutcome & {
+      status: 'completed' | 'up-to-date' | 'aborted';
+    })
+  /**
+   * `skipped` — the orchestrator did NOT run because the advisory lock was already held.
+   * `reason: 'in_progress'` means we observed a live lock and set the dirty bit so the
+   * holder re-fires us; `reason: 'race_lost'` means our CAS-acquire write was overwritten
+   * by another contender between the read and re-read. Callers surface these to the UI as
+   * a "sync already in progress" notification.
+   */
+  | { status: 'skipped'; reason: 'in_progress' | 'race_lost' };
+
+/**
+ * Opaque token generator for advisory-lock CAS. Prefers `crypto.randomUUID()` when
+ * available (real UUID v4); falls back to a `Date.now() + Math.random()` composite
+ * when not. The token only needs uniqueness — it isn't compared as a UUID, just
+ * as a string.
+ */
+function generateToken(): string {
+  const cryptoApi = globalThis.crypto;
+  if (cryptoApi && typeof cryptoApi.randomUUID === 'function') {
+    return cryptoApi.randomUUID();
+  }
+  // Fallback path — kept minimal; the lock guards correctness even if the token isn't
+  // perfectly unique because the CAS re-read still verifies our write survived.
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`;
+}
+
+/**
+ * Returns true if the on-disk lock looks stale and a contender may take over. Stale =
+ * heartbeat older than `SYNC_LOCK_STALE_HEARTBEAT_MS` (Directus restart, GC pause, dead
+ * worker) OR `started_at` older than `SYNC_LOCK_HARD_CEILING_MS` (zombie that keeps
+ * heartbeating but never finishes — defends the 2 h hard ceiling).
+ *
+ * A null heartbeat / `started_at` is _not_ treated as stale on its own: the lock could
+ * legitimately have been acquired microseconds ago and the first heartbeat hasn't fired
+ * yet. The orchestrator only inspects this when `in_progress === true`, so a brand-new
+ * acquire that hasn't heartbeated yet is correctly classified as live.
+ */
+function isLockStale(state: LockState, now: number): boolean {
+  if (state.started_at) {
+    const startedAtMs = Date.parse(state.started_at);
+    if (Number.isFinite(startedAtMs) && now - startedAtMs > SYNC_LOCK_HARD_CEILING_MS) {
+      return true;
+    }
+  }
+  if (state.last_heartbeat_at) {
+    const heartbeatAtMs = Date.parse(state.last_heartbeat_at);
+    if (Number.isFinite(heartbeatAtMs) && now - heartbeatAtMs > SYNC_LOCK_STALE_HEARTBEAT_MS) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Pure body of an import run — no lock concerns. Lifted out of `runIncrementalImport` so
+ * the lock wrapper can wrap it cleanly without nesting the entire pipeline inside a
+ * `try / finally`. Byte-identical to the pre-lock implementation for the on-disk
+ * cursor + progress sink + analytics outcomes; the only new wire is `onItemsProcessed`,
+ * which the wrapper uses to feed the heartbeat counter.
+ */
+async function runImportBody(
   adapters: OrchestratorAdapters,
   params: IncrementalImportParams,
-): Promise<IncrementalImportResult> {
+  onItemsProcessed: (count: number) => void,
+): Promise<RunOutcome> {
   const { mode, languages, enabledFields, localazyData, localazyProject, settings } = params;
   const { cursorStore, localazyContentFetcher, progress, directusApi, resolveLanguageFkField, onDirectusError, reportDownloadAnalytics } =
     adapters;
@@ -155,6 +212,9 @@ export async function runIncrementalImport(
     });
     sinceLastFlush += triples.length;
     writtenSinceStart += triples.length;
+    // Surface the running total so the lock heartbeat closure can persist it without
+    // reaching into the orchestrator's private state.
+    onItemsProcessed(writtenSinceStart);
     if (sinceLastFlush >= flushEvery) {
       sinceLastFlush = 0;
       // Fire-and-forget: the next persist will reload the disk cursor anyway, and we
@@ -200,4 +260,85 @@ export async function runIncrementalImport(
     durationMs,
     summary,
   };
+}
+
+/**
+ * Drives the incremental-download sync end-to-end behind a CAS-style advisory lock:
+ *   1. Reads the lock state. If another run is live and not stale, sets the dirty bit
+ *      and returns `{ status: 'skipped', reason: 'in_progress' }` — the holder re-fires
+ *      us on release.
+ *   2. Acquires the lock with a fresh per-run UUID token. CAS-loss returns
+ *      `{ status: 'skipped', reason: 'race_lost' }` and sets the dirty bit too.
+ *   3. Starts a 30 s heartbeat `setInterval` that bumps `last_heartbeat_at` +
+ *      `items_processed` so concurrent contenders can tell a live run from a zombie.
+ *   4. Runs the import body (`runImportBody` — the original pre-lock pipeline).
+ *   5. On exit: clears the heartbeat, releases the lock, and if the dirty bit was set
+ *      during the run, re-fires the orchestrator once. The re-fire is bounded by the
+ *      cursor (no new content → short-circuit) so there's no risk of an infinite loop.
+ *
+ * Behavioural identity with the prior implementation is preserved on the non-locked
+ * path: when no contender exists, lock acquire + heartbeat + release happen around
+ * exactly the same import body as before, with the same on-disk side effects.
+ */
+export async function runIncrementalImport(
+  adapters: OrchestratorAdapters,
+  params: IncrementalImportParams,
+): Promise<IncrementalImportResult> {
+  const { lockStore } = adapters;
+  const initiator = params.initiator || (params.mode === 'full' ? 'ui-full' : 'ui-incremental');
+  const token = generateToken();
+
+  const existing = await lockStore.read();
+  if (existing.in_progress && !isLockStale(existing, Date.now())) {
+    // Live lock — set the dirty bit so the holder re-fires us, then surrender. The
+    // UI surfaces the skip as a "sync already in progress" notification.
+    await lockStore.markPending();
+    return { status: 'skipped', reason: 'in_progress' };
+  }
+
+  const acquired = await lockStore.acquire(initiator, token);
+  if (!acquired) {
+    // Another contender wrote their own token between our read and the acquire — they
+    // hold the lock now. Set the dirty bit so their run re-fires once it releases.
+    await lockStore.markPending();
+    return { status: 'skipped', reason: 'race_lost' };
+  }
+
+  // Heartbeat closure reads through `currentItemsProcessed` so the in-flight counter
+  // surfaces to disk between batches. Without this, `sync_items_processed` would stay
+  // at zero for the whole run and external observers (Activity page in PR D, the
+  // staleness check from a contender) wouldn't see progress.
+  let currentItemsProcessed = 0;
+  const heartbeatInterval: ReturnType<typeof setInterval> = setInterval(() => {
+    // Fire-and-forget. Errors inside the heartbeat are intentionally swallowed by the
+    // adapter so a transient Directus blip doesn't kill the sync.
+    void lockStore.heartbeat(token, currentItemsProcessed);
+  }, SYNC_LOCK_HEARTBEAT_MS);
+
+  try {
+    const outcome = await runImportBody(adapters, params, (count) => {
+      currentItemsProcessed = count;
+    });
+    return outcome;
+  } finally {
+    clearInterval(heartbeatInterval);
+    const { wasPending } = await lockStore.release(token);
+    if (wasPending) {
+      // Re-fire once. Bounded by the cursor — if nothing's new since the last
+      // successful sync, the body short-circuits via the `up-to-date` path. We
+      // intentionally do NOT loop here: if the re-fired run also collects a dirty
+      // bit, its own release path handles it recursively, each call holding the
+      // lock for the duration of a single body.
+      try {
+        await runIncrementalImport(adapters, params);
+      } catch (err) {
+        // Re-fire is a best-effort drain of the dirty bit. The cursor-bounded
+        // body means a no-op re-fire is harmless; a failed re-fire shouldn't
+        // mask the original run's successful outcome. Surface the error via the
+        // adapter's error sink and continue. `onDirectusError` accepts only the
+        // error value (no structured context), matching the `ErrorSink` shape.
+        adapters.onDirectusError(err);
+      }
+    }
+  }
 }

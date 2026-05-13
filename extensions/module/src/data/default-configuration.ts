@@ -35,5 +35,12 @@ export const defaultConfiguration = (): Configuration => ({
     cursor_project_id: '',
     cursor_version: CURSOR_VERSION,
     last_sync_at: null,
+    sync_in_progress: false,
+    sync_started_at: null,
+    sync_initiator: '',
+    sync_pending: false,
+    sync_items_processed: 0,
+    sync_last_heartbeat_at: null,
+    acquired_token: '',
   },
 });

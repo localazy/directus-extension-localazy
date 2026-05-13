@@ -6,6 +6,8 @@ import {
   CursorStore,
   ErrorSink,
   LocalazyContentFetcher,
+  LockState,
+  LockStore,
   OrchestratorAdapters,
   ProgressSink,
   ResolveLanguageFkField,
@@ -27,8 +29,8 @@ import { Settings } from '../../../common/models/collections-data/settings';
 /**
  * Maps the orchestrator's stable string progress ids to the module's `ProgressTrackerId`
  * enum values. Keeps the de-dupe-by-id semantics of the progress modal intact across the
- * lift — the orchestrator emits `'sync-mode-header'`, the modal still sees `0`
- * (`SYNC_MODE_HEADER`) and replaces in place.
+ * lift — the orchestrator emits `'fetching-translations'`, the modal still sees
+ * `ProgressTrackerId.FETCHING_TRANSLATIONS` and replaces in place.
  */
 const PROGRESS_ID_MAP: Record<string, ProgressTrackerId> = {
   [ImportProgressIds.FETCHING_TRANSLATIONS]: ProgressTrackerId.FETCHING_TRANSLATIONS,
@@ -78,6 +80,144 @@ function buildCursorStore(): CursorStore {
         // intentionally swallow it here so a flush failure can't take down the sync; the
         // next flush attempt will retry, and the final flush at end-of-sync acts as a
         // last-resort backstop.
+      }
+    },
+  };
+}
+
+/**
+ * Snapshot the lock-relevant fields of the `localazy_sync_state` singleton into the
+ * shape the orchestrator's `LockStore` port expects. Kept private to this file because
+ * the projection from the persisted `SyncState` shape to `LockState` is purely a naming
+ * adapter — the orchestrator wants `in_progress`, the row stores `sync_in_progress`.
+ */
+function projectLockState(syncState: {
+  sync_in_progress: boolean;
+  sync_started_at: string | null;
+  sync_initiator: string;
+  sync_pending: boolean;
+  sync_items_processed: number;
+  sync_last_heartbeat_at: string | null;
+  acquired_token: string;
+}): LockState {
+  return {
+    in_progress: syncState.sync_in_progress,
+    started_at: syncState.sync_started_at,
+    initiator: syncState.sync_initiator,
+    pending: syncState.sync_pending,
+    items_processed: syncState.sync_items_processed,
+    last_heartbeat_at: syncState.sync_last_heartbeat_at,
+    acquired_token: syncState.acquired_token,
+  };
+}
+
+/**
+ * Builds the orchestrator's `LockStore` port from the Pinia sync-state store. The
+ * orchestrator already gated this call with its own `read()` (deciding live vs.
+ * stale vs. free) — `acquire()` here only performs the *atomic* portion: write our
+ * token + zeroed per-run counters → re-read → verify `acquired_token` is still
+ * ours. If a concurrent contender wrote between our write and the verify, their
+ * token wins and we surrender.
+ *
+ * Under concurrent acquires over plain HTTP, the verify-after-write is
+ * best-effort: both contenders' verify reads can land in a window that yields
+ * false-positive winners for both sides. This is acceptable because the lock is
+ * advisory — `heartbeat` and `release` are token-gated, so only the contender
+ * whose token is the one finally on disk persists any state. Cursor
+ * merge-on-persist + idempotent upserts make duplicate runs correct (just
+ * wasteful).
+ *
+ * Heartbeat and release are token-gated — they re-read the row and no-op if the
+ * on-disk `acquired_token` no longer matches the caller's. This defends against
+ * the "stolen lock" case: a stale holder wakes up after a contender took over
+ * and tries to release a lock it no longer owns.
+ */
+function buildLockStore(): LockStore {
+  const syncStateStore = useLocalazySyncStateStore();
+  const { data: syncStateData } = storeToRefs(syncStateStore);
+
+  return {
+    async read() {
+      await syncStateStore.reload();
+      return projectLockState(syncStateData.value);
+    },
+    async acquire(initiator, token) {
+      try {
+        // Acquire write: stamp our token, reset all per-run counters / timestamps so the
+        // new holder starts from a clean slate. `sync_pending` is intentionally NOT
+        // written here — we preserve whatever's on disk so a concurrent contender's
+        // `markPending()` survives our acquire. Release clears the bit explicitly; a
+        // leftover bit from a prior run results in at most one cursor-bounded no-op
+        // re-fire.
+        await syncStateStore.save({
+          sync_in_progress: true,
+          sync_started_at: new Date().toISOString(),
+          sync_initiator: initiator,
+          sync_items_processed: 0,
+          sync_last_heartbeat_at: null,
+          acquired_token: token,
+        });
+      } catch {
+        // The error has already surfaced via the errors store inside `save`. We treat
+        // a failed write as a CAS loss — return null so the orchestrator marks pending
+        // and surrenders rather than running with an ambiguous lock state.
+        return null;
+      }
+      // Re-read to verify our token survived. If a concurrent contender wrote between
+      // our acquire and this read, their token wins and we surrender.
+      await syncStateStore.reload();
+      return syncStateData.value.acquired_token === token ? token : null;
+    },
+    async heartbeat(token, itemsProcessed) {
+      try {
+        // Token-gated: only bump the heartbeat if we still own the lock. The reload is
+        // a guard against the stolen-lock case described above.
+        await syncStateStore.reload();
+        if (syncStateData.value.acquired_token !== token) {
+          return;
+        }
+        await syncStateStore.save({
+          sync_last_heartbeat_at: new Date().toISOString(),
+          sync_items_processed: itemsProcessed,
+        });
+      } catch {
+        // Swallow — a transient heartbeat failure must not take down the sync. The next
+        // tick retries; the orchestrator's release path is the backstop that always runs.
+      }
+    },
+    async release(token) {
+      try {
+        await syncStateStore.reload();
+        if (syncStateData.value.acquired_token !== token) {
+          // Lock was stolen (e.g. our run exceeded the 2 h ceiling and a contender
+          // took over). We must not clobber the new holder's state — return as if
+          // there was nothing pending so the caller doesn't re-fire on stolen state.
+          return { wasPending: false };
+        }
+        const wasPending = syncStateData.value.sync_pending;
+        await syncStateStore.save({
+          sync_in_progress: false,
+          sync_started_at: null,
+          sync_initiator: '',
+          sync_pending: false,
+          sync_items_processed: 0,
+          sync_last_heartbeat_at: null,
+          acquired_token: '',
+        });
+        return { wasPending };
+      } catch {
+        // Swallow — release failures shouldn't propagate (we're inside the
+        // orchestrator's `finally`). The next acquire will see the stale lock as
+        // either stale-by-heartbeat or stale-by-ceiling and take over cleanly.
+        return { wasPending: false };
+      }
+    },
+    async markPending() {
+      try {
+        await syncStateStore.save({ sync_pending: true });
+      } catch {
+        // Swallow — the contender already gave up running this turn, the missing dirty
+        // bit just means we don't re-fire automatically. The user can retry manually.
       }
     },
   };
@@ -201,6 +341,7 @@ export function buildOrchestratorAdapters(input: BuildAdaptersInput): Orchestrat
 
   return {
     cursorStore: buildCursorStore(),
+    lockStore: buildLockStore(),
     localazyContentFetcher: buildLocalazyContentFetcher(),
     progress: buildProgressSink(),
     directusApi,

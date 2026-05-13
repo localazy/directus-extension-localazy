@@ -13,6 +13,15 @@ import { getConfig } from '../../../../../common/config/get-config';
  * `cursor_project_id` ties both cursors to a specific Localazy project; the sync code
  * wipes them in-memory if the stored value diverges from the current project id.
  * `cursor_version` is reserved for future schema changes to the on-disk shape.
+ *
+ * The file also defines the advisory-lock field group (`sync_in_progress`,
+ * `sync_started_at`, `sync_initiator`, `sync_pending`, `sync_items_processed`,
+ * `sync_last_heartbeat_at`, `acquired_token`) used to serialise concurrent Import
+ * flows. The semantics — CAS-style acquire/heartbeat/release, dirty-bit re-fire,
+ * heartbeat-staleness and 2 h hard-ceiling takeover — live in
+ * `common/services/orchestrator/incremental-import-orchestrator.ts` and the
+ * timing constants in `common/services/orchestrator/lock-constants.ts`. Per-field
+ * docs live on the model.
  */
 export const createSyncStateFields = (): Array<DeepPartial<Field>> => [
   {
@@ -87,6 +96,95 @@ export const createSyncStateFields = (): Array<DeepPartial<Field>> => [
     schema: {
       default_value: null,
       is_nullable: true,
+    },
+  },
+  /* --------------------- Advisory sync lock fields --------------------- */
+  {
+    field: 'sync_in_progress',
+    type: 'boolean',
+    meta: {
+      interface: 'boolean',
+      special: ['cast-boolean'],
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: false,
+    },
+  },
+  {
+    field: 'sync_started_at',
+    type: 'timestamp',
+    meta: {
+      interface: 'datetime',
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: null,
+      is_nullable: true,
+    },
+  },
+  {
+    field: 'sync_initiator',
+    type: 'string',
+    meta: {
+      interface: 'input',
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: '',
+    },
+  },
+  {
+    field: 'sync_pending',
+    type: 'boolean',
+    meta: {
+      interface: 'boolean',
+      special: ['cast-boolean'],
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: false,
+    },
+  },
+  {
+    field: 'sync_items_processed',
+    type: 'integer',
+    meta: {
+      interface: 'numeric',
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: 0,
+    },
+  },
+  {
+    field: 'sync_last_heartbeat_at',
+    type: 'timestamp',
+    meta: {
+      interface: 'datetime',
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: null,
+      is_nullable: true,
+    },
+  },
+  {
+    field: 'acquired_token',
+    type: 'string',
+    meta: {
+      interface: 'input',
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: '',
     },
   },
 ];
