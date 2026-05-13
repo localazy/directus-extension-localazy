@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { useApi } from '@directus/extensions-sdk';
 import {
+  CollectionContentWithHashes,
   TranslatableCollectionsService,
   TranslatableCollectionsServiceOptions,
 } from '../../../common/services/translatable-collections-service';
@@ -51,8 +52,29 @@ export const useTranslatableCollections = () => {
     }
   }
 
+  /**
+   * Per-item fetch path used by the user-clicked Export orchestrator. Returns per-item
+   * content slices with content hashes attached so the orchestrator can filter by the
+   * upload cursor before assembling the final payload. Errors are routed through the
+   * errors store and degrade to an empty result.
+   */
+  async function fetchContentWithHashesByCollection(
+    options: TranslatableCollectionsServiceOptions,
+  ): Promise<CollectionContentWithHashes[]> {
+    loading.value = true;
+    try {
+      return await translatableCollectionsService.fetchContentWithHashesByCollection(options);
+    } catch (e: unknown) {
+      addDirectusError(e);
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     fetchContentFromTranslatableCollections,
+    fetchContentWithHashesByCollection,
     loading,
   };
 };

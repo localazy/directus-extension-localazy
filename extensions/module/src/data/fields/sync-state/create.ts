@@ -7,10 +7,12 @@ import { getConfig } from '../../../../../common/config/get-config';
  * `localazy_settings` and `localazy_data` (see `localazy-installer-store.ts`).
  *
  * `processed_keys` holds the JSON-encoded download-sync cursor — a per-`(language, key id)`
- * map of the last `event` number we successfully applied. `cursor_project_id` ties the
- * cursor to a specific Localazy project; the sync code wipes the cursor in-memory if the
- * stored value diverges from the current project id. `cursor_version` is reserved for
- * future schema changes to the on-disk shape.
+ * map of the last `event` number we successfully applied. `uploaded_hashes` holds the
+ * JSON-encoded upload-sync cursor — a per-`(collection, item id)` map of the 16-hex-char
+ * SHA-256 of the canonical KV payload we last successfully uploaded for that item.
+ * `cursor_project_id` ties both cursors to a specific Localazy project; the sync code
+ * wipes them in-memory if the stored value diverges from the current project id.
+ * `cursor_version` is reserved for future schema changes to the on-disk shape.
  */
 export const createSyncStateFields = (): Array<DeepPartial<Field>> => [
   {
@@ -28,6 +30,18 @@ export const createSyncStateFields = (): Array<DeepPartial<Field>> => [
   },
   {
     field: 'processed_keys',
+    type: 'text',
+    meta: {
+      interface: 'input-multiline',
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: '{}',
+    },
+  },
+  {
+    field: 'uploaded_hashes',
     type: 'text',
     meta: {
       interface: 'input-multiline',
