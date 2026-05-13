@@ -94,11 +94,82 @@ export type ResolveLanguageFkField = (parentCollection: string, translationField
 export type ErrorSink = (error: unknown) => void;
 
 /**
+ * Snapshot of the advisory sync lock. Mirrors the persisted `localazy_sync_state` row
+ * one-to-one. The orchestrator reads this once at the start of `run()` to decide whether
+ * to acquire, skip-and-mark-pending, or take over a stale lock.
+ */
+export type LockState = {
+  in_progress: boolean;
+  /** ISO timestamp of the most recent acquire, or `null` if the lock is free. */
+  started_at: string | null;
+  /** Free-form initiator label (`'ui-incremental'`, `'ui-full'`, future `'webhook'`). */
+  initiator: string;
+  /** Dirty bit — a contender saw a live lock and wants the holder to re-fire once on release. */
+  pending: boolean;
+  /** Counter reset to 0 at acquire, bumped by the heartbeat from the current run. */
+  items_processed: number;
+  /** ISO timestamp of the last `setInterval` heartbeat, or `null` until the first one fires. */
+  last_heartbeat_at: string | null;
+  /**
+   * Per-run UUID. Acquire writes a fresh value; heartbeat / release no-op if the on-disk
+   * token doesn't match (the lock has rotated to another initiator since the caller's read).
+   */
+  acquired_token: string;
+};
+
+/**
+ * Advisory lock port. The orchestrator uses this to serialise concurrent Import flows
+ * (UI clicks today, webhook callbacks in PR F) without depending on a SQL-level lock —
+ * the lock state is a single row on the `localazy_sync_state` singleton.
+ *
+ * The contract is intentionally CAS-shaped: `acquire` returns the token only if our write
+ * survived a read-back, so two simultaneous contenders never both think they hold the
+ * lock. `heartbeat` and `release` are token-gated so a stale holder (the one whose run
+ * exceeded the 2 h ceiling and got stolen) can't clobber the new holder's state.
+ */
+export interface LockStore {
+  /** Returns the latest on-disk lock snapshot. The orchestrator decides what to do next. */
+  read(): Promise<LockState>;
+  /**
+   * CAS-style acquire. Writes the supplied `(initiator, token)` plus zeroed counters /
+   * timestamps, re-reads the row, and returns the token if `acquired_token` matches. If
+   * another contender beat us between read and re-read, returns `null` and the caller
+   * surrenders.
+   */
+  acquire(initiator: string, token: string): Promise<string | null>;
+  /**
+   * Token-gated heartbeat. Bumps `last_heartbeat_at` and overwrites `items_processed`
+   * with the caller's running total. No-op (and never throws) if the on-disk
+   * `acquired_token` no longer matches — the lock has been stolen, and the previous
+   * holder must not touch state.
+   */
+  heartbeat(token: string, itemsProcessed: number): Promise<void>;
+  /**
+   * Token-gated release. Clears `in_progress`, `acquired_token`, and the dirty bit, then
+   * returns the `pending` value as it stood _before_ the clear so the caller can decide
+   * whether to re-fire. No-op (returns `{ wasPending: false }`) if the on-disk token
+   * doesn't match.
+   */
+  release(token: string): Promise<{ wasPending: boolean }>;
+  /**
+   * Marks the dirty bit so the current holder re-fires once on release. Used by a
+   * contender that hit a live, non-stale lock.
+   */
+  markPending(): Promise<void>;
+}
+
+/**
  * Bundle of side-effect adapters the orchestrator needs. The orchestrator file reads
  * top-to-bottom like a recipe; everything stateful is reached through one of these.
  */
 export type OrchestratorAdapters = {
   cursorStore: CursorStore;
+  /**
+   * Advisory lock port. Held for the duration of `runIncrementalImport` (acquire on
+   * entry, release in `finally`). The lock is symmetric — webhook flows in PR F will
+   * take the same lock through a server-side adapter.
+   */
+  lockStore: LockStore;
   localazyContentFetcher: LocalazyContentFetcher;
   progress: ProgressSink;
   directusApi: DirectusApi;

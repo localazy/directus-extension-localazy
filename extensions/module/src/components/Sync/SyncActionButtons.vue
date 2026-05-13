@@ -2,10 +2,10 @@
   <div>
     <div class="sync-action-buttons">
       <div class="sync-group">
-        <v-button :disabled="disableSyncButtons" secondary @click="$emit('upload')"> Export to Localazy </v-button>
+        <v-button :disabled="disableUploadButtons" secondary @click="$emit('upload')"> Export to Localazy </v-button>
         <v-menu show-arrow placement="bottom-end">
           <template #activator="{ toggle }">
-            <v-button :disabled="disableSyncButtons" secondary class="sync-options" @click="toggle">
+            <v-button :disabled="disableUploadButtons" secondary class="sync-options" @click="toggle">
               <v-icon name="expand_more" />
             </v-button>
           </template>
@@ -18,10 +18,17 @@
         </v-menu>
       </div>
       <div class="sync-group">
-        <v-button :disabled="disableSyncButtons" secondary @click="$emit('download')"> Import to Directus </v-button>
+        <v-button
+          v-tooltip="syncInProgress ? 'Localazy is syncing — try again in a moment' : null"
+          :disabled="disableDownloadButtons"
+          secondary
+          @click="$emit('download')"
+        >
+          Import to Directus
+        </v-button>
         <v-menu show-arrow placement="bottom-end">
           <template #activator="{ toggle }">
-            <v-button :disabled="disableSyncButtons" secondary class="sync-options" @click="toggle">
+            <v-button :disabled="disableDownloadButtons" secondary class="sync-options" @click="toggle">
               <v-icon name="expand_more" />
             </v-button>
           </template>
@@ -42,6 +49,8 @@
 import { storeToRefs } from 'pinia';
 import { computed } from 'vue';
 import { useLocalazyStore } from '../../stores/localazy-store';
+import { useLocalazySyncStateStore } from '../../stores/localazy-sync-state-store';
+import { SYNC_LOCK_HARD_CEILING_MS, SYNC_LOCK_STALE_HEARTBEAT_MS } from '../../../../common/services/orchestrator/lock-constants';
 
 // `download` runs an incremental sync (default). `download-full` triggers a Full Sync,
 // which rebuilds from scratch by running the same flow with an empty in-memory cursor.
@@ -63,7 +72,36 @@ const props = defineProps({
 const { localazyProject, shouldDisableSyncOperations } = storeToRefs(useLocalazyStore());
 const isNotConnectedToLocalazy = computed(() => localazyProject.value === null);
 
+const { data: syncStateData } = storeToRefs(useLocalazySyncStateStore());
+
+/**
+ * Mirrors `isLockStale` from the orchestrator. We can't show the disabled state forever
+ * when a previous run zombied — the staleness check here lets the Import button re-enable
+ * once the orchestrator would treat the lock as stealable, matching the actual behaviour
+ * the user would hit on click.
+ */
+const syncInProgress = computed(() => {
+  const state = syncStateData.value;
+  if (!state.sync_in_progress) return false;
+  const now = Date.now();
+  if (state.sync_started_at) {
+    const startedMs = Date.parse(state.sync_started_at);
+    if (Number.isFinite(startedMs) && now - startedMs > SYNC_LOCK_HARD_CEILING_MS) return false;
+  }
+  if (state.sync_last_heartbeat_at) {
+    const heartbeatMs = Date.parse(state.sync_last_heartbeat_at);
+    if (Number.isFinite(heartbeatMs) && now - heartbeatMs > SYNC_LOCK_STALE_HEARTBEAT_MS) return false;
+  }
+  return true;
+});
+
+// Base disable: upload buttons follow the legacy disable rules. The download buttons
+// additionally disable while another run holds the lock — clicking would just emit a
+// "sync already in progress" notification, so keeping the affordance off keeps the UX
+// honest.
 const disableSyncButtons = computed(() => props.disableSync || isNotConnectedToLocalazy.value || shouldDisableSyncOperations.value);
+const disableUploadButtons = computed(() => disableSyncButtons.value);
+const disableDownloadButtons = computed(() => disableSyncButtons.value || syncInProgress.value);
 </script>
 
 <style lang="scss" scoped>

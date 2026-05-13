@@ -89,4 +89,93 @@ export const createSyncStateFields = (): Array<DeepPartial<Field>> => [
       is_nullable: true,
     },
   },
+  /* --------------------- Advisory sync lock fields --------------------- */
+  {
+    field: 'sync_in_progress',
+    type: 'boolean',
+    meta: {
+      interface: 'boolean',
+      special: ['cast-boolean'],
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: false,
+    },
+  },
+  {
+    field: 'sync_started_at',
+    type: 'timestamp',
+    meta: {
+      interface: 'datetime',
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: null,
+      is_nullable: true,
+    },
+  },
+  {
+    field: 'sync_initiator',
+    type: 'string',
+    meta: {
+      interface: 'input',
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: '',
+    },
+  },
+  {
+    field: 'sync_pending',
+    type: 'boolean',
+    meta: {
+      interface: 'boolean',
+      special: ['cast-boolean'],
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: false,
+    },
+  },
+  {
+    field: 'sync_items_processed',
+    type: 'integer',
+    meta: {
+      interface: 'numeric',
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: 0,
+    },
+  },
+  {
+    field: 'sync_last_heartbeat_at',
+    type: 'timestamp',
+    meta: {
+      interface: 'datetime',
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: null,
+      is_nullable: true,
+    },
+  },
+  {
+    field: 'acquired_token',
+    type: 'string',
+    meta: {
+      interface: 'input',
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: '',
+    },
+  },
 ];
