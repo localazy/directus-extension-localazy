@@ -145,12 +145,11 @@ const resolveLanguageFkFieldDefault: ResolveLanguageFkField = () => 'languages_c
 /**
  * In-memory `LockStore` with CAS semantics that match the production Pinia adapter.
  * `acquire` writes the new token plus zeroed counters, then re-reads — if a concurrent
- * `acquire` (or external `nowOverride` injection) clobbered the token, returns null.
- * `heartbeat` / `release` are token-gated.
+ * `acquire` clobbered the token, returns null. `heartbeat` / `release` are token-gated.
  *
- * Tests reach into `mutate` to simulate races (two parallel acquires interleaving) and
- * `set` for setting up pre-existing lock state (live / stale-by-heartbeat / stale-by-
- * ceiling scenarios).
+ * Tests can inject state via `mutate(...)` / `set(...)` to simulate prior runs, or
+ * `setBeforeVerifyReadHook(...)` to inject a concurrent write between acquire's write
+ * and verify-read (used by the CAS race-loss test).
  */
 function makeInMemoryLockStore(initial: Partial<LockState> = {}) {
   let state: LockState = {
@@ -257,8 +256,8 @@ function makeInMemoryLockStore(initial: Partial<LockState> = {}) {
  * Narrows the discriminated `IncrementalImportResult` to the "ran" branch (i.e. not
  * `skipped`). Keeps the existing tests' `result.itemsProcessed` / `result.summary`
  * access type-safe without sprinkling `if (result.status !== 'skipped')` everywhere.
- * Throws via `expect` (which becomes a real failure with a helpful message) if the
- * result was actually a skip.
+ * Throws a plain `Error` when narrowing fails; Vitest reports it as a test failure
+ * with the message.
  */
 type RanResult = Extract<Awaited<ReturnType<typeof runIncrementalImport>>, { itemsProcessed: number }>;
 function assertRan(result: Awaited<ReturnType<typeof runIncrementalImport>>): RanResult {

@@ -55,6 +55,7 @@ import { useLocalazySyncStateStore } from './stores/localazy-sync-state-store';
 import { useSingletonForm } from './composables/use-singleton-form';
 import { useLocalazyBoot } from './composables/use-localazy-boot';
 import { useDirectusNotificationsStore } from './composables/use-directus-stores';
+import { useNow } from './composables/use-now';
 import { SYNC_LOCK_STUCK_HINT_MS } from '../../common/services/orchestrator/lock-constants';
 
 const settingsCollectionName = LOCALAZY_COLLECTIONS.settings;
@@ -71,6 +72,11 @@ const { data: syncStateData } = storeToRefs(syncStateStore);
 const showClearConfirmDialog = ref(false);
 const clearing = ref(false);
 
+// Reactive `Date.now()` tick — without this the staleness `computed` below stays stuck on
+// whatever value it captured the last time another tracked dep changed, so an observer
+// tab wouldn't see the stuck-hint threshold cross.
+const now = useNow();
+
 /**
  * "Looks stuck" surfaces the manual override only when the lock has been held longer
  * than the heartbeat-staleness threshold — at that point the orchestrator itself would
@@ -83,7 +89,7 @@ const syncLookStuck = computed(() => {
   if (!state.sync_in_progress || !state.sync_started_at) return false;
   const startedMs = Date.parse(state.sync_started_at);
   if (!Number.isFinite(startedMs)) return false;
-  return Date.now() - startedMs > SYNC_LOCK_STUCK_HINT_MS;
+  return now.value - startedMs > SYNC_LOCK_STUCK_HINT_MS;
 });
 
 function onClearStuckSync() {

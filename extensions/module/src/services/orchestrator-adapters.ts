@@ -29,8 +29,8 @@ import { Settings } from '../../../common/models/collections-data/settings';
 /**
  * Maps the orchestrator's stable string progress ids to the module's `ProgressTrackerId`
  * enum values. Keeps the de-dupe-by-id semantics of the progress modal intact across the
- * lift — the orchestrator emits `'sync-mode-header'`, the modal still sees `0`
- * (`SYNC_MODE_HEADER`) and replaces in place.
+ * lift — the orchestrator emits `'fetching-translations'`, the modal still sees
+ * `ProgressTrackerId.FETCHING_TRANSLATIONS` and replaces in place.
  */
 const PROGRESS_ID_MAP: Record<string, ProgressTrackerId> = {
   [ImportProgressIds.FETCHING_TRANSLATIONS]: ProgressTrackerId.FETCHING_TRANSLATIONS,
@@ -113,14 +113,24 @@ function projectLockState(syncState: {
 
 /**
  * Builds the orchestrator's `LockStore` port from the Pinia sync-state store. The
- * acquire flow is CAS-correct: read → conditionally write our token + zeroed counters →
- * re-read → verify our token survived. If a concurrent contender wrote between our
- * read-back and the verify, `acquire_token` will be theirs and we surrender.
+ * orchestrator already gated this call with its own `read()` (deciding live vs.
+ * stale vs. free) — `acquire()` here only performs the *atomic* portion: write our
+ * token + zeroed per-run counters → re-read → verify `acquired_token` is still
+ * ours. If a concurrent contender wrote between our write and the verify, their
+ * token wins and we surrender.
  *
- * Heartbeat and release are token-gated — they re-read the row and no-op if the on-disk
- * `acquired_token` no longer matches the caller's. This defends against the "stolen
- * lock" case: a stale holder wakes up after a contender took over and tries to release
- * a lock it no longer owns.
+ * Under concurrent acquires over plain HTTP, the verify-after-write is
+ * best-effort: both contenders' verify reads can land in a window that yields
+ * false-positive winners for both sides. This is acceptable because the lock is
+ * advisory — `heartbeat` and `release` are token-gated, so only the contender
+ * whose token is the one finally on disk persists any state. Cursor
+ * merge-on-persist + idempotent upserts make duplicate runs correct (just
+ * wasteful).
+ *
+ * Heartbeat and release are token-gated — they re-read the row and no-op if the
+ * on-disk `acquired_token` no longer matches the caller's. This defends against
+ * the "stolen lock" case: a stale holder wakes up after a contender took over
+ * and tries to release a lock it no longer owns.
  */
 function buildLockStore(): LockStore {
   const syncStateStore = useLocalazySyncStateStore();
@@ -134,14 +144,15 @@ function buildLockStore(): LockStore {
     async acquire(initiator, token) {
       try {
         // Acquire write: stamp our token, reset all per-run counters / timestamps so the
-        // new holder starts from a clean slate. `sync_pending` is intentionally cleared
-        // here — any dirty bit set before our acquire pertained to a previous run, and
-        // we're the one fulfilling it now.
+        // new holder starts from a clean slate. `sync_pending` is intentionally NOT
+        // written here — we preserve whatever's on disk so a concurrent contender's
+        // `markPending()` survives our acquire. Release clears the bit explicitly; a
+        // leftover bit from a prior run results in at most one cursor-bounded no-op
+        // re-fire.
         await syncStateStore.save({
           sync_in_progress: true,
           sync_started_at: new Date().toISOString(),
           sync_initiator: initiator,
-          sync_pending: false,
           sync_items_processed: 0,
           sync_last_heartbeat_at: null,
           acquired_token: token,

@@ -77,9 +77,10 @@ export type IncrementalImportResult =
   | { status: 'skipped'; reason: 'in_progress' | 'race_lost' };
 
 /**
- * UUID v4 generator. Falls back to a `Math.random()`-based string when `crypto.randomUUID`
- * isn't available — the only consumer is the lock token, which only needs to be unique
- * within the contender pool of a single Directus instance, not cryptographically random.
+ * Opaque token generator for advisory-lock CAS. Prefers `crypto.randomUUID()` when
+ * available (real UUID v4); falls back to a `Date.now() + Math.random()` composite
+ * when not. The token only needs uniqueness — it isn't compared as a UUID, just
+ * as a string.
  */
 function generateToken(): string {
   const cryptoApi = globalThis.crypto;
@@ -328,7 +329,16 @@ export async function runIncrementalImport(
       // intentionally do NOT loop here: if the re-fired run also collects a dirty
       // bit, its own release path handles it recursively, each call holding the
       // lock for the duration of a single body.
-      await runIncrementalImport(adapters, params);
+      try {
+        await runIncrementalImport(adapters, params);
+      } catch (err) {
+        // Re-fire is a best-effort drain of the dirty bit. The cursor-bounded
+        // body means a no-op re-fire is harmless; a failed re-fire shouldn't
+        // mask the original run's successful outcome. Surface the error via the
+        // adapter's error sink and continue. `onDirectusError` accepts only the
+        // error value (no structured context), matching the `ErrorSink` shape.
+        adapters.onDirectusError(err);
+      }
     }
   }
 }

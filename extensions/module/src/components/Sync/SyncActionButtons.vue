@@ -50,6 +50,7 @@ import { storeToRefs } from 'pinia';
 import { computed } from 'vue';
 import { useLocalazyStore } from '../../stores/localazy-store';
 import { useLocalazySyncStateStore } from '../../stores/localazy-sync-state-store';
+import { useNow } from '../../composables/use-now';
 import { SYNC_LOCK_HARD_CEILING_MS, SYNC_LOCK_STALE_HEARTBEAT_MS } from '../../../../common/services/orchestrator/lock-constants';
 
 // `download` runs an incremental sync (default). `download-full` triggers a Full Sync,
@@ -74,6 +75,11 @@ const isNotConnectedToLocalazy = computed(() => localazyProject.value === null);
 
 const { data: syncStateData } = storeToRefs(useLocalazySyncStateStore());
 
+// Reactive `Date.now()` tick — without this the staleness `computed` below stays stuck on
+// whatever value it captured the last time another tracked dep changed, so a cross-tab
+// observer of a remote-held lock wouldn't see the threshold cross.
+const now = useNow();
+
 /**
  * Mirrors `isLockStale` from the orchestrator. We can't show the disabled state forever
  * when a previous run zombied — the staleness check here lets the Import button re-enable
@@ -83,14 +89,13 @@ const { data: syncStateData } = storeToRefs(useLocalazySyncStateStore());
 const syncInProgress = computed(() => {
   const state = syncStateData.value;
   if (!state.sync_in_progress) return false;
-  const now = Date.now();
   if (state.sync_started_at) {
     const startedMs = Date.parse(state.sync_started_at);
-    if (Number.isFinite(startedMs) && now - startedMs > SYNC_LOCK_HARD_CEILING_MS) return false;
+    if (Number.isFinite(startedMs) && now.value - startedMs > SYNC_LOCK_HARD_CEILING_MS) return false;
   }
   if (state.sync_last_heartbeat_at) {
     const heartbeatMs = Date.parse(state.sync_last_heartbeat_at);
-    if (Number.isFinite(heartbeatMs) && now - heartbeatMs > SYNC_LOCK_STALE_HEARTBEAT_MS) return false;
+    if (Number.isFinite(heartbeatMs) && now.value - heartbeatMs > SYNC_LOCK_STALE_HEARTBEAT_MS) return false;
   }
   return true;
 });

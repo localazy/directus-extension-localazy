@@ -13,6 +13,15 @@ import { getConfig } from '../../../../../common/config/get-config';
  * `cursor_project_id` ties both cursors to a specific Localazy project; the sync code
  * wipes them in-memory if the stored value diverges from the current project id.
  * `cursor_version` is reserved for future schema changes to the on-disk shape.
+ *
+ * The file also defines the advisory-lock field group (`sync_in_progress`,
+ * `sync_started_at`, `sync_initiator`, `sync_pending`, `sync_items_processed`,
+ * `sync_last_heartbeat_at`, `acquired_token`) used to serialise concurrent Import
+ * flows. The semantics — CAS-style acquire/heartbeat/release, dirty-bit re-fire,
+ * heartbeat-staleness and 2 h hard-ceiling takeover — live in
+ * `common/services/orchestrator/incremental-import-orchestrator.ts` and the
+ * timing constants in `common/services/orchestrator/lock-constants.ts`. Per-field
+ * docs live on the model.
  */
 export const createSyncStateFields = (): Array<DeepPartial<Field>> => [
   {
