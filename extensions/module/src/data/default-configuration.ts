@@ -15,6 +15,7 @@ export const defaultConfiguration = (): Configuration => ({
     skip_empty_strings: true,
     create_missing_languages_in_directus: CreateMissingLanguagesInDirectus.ONLY_NON_HIDDEN,
     language_mappings: '[]',
+    activity_logs_sort: '{}',
   },
   content_transfer_setup: {
     enabled_fields: '[]',

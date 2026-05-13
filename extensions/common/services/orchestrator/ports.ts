@@ -5,6 +5,7 @@ import { EnabledField } from '../../models/collections-data/content-transfer-set
 import { LocalazyData } from '../../models/collections-data/localazy-data';
 import { LocalazyContent } from '../../models/localazy-content';
 import { SyncCursor } from '../../models/collections-data/sync-state';
+import { SyncLogEntry } from '../../models/collections-data/sync-log';
 
 /**
  * Cursor I/O port. Both the read side (`load`) and the write side (`persist`) are async
@@ -159,6 +160,50 @@ export interface LockStore {
 }
 
 /**
+ * Parameters passed to `SyncLogWriter.startSession`. Kept narrow on purpose — the
+ * `eventType` is a free string mirroring the persisted `event_type` column, so PR F's
+ * webhook flow can pass `'webhook'` without coordinating with the orchestrator.
+ *
+ * `initiatorUser` is the Directus user id for UI-triggered runs; webhook flows pass
+ * `null` and the row's `initiator` column carries the `'webhook'` label.
+ */
+export type SyncLogStartParams = {
+  eventType: string;
+  initiator: string;
+  initiatorUser: string | null;
+};
+
+/**
+ * Persistent sink for retroactive activity-log viewing. Separate from `ProgressSink` —
+ * the progress sink feeds the live progress modal (transient, UI-bound), the sync-log
+ * writer persists milestone entries that the Activity page renders after the fact.
+ *
+ * Implementations are expected to:
+ *   1. POST a `localazy_sync_log` row on `startSession`, returning the row id.
+ *   2. Read-modify-write the `entries` JSON array on `appendEntry`. PR D logs are
+ *      milestone-only (≤20 entries per session typical), so a per-call PATCH is fine.
+ *   3. Finalise the row on `finish` — set `status`, `finished_at`, `summary`,
+ *      `items_processed`, and trim the table to `SYNC_LOG_RETENTION` rows.
+ *
+ * `startSession` and `finish` are awaited at lock-acquire and lock-release boundaries.
+ * `appendEntry` calls inside the orchestrator's body are fire-and-forget
+ * (`void writer.appendEntry(...)`) so milestone emission doesn't pace the sync. A failed
+ * log write must not take down the sync.
+ */
+export interface SyncLogWriter {
+  /** Creates the row with `status: 'in_progress'`. Returns the new row's id. */
+  startSession(params: SyncLogStartParams): Promise<string>;
+  /** Appends one entry to the session's `entries` array. */
+  appendEntry(sessionId: string, entry: SyncLogEntry): Promise<void>;
+  /**
+   * Marks the row terminal. After a successful finalisation, the implementation should
+   * also trim `localazy_sync_log` to the most recent `SYNC_LOG_RETENTION` sessions
+   * (best-effort — trim failures must not propagate).
+   */
+  finish(sessionId: string, params: { status: string; summary: string; itemsProcessed: number }): Promise<void>;
+}
+
+/**
  * Bundle of side-effect adapters the orchestrator needs. The orchestrator file reads
  * top-to-bottom like a recipe; everything stateful is reached through one of these.
  */
@@ -181,4 +226,18 @@ export type OrchestratorAdapters = {
    * `AnalyticsService.trackDownloadFromLocalazy(...)`.
    */
   reportDownloadAnalytics?: () => void;
+  /**
+   * Optional persistent log writer for the Activity page. When supplied, the orchestrator
+   * creates a session right after lock acquire and finalises it in `finally` — including
+   * the failure path, where the session is closed with `status: 'failed'` before any
+   * error propagates. Optional so callers that don't need persistent logs (some test
+   * fakes, the eventual sandboxed-server path) can skip the wiring.
+   *
+   * The orchestrator fills in `eventType` from its own `mode` (`download-incremental` /
+   * `download-full`); the caller supplies `initiator` + `initiatorUser` since only the
+   * caller knows whether the run was UI-triggered (Directus user id) or webhook-triggered
+   * (`null`). Required when `syncLogWriter` is set.
+   */
+  syncLogWriter?: SyncLogWriter;
+  syncLogInitiator?: { initiator: string; initiatorUser: string | null };
 };

@@ -88,3 +88,13 @@ export const useDirectusNotificationsStore = (): NotificationsStore => {
   const stores = useStores();
   return stores.useNotificationsStore() as NotificationsStore;
 };
+
+/** Subset of Directus' user (current-user) Pinia store that this extension depends on. */
+type DirectusUserStore = {
+  currentUser: { id?: string; first_name?: string; last_name?: string; email?: string } | null;
+};
+
+export const useDirectusUserStore = (): DirectusUserStore => {
+  const stores = useStores();
+  return stores.useUserStore() as DirectusUserStore;
+};

@@ -24,6 +24,19 @@
       <config-notice class="notice" :has-incomplete-configuration="hasIncompleteConfiguration" />
       <errors-notice class="notice" :localazy-data="localazyData" />
 
+      <div
+        v-if="lastSyncBanner"
+        class="last-sync-banner"
+        role="button"
+        tabindex="0"
+        @click="onOpenLastSession"
+        @keyup.enter="onOpenLastSession"
+      >
+        <v-icon name="history" small />
+        <span class="last-sync-text">{{ lastSyncBanner }}</span>
+        <v-icon name="chevron_right" small class="last-sync-chevron" />
+      </div>
+
       <sync-option-buttons
         v-model:show-untranslatable-field="showUntranslatableField"
         v-model:show-untranslatable-collections="showUntranslatableCollections"
@@ -84,9 +97,11 @@ import { useSyncContainerActions } from './composables/use-sync-container-action
 import { useLocalazyTransferSetupStore } from './stores/localazy-transfer-setup-store';
 import { useLocalazyConfigurationStatus } from './composables/use-localazy-configuration-status';
 import { useLocalazyBoot } from './composables/use-localazy-boot';
+import { useLocalazySyncLogStore } from './stores/localazy-sync-log-store';
 import { EnabledField } from '../../common/models/collections-data/content-transfer-setup';
 import { EnabledFieldsService } from '../../common/utilities/enabled-fields-service';
 import { defaultConfiguration } from './data/default-configuration';
+import { useRouter } from 'vue-router';
 
 const { translatableRootCollections, rootCollections, translatableCollections, collections } = useCollectionsOrganizer();
 const { getTranslatableFields } = useGetFieldsForTranslationRelation();
@@ -122,9 +137,44 @@ const { onSaveSettings, onExport, onImport, onFinishAction, showProgress, loadin
 const { installed, localazyData, boot } = useLocalazyBoot();
 const { hasIncompleteConfiguration } = useLocalazyConfigurationStatus();
 
+const router = useRouter();
+const syncLogStore = useLocalazySyncLogStore();
+const { sessions: syncLogSessions } = storeToRefs(syncLogStore);
+
+/**
+ * Most recent sync log session, used for the "Last sync" banner below the notices.
+ * Sessions arrive sorted by `started_at desc` from the store; the first one is the
+ * latest. Falls back to `null` when the table is empty (fresh install).
+ */
+const lastSession = computed(() => syncLogSessions.value[0] ?? null);
+
+const lastSyncBanner = computed(() => {
+  const last = lastSession.value;
+  if (!last) return null;
+  // Sync state's `last_sync_at` is the cursor-flush touch; the log row's started_at is
+  // the run boundary. Prefer the log row when we have it — it's the surface the
+  // Activity page also renders against, so the two stay consistent.
+  const startedMs = Date.parse(last.started_at);
+  const finishedMs = last.finished_at ? Date.parse(last.finished_at) : null;
+  const startStr = Number.isFinite(startedMs) ? new Date(startedMs).toLocaleString() : last.started_at;
+  const durationStr =
+    finishedMs && Number.isFinite(finishedMs) && Number.isFinite(startedMs) ? `${((finishedMs - startedMs) / 1000).toFixed(1)}s` : null;
+  const parts = [`Last sync: ${startStr}`, `(${last.event_type}, ${last.items_processed} items${durationStr ? `, ${durationStr}` : ''})`];
+  parts.push(`— ${last.status}`);
+  return parts.join(' ');
+});
+
+function onOpenLastSession() {
+  if (!lastSession.value) return;
+  void router.push(`/localazy/activity/${lastSession.value.id}`);
+}
+
 onBeforeMount(() => {
   // Errors land in the errors store inside `boot()`; no need to await or handle here.
   void boot();
+  // Reload the sync log so the banner reflects the latest session whenever the
+  // user lands here — covers the "ran a sync, navigated away, came back" case.
+  void syncLogStore.reload();
 });
 
 const iteratedCollections = computed(() =>
@@ -175,5 +225,36 @@ function deselectAll() {
   padding-top: 8px;
   margin-top: 8px;
   border-top: 1px solid var(--border-normal);
+}
+
+.last-sync-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+  background-color: var(--background-subdued);
+  border: 1px solid var(--border-subdued);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--foreground-subdued);
+  transition: background-color var(--fast) var(--transition);
+
+  &:hover,
+  &:focus {
+    background-color: var(--background-normal);
+    color: var(--foreground-normal);
+    outline: none;
+  }
+
+  .last-sync-text {
+    flex: 1;
+  }
+
+  .last-sync-chevron {
+    opacity: 0.6;
+  }
 }
 </style>

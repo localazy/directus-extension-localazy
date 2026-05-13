@@ -9,6 +9,7 @@ import { useLocalazySettingsStore } from '../stores/localazy-settings-store';
 import { useLocalazyConfigStore } from '../stores/localazy-config-store';
 import { useLocalazyTransferSetupStore } from '../stores/localazy-transfer-setup-store';
 import { useLocalazySyncStateStore } from '../stores/localazy-sync-state-store';
+import { useLocalazySyncLogStore } from '../stores/localazy-sync-log-store';
 import { useProgressTrackerStore } from '../stores/progress-tracker-store';
 import { useDirectusLanguages } from './use-directus-languages';
 import { useCollectionsOrganizer } from './use-collections-organizer';
@@ -28,7 +29,7 @@ import {
 import { CURSOR_VERSION, UploadCursor } from '../../../common/models/collections-data/sync-state';
 import { TranslatableContent } from '../../../common/models/translatable-content';
 import { UploadedTriple } from '../models/upload-write-result';
-import { useDirectusNotificationsStore } from './use-directus-stores';
+import { useDirectusNotificationsStore, useDirectusUserStore } from './use-directus-stores';
 import { buildOrchestratorAdapters } from '../services/orchestrator-adapters';
 import { runIncrementalImport } from '../../../common/services/orchestrator/incremental-import-orchestrator';
 
@@ -48,6 +49,8 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
   const { translatableCollections } = useCollectionsOrganizer();
 
   const notificationsStore = useDirectusNotificationsStore();
+  const userStore = useDirectusUserStore();
+  const directusUserId = computed(() => userStore.currentUser?.id ?? '');
 
   const { addProgressMessage, resetProgressTracker } = useProgressTrackerStore();
   const localazyStore = useLocalazyStore();
@@ -61,6 +64,7 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
   const { data: transferSetup } = storeToRefs(transferSetupStore);
   const syncStateStore = useLocalazySyncStateStore();
   const { data: syncStateData } = storeToRefs(syncStateStore);
+  const syncLogStore = useLocalazySyncLogStore();
 
   const accessToken = computed(() => localazyData.value.access_token);
   const exportService = useExportToLocalazy(accessToken);
@@ -299,6 +303,15 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
           settings: settings.value,
           languages: importLanguages.map((lang) => lang.directusForm),
         }),
+        // UI-triggered runs: the initiator is the current Directus user. The
+        // `initiatorUser` m2o column points at the same id, kept for forward
+        // compatibility with a future name-resolution lookup. The Activity UI
+        // currently renders the separate `initiator` string column; `initiator_user`
+        // is stored but not yet read by the UI.
+        syncLogInitiator: {
+          initiator: directusUserId.value,
+          initiatorUser: directusUserId.value || null,
+        },
       });
 
       const result = await runIncrementalImport(adapters, {
@@ -321,6 +334,11 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
       }
     } finally {
       loading.value = false;
+      // Refresh the log store so the Sync page's "Last sync" banner reflects whatever
+      // the orchestrator just did — completed, failed, or skipped. The orchestrator's
+      // own `finally` writes a session row even on throw, so this is the path where
+      // banner refresh matters most. Fire-and-forget — don't block the user.
+      void syncLogStore.reload();
     }
   }
 

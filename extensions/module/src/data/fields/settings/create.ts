@@ -153,4 +153,22 @@ export const createSettingsFields = (): Array<DeepPartial<Field>> => [
       default_value: '[]',
     },
   },
+  /**
+   * Per-tab sort preferences for the Activity page. JSON-encoded
+   * `{ [tabName]: { key: SortKey; direction: 'asc' | 'desc' } }`. An empty `'{}'` means
+   * "fall back to the per-tab default" (newest-first by startedAt). Persisted so a
+   * user's chosen ordering survives module reloads.
+   */
+  {
+    field: 'activity_logs_sort',
+    type: 'text',
+    meta: {
+      interface: 'input-multiline',
+      readonly: getConfig().APP_MODE === 'production',
+      hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: '{}',
+    },
+  },
 ];
