@@ -32,9 +32,10 @@ export const useLocalazySyncLogStore = defineStore('localazySyncLog', () => {
         params: {
           limit: -1,
           sort: '-started_at',
-          // `initiator_user` is m2o → `directus_users`, kept for forward compatibility
-          // with a future name-resolution lookup in the Activity UI (currently displays
-          // the raw id).
+          // `*` includes `initiator_user`, the m2o → `directus_users` kept for forward
+          // compatibility with a future name-resolution lookup. The Activity UI
+          // currently renders the separate `initiator` string column; `initiator_user`
+          // is stored but not yet read.
           fields: ['*'],
         },
       });

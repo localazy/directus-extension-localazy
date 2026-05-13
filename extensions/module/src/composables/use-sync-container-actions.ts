@@ -305,8 +305,9 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
         }),
         // UI-triggered runs: the initiator is the current Directus user. The
         // `initiatorUser` m2o column points at the same id, kept for forward
-        // compatibility with a future name-resolution lookup in the Activity UI
-        // (currently displays the raw id).
+        // compatibility with a future name-resolution lookup. The Activity UI
+        // currently renders the separate `initiator` string column; `initiator_user`
+        // is stored but not yet read by the UI.
         syncLogInitiator: {
           initiator: directusUserId.value,
           initiatorUser: directusUserId.value || null,
@@ -322,11 +323,6 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
         settings: settings.value,
         initiator: mode === 'full' ? 'ui-full' : 'ui-incremental',
       });
-      // Refresh the log store so the Sync page's "Last sync" banner reflects the run
-      // that just completed without requiring a navigation. Fire-and-forget — don't
-      // block the user; the banner reads from `syncLogStore.sessions[0]`, which the
-      // store-level reload will update reactively when the response lands.
-      void syncLogStore.reload();
       // When the advisory lock was held by another run, the orchestrator returns
       // `skipped` without emitting any progress messages. The disabled Import button
       // is the primary signal, but a contender that managed to click anyway (e.g.
@@ -338,6 +334,11 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
       }
     } finally {
       loading.value = false;
+      // Refresh the log store so the Sync page's "Last sync" banner reflects whatever
+      // the orchestrator just did — completed, failed, or skipped. The orchestrator's
+      // own `finally` writes a session row even on throw, so this is the path where
+      // banner refresh matters most. Fire-and-forget — don't block the user.
+      void syncLogStore.reload();
     }
   }
 

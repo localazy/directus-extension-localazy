@@ -81,9 +81,11 @@ type CreateSyncLogWriterInput = {
  *
  *   - `startSession` POSTs a new row with `status: 'in_progress'`, the supplied
  *     metadata, and an empty `entries: '[]'`. Returns the new row's id.
- *   - `appendEntry` reads the current `entries`, parses it, pushes the new entry, and
- *     PATCHes the row back. Per-call PATCH is fine for milestone-only logging
- *     (PR D scope) — ≤20 entries per session typical.
+ *   - `appendEntry` queues the append onto a per-session promise chain so concurrent
+ *     fire-and-forget callers can't interleave their GET → mutate → PATCH cycles. The
+ *     underlying `doAppend` reads the current `entries`, parses it, pushes the new
+ *     entry, and PATCHes the row back. Per-call PATCH is fine for milestone-only
+ *     logging (PR D scope) — ≤20 entries per session typical.
  *   - `finish` PATCHes `status`, `finished_at`, `summary`, `items_processed` in one
  *     write, then GETs the full id list ordered by `started_at desc` and DELETEs
  *     everything past index 99 (`SYNC_LOG_RETENTION`).
@@ -143,7 +145,7 @@ export function createSyncLogWriter(input: CreateSyncLogWriterInput): SyncLogWri
       await api.patch(`/items/${collectionName}/${sessionId}`, { entries: next });
     } catch {
       // Swallow at this level — a single failed append must not take down the sync. If
-      // the GET re-throws (see `fetchEntriesJson` below) we explicitly skip the PATCH
+      // the GET re-throws (see `fetchEntriesJson` above) we explicitly skip the PATCH
       // so the on-disk entries aren't overwritten with a single-element array.
     }
   }

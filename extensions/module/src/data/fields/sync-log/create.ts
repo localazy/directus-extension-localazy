@@ -17,7 +17,8 @@ import { getConfig } from '../../../../../common/config/get-config';
  *     session typical). A separate row-per-entry collection would be future work if
  *     verbose logging ever lands.
  *   - `initiator_user` is m2o → `directus_users`, kept for forward compatibility with a
- *     future name-resolution lookup in the Activity UI (currently displays the raw id).
+ *     future name-resolution lookup. The Activity UI currently renders the separate
+ *     `initiator` string column; `initiator_user` is stored but not yet read by the UI.
  *     Nullable because webhook-triggered runs have no Directus user.
  *
  * The `readonly`/`hidden` flags mirror the other Localazy collections in production —

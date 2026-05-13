@@ -500,7 +500,18 @@ export async function runIncrementalImport(
     // `in_progress` until the next run trims it out — harmless, the row is best-effort
     // observability, not state any consumer depends on. The contender heuristic uses
     // `last_heartbeat_at` and `started_at` (both on the lock row), not the log row.
-    const releaseOutcome = await lockStore.release(token);
+    //
+    // Wrapped in try/catch because a throw here would exit this `finally` block and
+    // skip the log-finalisation block below — leaving the row in `'in_progress'`
+    // forever. The next sync's stale-by-heartbeat / hard-ceiling check will take over
+    // the lock cleanly regardless, so swallowing is safe; surface the error via the
+    // adapter's error sink so it doesn't go silent.
+    let releaseOutcome: { wasPending: boolean } = { wasPending: false };
+    try {
+      releaseOutcome = await lockStore.release(token);
+    } catch (err) {
+      adapters.onDirectusError(err);
+    }
 
     // Finalise the log session after lock release. Wrapped in try/catch because we're
     // inside a finally — a log-finalise failure must not mask the primary error path.
