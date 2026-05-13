@@ -175,13 +175,14 @@ const errorMessage = computed(() => {
   return 'Failed to update the webhook. Check the URL and try again.';
 });
 
-// Re-fetch when the project ID hydrates or changes. `immediate: true` covers both first
-// mount (project may already be hydrated) and the steady-state navigation case.
+// Re-fetch on first mount and whenever the project ID hydrates or changes. `refresh()`
+// itself handles the no-project case via the underlying client (short-circuits to `[]`)
+// and flips `loading` to `false`, so we don't gate on `projectId` here — gating would
+// leave the spinner stuck if the bundle is installed but no Localazy project is
+// connected (e.g. user opens Automation before completing OAuth).
 watch(
   () => localazyProject.value?.id,
-  (projectId) => {
-    if (projectId) void refresh();
-  },
+  () => void refresh(),
   { immediate: true },
 );
 </script>
