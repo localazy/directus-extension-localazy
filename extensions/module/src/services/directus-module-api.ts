@@ -16,11 +16,6 @@ type CollectionsStore = ReturnType<typeof useDirectusCollectionsStore>;
  * Construction: `new DirectusModuleApi(useApi(), useDirectusCollectionsStore())`.
  * Both helpers are Vue composables, so the constructor must run inside a setup
  * scope. The instance itself is plain and can be passed around freely after that.
- *
- * Beyond the interface this class also exposes `updateDirectusItem` and
- * `fetchDirectusItems`, used by `use-directus-localazy-adapter.ts` to write to
- * translation collections (non-singleton items). Those aren't on the interface
- * because no common service calls them.
  */
 export class DirectusModuleApi implements DirectusApi {
   protected api: DirectusApiAxios;

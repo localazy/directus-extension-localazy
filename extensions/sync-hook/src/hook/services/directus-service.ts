@@ -27,6 +27,17 @@ export class DirectusApiService implements DirectusApi {
     }
   }
 
+  async updateDirectusItem<T extends Item>(collection: string, itemId: number | string, data: T) {
+    const targetCollection = this.getCollection(collection);
+    if (targetCollection?.singleton === true) {
+      // Singletons in Directus don't carry a per-id route; treat them the same as
+      // `upsertSingleton` regardless of the `itemId` passed in.
+      await this.upsertSingleton(collection, data);
+      return;
+    }
+    await this.updateOne(collection, itemId, data as Partial<T>);
+  }
+
   async fetchDirectusItems<T extends Item>(collection: string, query: Query = {}): Promise<T[]> {
     return this.readByQuery<T>(collection, query);
   }
@@ -81,5 +92,10 @@ export class DirectusApiService implements DirectusApi {
   private upsertOne<T extends Item>(collection: string, payload: Partial<T>) {
     const service = new this.ItemsService<T>(collection, { schema: this.schema, accountability: null });
     return service.upsertOne(payload, { emitEvents: false } as MutationOptions);
+  }
+
+  private updateOne<T extends Item>(collection: string, itemId: number | string, payload: Partial<T>) {
+    const service = new this.ItemsService<T>(collection, { schema: this.schema, accountability: null });
+    return service.updateOne(itemId, payload, { emitEvents: false } as MutationOptions);
   }
 }
