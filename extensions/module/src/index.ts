@@ -4,6 +4,8 @@ import ProjectSetup from './ProjectSetup.vue';
 import Sync from './Sync.vue';
 import Overview from './Overview.vue';
 import About from './About.vue';
+import Activity from './Activity.vue';
+import ActivityDetail from './ActivityDetail.vue';
 import { getConfig } from '../../common/config/get-config';
 
 export default defineModule({
@@ -23,6 +25,14 @@ export default defineModule({
     {
       path: 'actions',
       component: Sync,
+    },
+    {
+      path: 'activity',
+      component: Activity,
+    },
+    {
+      path: 'activity/:sessionId',
+      component: ActivityDetail,
     },
     {
       path: 'additional-settings',

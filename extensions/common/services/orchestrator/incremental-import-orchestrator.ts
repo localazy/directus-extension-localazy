@@ -5,7 +5,8 @@ import { DirectusLocalazyLanguage } from '../../models/directus-localazy-languag
 import { EnabledField } from '../../models/collections-data/content-transfer-setup';
 import { LocalazyData } from '../../models/collections-data/localazy-data';
 import { Settings } from '../../models/collections-data/settings';
-import { LockState, OrchestratorAdapters } from './ports';
+import { SyncLogEntry, SyncLogLevel } from '../../models/collections-data/sync-log';
+import { LockState, OrchestratorAdapters, SyncLogWriter } from './ports';
 import { LocalazyContentSummary, summarizeLocalazyContent } from './summarize-localazy-content';
 import { upsertFromLocalazyContent } from './upsert-localazy-content';
 import { WrittenTriple } from './written-triple';
@@ -120,16 +121,72 @@ function isLockStale(state: LockState, now: number): boolean {
 }
 
 /**
+ * Per-run handle for the optional sync-log writer. The orchestrator threads this through
+ * the body so milestone entries land on the persisted row. `appendInfo` / `appendError` /
+ * `appendWarn` are thin level-tagged wrappers around `SyncLogWriter.appendEntry`, with
+ * `void` returns so the orchestrator can call them inline without awaiting (log writes
+ * never gate the sync).
+ *
+ * A `null` handle means no writer was supplied — every call is a no-op. Keeps the
+ * orchestrator's flow free of conditional checks at every milestone.
+ */
+type LogHandle = {
+  appendInfo(message: string, data?: Record<string, unknown>): void;
+  appendWarn(message: string, data?: Record<string, unknown>): void;
+  appendError(message: string, data?: Record<string, unknown>): void;
+  /** Counter incremented every time `appendError` fires. Used to decide `'partial'` vs `'completed'`. */
+  errorCount(): number;
+};
+
+function makeNoopLogHandle(): LogHandle {
+  return {
+    appendInfo() {},
+    appendWarn() {},
+    appendError() {},
+    errorCount() {
+      return 0;
+    },
+  };
+}
+
+function makeLogHandle(writer: SyncLogWriter, sessionId: string): LogHandle {
+  let errorCount = 0;
+  const append = (level: SyncLogLevel, message: string, data?: Record<string, unknown>) => {
+    if (level === 'error') errorCount += 1;
+    const entry: SyncLogEntry = {
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      ...(data ? { data } : {}),
+    };
+    // Fire-and-forget. The adapter swallows failures inside; we don't await so a slow
+    // PATCH doesn't stall the sync's hot path.
+    void writer.appendEntry(sessionId, entry);
+  };
+  return {
+    appendInfo: (m, d) => append('info', m, d),
+    appendWarn: (m, d) => append('warn', m, d),
+    appendError: (m, d) => append('error', m, d),
+    errorCount: () => errorCount,
+  };
+}
+
+/**
  * Pure body of an import run — no lock concerns. Lifted out of `runIncrementalImport` so
  * the lock wrapper can wrap it cleanly without nesting the entire pipeline inside a
  * `try / finally`. Byte-identical to the pre-lock implementation for the on-disk
  * cursor + progress sink + analytics outcomes; the only new wire is `onItemsProcessed`,
  * which the wrapper uses to feed the heartbeat counter.
+ *
+ * `log` is the per-run sync-log handle. The orchestrator emits milestone-only entries
+ * via this handle — sync started, fetch summary, per-collection counts, finish line, and
+ * errors. The handle is a no-op when no writer was wired.
  */
 async function runImportBody(
   adapters: OrchestratorAdapters,
   params: IncrementalImportParams,
   onItemsProcessed: (count: number) => void,
+  log: LogHandle,
 ): Promise<RunOutcome> {
   const { mode, languages, enabledFields, localazyData, localazyProject, settings } = params;
   const { cursorStore, localazyContentFetcher, progress, directusApi, resolveLanguageFkField, onDirectusError, reportDownloadAnalytics } =
@@ -152,6 +209,14 @@ async function runImportBody(
   // `cursorStore.persist` merges it with whatever's on disk before each save.
   const inMemoryCursor: SyncCursor = createEmptyCursor();
 
+  // Milestone log: "started" line. The wording mirrors the design's section 11d so the
+  // Activity page reads coherently regardless of whether the run came from UI or webhook.
+  const languageCodes = languages.map((l) => l.directusForm);
+  const languageList = languageCodes.length > 0 ? ` (${languageCodes.join(', ')})` : '';
+  log.appendInfo(
+    `${mode === 'full' ? 'Full' : 'Incremental'} sync started — ${languageCodes.length} target ${languageCodes.length === 1 ? 'language' : 'languages'}${languageList}`,
+  );
+
   progress({
     id: ImportProgressIds.FETCHING_TRANSLATIONS,
     message: 'Fetching translations from Localazy...',
@@ -167,6 +232,7 @@ async function runImportBody(
   });
 
   if (!fetchResult.success) {
+    log.appendError('Sync aborted — fetch from Localazy failed');
     return {
       status: 'aborted',
       itemsProcessed: 0,
@@ -176,12 +242,17 @@ async function runImportBody(
 
   const summary = summarizeLocalazyContent(fetchResult.content);
 
+  // Milestone log: post-fetch summary. `summary.changes` here is "new since last cursor"
+  // because the fetcher applies `filterKeysForLanguage` against the base cursor.
+  log.appendInfo(`Fetched ${summary.changes} keys from Localazy across ${summary.languages} languages, ${summary.items} items affected`);
+
   if (summary.changes === 0) {
     progress({
       id: ImportProgressIds.UP_TO_DATE,
       message: 'Already up to date — no changes since last sync',
       mode: 'upsert',
     });
+    log.appendInfo('Already up to date — no changes since last sync');
     // Still touch `last_sync_at` so the UX / debug field reflects the most recent
     // successful run; merge-on-persist keeps the cursor itself unchanged.
     await cursorStore.persist(inMemoryCursor);
@@ -206,9 +277,34 @@ async function runImportBody(
   let sinceLastFlush = 0;
   let writtenSinceStart = 0;
 
+  // Per-collection / translation-string counters — only tally cursor-confirmed writes so
+  // the milestone log reflects items that actually landed, not items that were attempted.
+  // Mapping back from (language, keyId) to its collection requires walking the content
+  // map; building a reverse index up front avoids an O(n*m) scan on every onWritten call.
+  const keyIdToCollection = new Map<string, string>();
+  fetchResult.content.collections.forEach((block, collectionName) => {
+    Object.values(block.items).forEach((perLang) => {
+      perLang.forEach((entry) => {
+        entry.items.forEach((it) => {
+          keyIdToCollection.set(it.localazyKey.id, collectionName);
+        });
+      });
+    });
+  });
+  const writesPerCollection = new Map<string, number>();
+  let writesForTranslationStrings = 0;
+
   const onWritten = (triples: WrittenTriple[]) => {
     triples.forEach((t) => {
       recordCursorEntry(inMemoryCursor, t.language, t.keyId, t.event);
+      const collection = keyIdToCollection.get(t.keyId);
+      if (collection) {
+        writesPerCollection.set(collection, (writesPerCollection.get(collection) ?? 0) + 1);
+      } else {
+        // The triple came from translation-strings upsert, which isn't indexed in the
+        // per-collection map. Bucket those separately for the milestone line below.
+        writesForTranslationStrings += 1;
+      }
     });
     sinceLastFlush += triples.length;
     writtenSinceStart += triples.length;
@@ -223,6 +319,16 @@ async function runImportBody(
     }
   };
 
+  // Wrap the caller's error sink so we get per-error log entries on the persisted
+  // session row in addition to the existing module-side error store. The wrap
+  // intentionally calls the wrapped sink first so existing observers see errors with
+  // identical timing — only the log entry is new.
+  const wrappedErrorSink = (err: unknown) => {
+    onDirectusError(err);
+    const message = err instanceof Error ? err.message : String(err);
+    log.appendError(`Upsert error: ${message}`);
+  };
+
   // Final flush — guarantees the last batch lands even if it didn't cross the
   // throttle threshold. The `finally` makes the contract literal: even if
   // the upsert throws midway, whatever the writers already accumulated via
@@ -234,11 +340,21 @@ async function runImportBody(
       directusApi,
       resolveLanguageFkField,
       progress,
-      onDirectusError,
+      onDirectusError: wrappedErrorSink,
       onWritten,
     });
   } finally {
     await cursorStore.persist(inMemoryCursor);
+  }
+
+  // Milestone log: per-collection counts. Emitted after the upsert step so the numbers
+  // reflect actual successful writes (counted via `onWritten`). Translation strings get
+  // their own line so the Activity reader can see them as a distinct sync target.
+  writesPerCollection.forEach((count, collectionName) => {
+    log.appendInfo(`${collectionName}: ${count} ${count === 1 ? 'item' : 'items'} updated`);
+  });
+  if (writesForTranslationStrings > 0) {
+    log.appendInfo(`Translation strings: ${writesForTranslationStrings} ${writesForTranslationStrings === 1 ? 'key' : 'keys'} updated`);
   }
 
   const durationMs = Date.now() - startedAt;
@@ -248,6 +364,15 @@ async function runImportBody(
     message: `Imported ${writtenSinceStart} changes across ${summary.languages} languages. ${summary.items} items updated in ${elapsedSec}s.`,
     mode: 'add',
   });
+
+  // Milestone log: terminal summary line. Wording mirrors the progress modal's final
+  // line so the Activity entry reads consistently with what the user saw live.
+  const errorCount = log.errorCount();
+  if (errorCount > 0) {
+    log.appendWarn(`Sync completed with errors: ${errorCount} ${errorCount === 1 ? 'error' : 'errors'} in ${elapsedSec}s.`);
+  } else {
+    log.appendInfo(`Sync completed: ${writtenSinceStart} keys applied, ${summary.items} items updated in ${elapsedSec}s.`);
+  }
 
   // Analytics is fire-and-forget; the download flow shouldn't block on telemetry.
   if (reportDownloadAnalytics) {
@@ -280,11 +405,20 @@ async function runImportBody(
  * path: when no contender exists, lock acquire + heartbeat + release happen around
  * exactly the same import body as before, with the same on-disk side effects.
  */
+/**
+ * Computes the `event_type` string the sync-log row should store for a given run mode.
+ * Mirrored back from the persisted column's free-string contract — keeps the lookup
+ * inline rather than pulling in an enum the orchestrator otherwise doesn't need.
+ */
+function eventTypeForMode(mode: SyncMode): string {
+  return mode === 'full' ? 'download-full' : 'download-incremental';
+}
+
 export async function runIncrementalImport(
   adapters: OrchestratorAdapters,
   params: IncrementalImportParams,
 ): Promise<IncrementalImportResult> {
-  const { lockStore } = adapters;
+  const { lockStore, syncLogWriter, syncLogInitiator } = adapters;
   const initiator = params.initiator || (params.mode === 'full' ? 'ui-full' : 'ui-incremental');
   const token = generateToken();
 
@@ -304,6 +438,28 @@ export async function runIncrementalImport(
     return { status: 'skipped', reason: 'race_lost' };
   }
 
+  // Start the sync-log session right after lock acquire. We deliberately do NOT log
+  // skipped paths: when the orchestrator surrenders without acquiring the lock, the
+  // holder's session row already covers the work that's running, and writing a separate
+  // "skipped" row per contender would flood the Activity page during normal lock
+  // contention.
+  let sessionId: string | null = null;
+  let log: LogHandle = makeNoopLogHandle();
+  if (syncLogWriter && syncLogInitiator) {
+    try {
+      sessionId = await syncLogWriter.startSession({
+        eventType: eventTypeForMode(params.mode),
+        initiator: syncLogInitiator.initiator,
+        initiatorUser: syncLogInitiator.initiatorUser,
+      });
+      log = makeLogHandle(syncLogWriter, sessionId);
+    } catch {
+      // Couldn't start a session — fall back to no-op logging. The sync still proceeds;
+      // the Activity page just won't show this run. Don't surface to the user, the lock
+      // holder shouldn't fail because of a log write.
+    }
+  }
+
   // Heartbeat closure reads through `currentItemsProcessed` so the in-flight counter
   // surfaces to disk between batches. Without this, `sync_items_processed` would stay
   // at zero for the whole run and external observers (Activity page in PR D, the
@@ -315,13 +471,81 @@ export async function runIncrementalImport(
     void lockStore.heartbeat(token, currentItemsProcessed);
   }, SYNC_LOCK_HEARTBEAT_MS);
 
+  let runError: unknown = null;
+  let outcome: RunOutcome | null = null;
   try {
-    const outcome = await runImportBody(adapters, params, (count) => {
-      currentItemsProcessed = count;
-    });
+    outcome = await runImportBody(
+      adapters,
+      params,
+      (count) => {
+        currentItemsProcessed = count;
+      },
+      log,
+    );
     return outcome;
+  } catch (err) {
+    // Capture so the finally block can finalise the log row with a `failed` status
+    // before re-throwing. Errors that escape `runImportBody` are exceptional (the body
+    // itself converts upsert errors into the `partial` path via `wrappedErrorSink`),
+    // but a fetch failure or a lock-state read can still throw here.
+    runError = err;
+    throw err;
   } finally {
     clearInterval(heartbeatInterval);
+
+    // Finalise the log session before lock release so that even if release somehow
+    // races, the Activity row reflects the run's true outcome. Wrapped in try/catch
+    // because we're inside a finally — a log-finalise failure must not mask the
+    // primary error path.
+    if (syncLogWriter && sessionId) {
+      try {
+        if (runError) {
+          const message = runError instanceof Error ? runError.message : String(runError);
+          log.appendError(`Sync failed: ${message}`);
+          await syncLogWriter.finish(sessionId, {
+            status: 'failed',
+            summary: `Sync failed: ${message}`,
+            itemsProcessed: currentItemsProcessed,
+          });
+        } else if (outcome) {
+          // Status precedence: aborted / up-to-date are terminal outcomes from the body
+          // and we never re-classify them as partial — the error count in those paths
+          // includes the explicit "fetch failed" / "no changes" lines, which aren't
+          // upsert errors. Partial only applies when we actually ran the upsert step.
+          let status: string;
+          if (outcome.status === 'aborted') {
+            status = 'aborted';
+          } else if (outcome.status === 'up-to-date') {
+            status = 'skipped';
+          } else {
+            status = log.errorCount() > 0 ? 'partial' : outcome.status;
+          }
+          const elapsedSec = (outcome.durationMs / 1000).toFixed(1);
+          let summary: string;
+          if (outcome.status === 'aborted') {
+            summary = 'Sync aborted before write phase';
+          } else if (outcome.status === 'up-to-date') {
+            summary = 'Already up to date — no changes since last sync';
+          } else if (status === 'partial') {
+            summary = `Imported ${outcome.itemsProcessed} keys with ${log.errorCount()} errors in ${elapsedSec}s`;
+          } else {
+            const langs = outcome.summary?.languages ?? 0;
+            const items = outcome.summary?.items ?? 0;
+            summary = `Imported ${outcome.itemsProcessed} keys across ${langs} ${langs === 1 ? 'language' : 'languages'}, ${items} ${items === 1 ? 'item' : 'items'} updated in ${elapsedSec}s`;
+          }
+          await syncLogWriter.finish(sessionId, {
+            status,
+            summary,
+            itemsProcessed: outcome.itemsProcessed,
+          });
+        }
+      } catch {
+        // Swallow — log finalisation failure must not propagate. Worst case: the row
+        // is left in `'in_progress'`. The Activity page treats stale in-progress rows
+        // as visible warnings; the next successful run trims it out anyway.
+      }
+    }
+
     const { wasPending } = await lockStore.release(token);
     if (wasPending) {
       // Re-fire once. Bounded by the cursor — if nothing's new since the last

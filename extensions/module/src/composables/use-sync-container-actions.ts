@@ -28,7 +28,7 @@ import {
 import { CURSOR_VERSION, UploadCursor } from '../../../common/models/collections-data/sync-state';
 import { TranslatableContent } from '../../../common/models/translatable-content';
 import { UploadedTriple } from '../models/upload-write-result';
-import { useDirectusNotificationsStore } from './use-directus-stores';
+import { useDirectusNotificationsStore, useDirectusUserStore } from './use-directus-stores';
 import { buildOrchestratorAdapters } from '../services/orchestrator-adapters';
 import { runIncrementalImport } from '../../../common/services/orchestrator/incremental-import-orchestrator';
 
@@ -48,6 +48,8 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
   const { translatableCollections } = useCollectionsOrganizer();
 
   const notificationsStore = useDirectusNotificationsStore();
+  const userStore = useDirectusUserStore();
+  const directusUserId = computed(() => userStore.currentUser?.id ?? '');
 
   const { addProgressMessage, resetProgressTracker } = useProgressTrackerStore();
   const localazyStore = useLocalazyStore();
@@ -299,6 +301,13 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
           settings: settings.value,
           languages: importLanguages.map((lang) => lang.directusForm),
         }),
+        // UI-triggered runs: the initiator is the current Directus user. The
+        // initiatorUser m2o column points at the same id, so the Activity page can
+        // resolve the user's name via the standard users store.
+        syncLogInitiator: {
+          initiator: directusUserId.value,
+          initiatorUser: directusUserId.value || null,
+        },
       });
 
       const result = await runIncrementalImport(adapters, {

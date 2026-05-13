@@ -11,6 +11,7 @@ import { createSettingsFields } from '../data/fields/settings/create';
 import { createContentTransferSetupsFields } from '../data/fields/content-transfer-setup/create';
 import { createLocalazyDataFields } from '../data/fields/localazy-data/create';
 import { createSyncStateFields } from '../data/fields/sync-state/create';
+import { createSyncLogFields } from '../data/fields/sync-log/create';
 
 /**
  * Collection names owned by this extension. Used by the installer and the per-singleton
@@ -22,12 +23,23 @@ export const LOCALAZY_COLLECTIONS = {
   contentTransferSetup: 'localazy_content_transfer_setup',
   config: 'localazy_config_data',
   syncState: 'localazy_sync_state',
+  syncLog: 'localazy_sync_log',
 } as const;
 
 type CollectionPlan = {
   name: string;
   fields: () => Array<DeepPartial<Field>>;
-  defaults: Record<string, unknown>;
+  /**
+   * Per-row defaults patched into the singleton on first install. Omitted for non-singleton
+   * collections (e.g. `localazy_sync_log`), which start empty.
+   */
+  defaults?: Record<string, unknown>;
+  /**
+   * Defaults to `true` (matches the existing Localazy collections, all singletons). Set
+   * `false` for row-per-record tables that start empty and grow via inserts — the
+   * installer skips the seed PATCH in that case.
+   */
+  singleton?: boolean;
 };
 
 /**
@@ -76,6 +88,7 @@ export const useLocalazyInstallerStore = defineStore('localazyInstaller', () => 
   }
 
   async function ensureCollection(plan: CollectionPlan) {
+    const isSingleton = plan.singleton ?? true;
     const existing = collectionsStore.getCollection(plan.name);
     if (!existing) {
       await api.post('/collections', {
@@ -86,7 +99,7 @@ export const useLocalazyInstallerStore = defineStore('localazyInstaller', () => 
           note: 'Collection data for the Localazy plugin',
           group: LOCALAZY_COLLECTIONS.groupingFolder,
           hidden: getConfig().APP_MODE === 'production',
-          singleton: true,
+          singleton: isSingleton,
           archive_app_filter: true,
         },
         schema: {},
@@ -97,8 +110,11 @@ export const useLocalazyInstallerStore = defineStore('localazyInstaller', () => 
       await sleep(100);
       await fieldsStore.hydrate();
       await sleep(100);
-      // PATCH on /items/{collection} creates or upserts the singleton row with id: 1.
-      await api.patch(`/items/${plan.name}`, { id: 1, ...plan.defaults });
+      // Singleton collections get their default row patched in on first install. Row-per-record
+      // tables (e.g. `localazy_sync_log`) start empty — no seed PATCH.
+      if (isSingleton && plan.defaults) {
+        await api.patch(`/items/${plan.name}`, { id: 1, ...plan.defaults });
+      }
       return;
     }
 
@@ -143,6 +159,14 @@ export const useLocalazyInstallerStore = defineStore('localazyInstaller', () => 
           name: LOCALAZY_COLLECTIONS.syncState,
           fields: createSyncStateFields,
           defaults: defaultConfiguration().sync_state,
+        });
+        // Non-singleton: row-per-session table. The installer creates the collection
+        // and fields (heal-aware on subsequent runs), but never seeds a default row —
+        // sync rows are inserted by the orchestrator's log writer on each run.
+        await ensureCollection({
+          name: LOCALAZY_COLLECTIONS.syncLog,
+          fields: createSyncLogFields,
+          singleton: false,
         });
         installed.value = true;
       } catch (e: unknown) {

@@ -11,7 +11,10 @@ import {
   OrchestratorAdapters,
   ProgressSink,
   ResolveLanguageFkField,
+  SyncLogWriter,
 } from '../../../common/services/orchestrator/ports';
+import { LOCALAZY_COLLECTIONS } from '../stores/localazy-installer-store';
+import { createSyncLogWriter, SyncLogHttpClient } from './sync-log-writer';
 import { ImportProgressIds } from '../../../common/services/orchestrator/incremental-import-orchestrator';
 import { UpsertProgressIds } from '../../../common/services/orchestrator/upsert-localazy-content';
 import { importFromLocalazyService } from './import-from-localazy-service';
@@ -313,6 +316,17 @@ function buildResolveLanguageFkField(): ResolveLanguageFkField {
   };
 }
 
+/**
+ * Builds the module-side `SyncLogWriter` port. The writer talks to the
+ * `localazy_sync_log` collection through `useApi()`; the adapter is constructed inside
+ * the build function so it shares the same Directus session as the rest of the
+ * orchestrator's wiring.
+ */
+function buildSyncLogWriter(): SyncLogWriter {
+  const api = useApi() as unknown as SyncLogHttpClient;
+  return createSyncLogWriter({ api, collectionName: LOCALAZY_COLLECTIONS.syncLog });
+}
+
 type BuildAdaptersInput = {
   /**
    * Settings, languages, and project data are read at call time so analytics fires with
@@ -326,6 +340,12 @@ type BuildAdaptersInput = {
     settings: Settings;
     languages: string[];
   };
+  /**
+   * Initiator label for the persistent sync-log row. `initiator` is `'webhook'` or a
+   * Directus user id; `initiatorUser` mirrors the m2o column (null for webhook flows).
+   * Required so the orchestrator can record who triggered each run on the Activity row.
+   */
+  syncLogInitiator: { initiator: string; initiatorUser: string | null };
 };
 
 /**
@@ -359,5 +379,7 @@ export function buildOrchestratorAdapters(input: BuildAdaptersInput): Orchestrat
         }),
       );
     },
+    syncLogWriter: buildSyncLogWriter(),
+    syncLogInitiator: input.syncLogInitiator,
   };
 }

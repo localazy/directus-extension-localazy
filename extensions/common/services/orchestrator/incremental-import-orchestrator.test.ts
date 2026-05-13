@@ -13,7 +13,9 @@ import {
   OrchestratorAdapters,
   ProgressSink,
   ResolveLanguageFkField,
+  SyncLogWriter,
 } from './ports';
+import { SyncLogEntry } from '../../models/collections-data/sync-log';
 import { SYNC_LOCK_HARD_CEILING_MS, SYNC_LOCK_HEARTBEAT_MS, SYNC_LOCK_STALE_HEARTBEAT_MS } from './lock-constants';
 import { DirectusApi, ItemOptions } from '../../interfaces/directus-api';
 import { DirectusApiResultTranslationString } from '../../models/translation-string';
@@ -339,6 +341,7 @@ const settings: Settings = {
   skip_empty_strings: false,
   create_missing_languages_in_directus: CreateMissingLanguagesInDirectus.NO,
   language_mappings: '',
+  activity_logs_sort: '{}',
 };
 
 const localazyProject = { id: 'PROJ-A', orgId: 'org-1' } as Project;
@@ -964,6 +967,218 @@ describe('runIncrementalImport — orchestrator', () => {
       );
 
       expect(result.itemsProcessed).toBe(5);
+    });
+  });
+
+  /* ------------------------------------------------------------------------ */
+  /*  Sync-log writer — PR D                                                  */
+  /* ------------------------------------------------------------------------ */
+
+  describe('sync-log writer', () => {
+    /**
+     * In-memory `SyncLogWriter` that records every call and keeps the per-session
+     * entry list. Mirrors the production adapter's contract without HTTP.
+     */
+    function makeInMemorySyncLogWriter() {
+      const sessions = new Map<
+        string,
+        {
+          eventType: string;
+          initiator: string;
+          initiatorUser: string | null;
+          status: string | null;
+          summary: string | null;
+          itemsProcessed: number | null;
+          entries: SyncLogEntry[];
+          finished: boolean;
+        }
+      >();
+      let nextId = 0;
+      const writer: SyncLogWriter = {
+        async startSession(params) {
+          nextId += 1;
+          const id = `log-${nextId}`;
+          sessions.set(id, {
+            eventType: params.eventType,
+            initiator: params.initiator,
+            initiatorUser: params.initiatorUser,
+            status: null,
+            summary: null,
+            itemsProcessed: null,
+            entries: [],
+            finished: false,
+          });
+          return id;
+        },
+        async appendEntry(sessionId, entry) {
+          const s = sessions.get(sessionId);
+          if (!s) return;
+          s.entries.push(entry);
+        },
+        async finish(sessionId, params) {
+          const s = sessions.get(sessionId);
+          if (!s) return;
+          s.status = params.status;
+          s.summary = params.summary;
+          s.itemsProcessed = params.itemsProcessed;
+          s.finished = true;
+        },
+      };
+      return { writer, sessions };
+    }
+
+    it('happy path: emits started → fetched → per-collection → completed entries', async () => {
+      const content = buildCollectionContent('posts', [
+        { language: 'fr', itemId: '1', event: 10 },
+        { language: 'de', itemId: '2', event: 20 },
+      ]);
+      const { fetcher } = makeContentFetcher(content);
+      const { api: directusApi } = makeDirectusApi({
+        itemsByCollection: {
+          posts: [
+            { id: '1', translations: [] },
+            { id: '2', translations: [] },
+          ],
+        },
+      });
+      const cursor = makeInMemoryCursorStore();
+      const lock = makeInMemoryLockStore();
+      const { writer, sessions } = makeInMemorySyncLogWriter();
+
+      const adapters: OrchestratorAdapters = {
+        ...makeAdapters({ localazyContentFetcher: fetcher, directusApi, cursorStore: cursor.store, lockStore: lock.store }),
+        syncLogWriter: writer,
+        syncLogInitiator: { initiator: 'user-7', initiatorUser: 'user-7' },
+      };
+
+      await runIncrementalImport(adapters, baseParams);
+
+      expect(sessions.size).toBe(1);
+      const session = Array.from(sessions.values())[0]!;
+      expect(session.eventType).toBe('download-incremental');
+      expect(session.initiator).toBe('user-7');
+      expect(session.initiatorUser).toBe('user-7');
+      expect(session.status).toBe('completed');
+      expect(session.finished).toBe(true);
+
+      const messages = session.entries.map((e) => e.message);
+      expect(messages.some((m) => m.startsWith('Incremental sync started'))).toBe(true);
+      expect(messages.some((m) => m.startsWith('Fetched 2 keys from Localazy'))).toBe(true);
+      expect(messages.some((m) => m.startsWith('posts: 2 items updated'))).toBe(true);
+      expect(messages.some((m) => m.startsWith('Sync completed:'))).toBe(true);
+    });
+
+    it('full-sync mode is reflected in event_type and the started entry wording', async () => {
+      const empty: LocalazyContent = { collections: new Map(), translationStrings: new Map() };
+      const { fetcher } = makeContentFetcher(empty);
+      const { writer, sessions } = makeInMemorySyncLogWriter();
+      const adapters: OrchestratorAdapters = {
+        ...makeAdapters({ localazyContentFetcher: fetcher }),
+        syncLogWriter: writer,
+        syncLogInitiator: { initiator: 'user-7', initiatorUser: 'user-7' },
+      };
+      await runIncrementalImport(adapters, { ...baseParams, mode: 'full' });
+      const session = Array.from(sessions.values())[0]!;
+      expect(session.eventType).toBe('download-full');
+      expect(session.entries.some((e) => e.message.startsWith('Full sync started'))).toBe(true);
+    });
+
+    it('upsert error logs partial status and an error-level entry', async () => {
+      const content = buildCollectionContent('posts', [
+        { language: 'fr', itemId: '1', event: 10 },
+        { language: 'fr', itemId: '2', event: 20 },
+      ]);
+      const { fetcher } = makeContentFetcher(content);
+      const { api: directusApi } = makeDirectusApi({
+        itemsByCollection: {
+          posts: [
+            { id: '1', translations: [] },
+            { id: '2', translations: [] },
+          ],
+        },
+        failNextUpdateOn: { collection: 'posts', itemId: '2' },
+      });
+      const cursor = makeInMemoryCursorStore();
+      const lock = makeInMemoryLockStore();
+      const { writer, sessions } = makeInMemorySyncLogWriter();
+
+      const adapters: OrchestratorAdapters = {
+        ...makeAdapters({ localazyContentFetcher: fetcher, directusApi, cursorStore: cursor.store, lockStore: lock.store }),
+        syncLogWriter: writer,
+        syncLogInitiator: { initiator: 'user-7', initiatorUser: 'user-7' },
+      };
+
+      await runIncrementalImport(adapters, baseParams);
+
+      const session = Array.from(sessions.values())[0]!;
+      expect(session.status).toBe('partial');
+      const errorEntries = session.entries.filter((e) => e.level === 'error');
+      expect(errorEntries.length).toBeGreaterThan(0);
+      expect(errorEntries[0]!.message).toMatch(/Upsert error:/);
+    });
+
+    it('up-to-date path closes the session with status skipped', async () => {
+      const empty: LocalazyContent = { collections: new Map(), translationStrings: new Map() };
+      const { fetcher } = makeContentFetcher(empty);
+      const { writer, sessions } = makeInMemorySyncLogWriter();
+      const adapters: OrchestratorAdapters = {
+        ...makeAdapters({ localazyContentFetcher: fetcher }),
+        syncLogWriter: writer,
+        syncLogInitiator: { initiator: 'user-7', initiatorUser: 'user-7' },
+      };
+      await runIncrementalImport(adapters, baseParams);
+      const session = Array.from(sessions.values())[0]!;
+      expect(session.status).toBe('skipped');
+      expect(session.entries.some((e) => e.message.includes('Already up to date'))).toBe(true);
+    });
+
+    it('aborted fetch finalises the session as failed', async () => {
+      const { fetcher } = makeContentFetcher('failure');
+      const { writer, sessions } = makeInMemorySyncLogWriter();
+      const adapters: OrchestratorAdapters = {
+        ...makeAdapters({ localazyContentFetcher: fetcher }),
+        syncLogWriter: writer,
+        syncLogInitiator: { initiator: 'user-7', initiatorUser: 'user-7' },
+      };
+      await runIncrementalImport(adapters, baseParams);
+      const session = Array.from(sessions.values())[0]!;
+      // The orchestrator returns `aborted` from runImportBody when the fetch fails. The
+      // wrapper finalises with that same status (not 'failed'), since no throw escaped
+      // the body. The activity row shows "aborted" and the entry list includes the
+      // explicit fetch-failed error line.
+      expect(session.status).toBe('aborted');
+      expect(session.entries.some((e) => e.level === 'error' && e.message.includes('fetch from Localazy failed'))).toBe(true);
+    });
+
+    it('no writer wired: orchestrator runs normally without any log calls', async () => {
+      const empty: LocalazyContent = { collections: new Map(), translationStrings: new Map() };
+      const { fetcher } = makeContentFetcher(empty);
+      // No syncLogWriter / syncLogInitiator on the adapters bundle.
+      const adapters = makeAdapters({ localazyContentFetcher: fetcher });
+      const result = await runIncrementalImport(adapters, baseParams);
+      expect(result.status).toBe('up-to-date');
+    });
+
+    it('skipped (lock-held) path does not start a session', async () => {
+      const lock = makeInMemoryLockStore({
+        in_progress: true,
+        started_at: new Date(Date.now() - 5_000).toISOString(),
+        last_heartbeat_at: new Date(Date.now() - 1_000).toISOString(),
+        initiator: 'someone-else',
+        pending: false,
+        items_processed: 0,
+        acquired_token: 'live',
+      });
+      const { fetcher } = makeContentFetcher({ collections: new Map(), translationStrings: new Map() });
+      const { writer, sessions } = makeInMemorySyncLogWriter();
+      const adapters: OrchestratorAdapters = {
+        ...makeAdapters({ localazyContentFetcher: fetcher, lockStore: lock.store }),
+        syncLogWriter: writer,
+        syncLogInitiator: { initiator: 'user-7', initiatorUser: 'user-7' },
+      };
+      const result = await runIncrementalImport(adapters, baseParams);
+      expect(result.status).toBe('skipped');
+      expect(sessions.size).toBe(0); // no log row for skipped contenders
     });
   });
 });
