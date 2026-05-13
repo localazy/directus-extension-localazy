@@ -342,6 +342,9 @@ const settings: Settings = {
   create_missing_languages_in_directus: CreateMissingLanguagesInDirectus.NO,
   language_mappings: '',
   activity_logs_sort: '{}',
+  automated_import: false,
+  automated_import_user: null,
+  automated_import_languages: '[]',
 };
 
 const localazyProject = { id: 'PROJ-A', orgId: 'org-1' } as Project;

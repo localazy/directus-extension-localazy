@@ -24,6 +24,12 @@
         <v-text-overflow text="Project Setup" />
       </v-list-item-content>
     </v-list-item>
+    <v-list-item to="/localazy/automation">
+      <v-list-item-icon><v-icon name="cloud_sync" /></v-list-item-icon>
+      <v-list-item-content>
+        <v-text-overflow text="Automation" />
+      </v-list-item-content>
+    </v-list-item>
     <v-list-item to="/localazy/additional-settings">
       <v-list-item-icon><v-icon name="settings" /></v-list-item-icon>
       <v-list-item-content>
