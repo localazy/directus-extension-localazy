@@ -73,7 +73,7 @@ export default tseslint.config(
   },
 
   // Type-aware Promise-safety rule. Catches the bug class that produced the
-  // missing-await in sync-hook/src/index.ts. The baseline of intentional
+  // missing-await in sync-hook/src/hook/index.ts. The baseline of intentional
   // fire-and-forget patterns (Vue setup() top-level hydrations, analytics
   // calls, etc.) has been triaged — each site is either awaited or prefixed
   // with `void`. Set to 'error' so a new floating Promise blocks CI.

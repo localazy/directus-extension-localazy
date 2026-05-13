@@ -1,6 +1,6 @@
 import { Field, Relation, SchemaOverview } from '@directus/types';
-import { DirectusDataModel } from '../../../common/interfaces/directus-data-model';
-import { FieldsUtilsService } from '../../../common/utilities/fields-utils-service';
+import { DirectusDataModel } from '../../../../common/interfaces/directus-data-model';
+import { FieldsUtilsService } from '../../../../common/utilities/fields-utils-service';
 import type { FieldsServiceCtor } from '../types/directus-services';
 
 export class ApiDirectusDataModelService implements DirectusDataModel {
