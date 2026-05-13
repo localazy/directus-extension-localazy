@@ -11,7 +11,7 @@
       "ignoreDependencies": ["sass"]
     },
     "extensions/sync-hook": {
-      "entry": ["src/index.ts"]
+      "entry": ["src/hook/index.ts", "src/endpoint/index.ts"]
     }
   }
 }
