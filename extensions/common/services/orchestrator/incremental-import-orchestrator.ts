@@ -501,11 +501,14 @@ export async function runIncrementalImport(
     // observability, not state any consumer depends on. The contender heuristic uses
     // `last_heartbeat_at` and `started_at` (both on the lock row), not the log row.
     //
-    // Wrapped in try/catch because a throw here would exit this `finally` block and
-    // skip the log-finalisation block below — leaving the row in `'in_progress'`
-    // forever. The next sync's stale-by-heartbeat / hard-ceiling check will take over
-    // the lock cleanly regardless, so swallowing is safe; surface the error via the
-    // adapter's error sink so it doesn't go silent.
+    // Wrapped in try/catch because an unhandled throw here would exit this `finally`
+    // block and skip the log-finalisation step below. The current module adapter
+    // already returns `{ wasPending: false }` rather than throwing, but the
+    // `LockStore` port doesn't contractually forbid throws — future adapters (the
+    // webhook handler, alternate transports) might. The next sync's
+    // stale-by-heartbeat / hard-ceiling check would take over the lock cleanly
+    // regardless, so swallowing is safe; surface the error via the adapter's error
+    // sink so it doesn't go silent.
     let releaseOutcome: { wasPending: boolean } = { wasPending: false };
     try {
       releaseOutcome = await lockStore.release(token);
