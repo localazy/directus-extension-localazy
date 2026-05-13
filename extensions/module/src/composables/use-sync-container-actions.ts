@@ -297,7 +297,7 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
           orgId: localazyProject.value?.orgId || '',
           localazyProjectName: localazyData.value.project_name,
           settings: settings.value,
-          languages: Object.keys(importLanguages),
+          languages: importLanguages.map((lang) => lang.directusForm),
         }),
       });
 

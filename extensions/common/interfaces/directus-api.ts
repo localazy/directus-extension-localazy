@@ -13,10 +13,8 @@ export type ItemOptions = {
  * service classes work on both sides.
  *
  * Only the methods the common services actually call are declared here —
- * historical members like `updateDirectusItem`, `upsertDirectusItem`,
- * `fetchDirectusSingletonItem`, and `createField` were dropped. Module-side
- * helpers that aren't shared with services live on `DirectusModuleApi`
- * directly without being part of the interface.
+ * historical members like `upsertDirectusItem`, `fetchDirectusSingletonItem`,
+ * and `createField` were dropped.
  */
 export interface DirectusApi {
   fetchDirectusItems<T extends Item>(collection: string, query?: Query): Promise<T[]>;
