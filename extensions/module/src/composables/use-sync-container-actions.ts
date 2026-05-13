@@ -255,9 +255,18 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
       }
 
       const elapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
+      // `writtenSinceStart` counts only collection-content items successfully marked via
+      // the cursor — translation strings always full-re-push and aren't tracked. When
+      // only translation strings flow through, that counter stays at 0 even though work
+      // happened; the generic "Upload completed" message reflects that case honestly
+      // without claiming a count we can't verify.
+      const finalMessage =
+        writtenSinceStart > 0
+          ? `Uploaded ${writtenSinceStart} ${writtenSinceStart === 1 ? 'item' : 'items'} in ${elapsedSec}s.`
+          : `Upload completed in ${elapsedSec}s.`;
       addProgressMessage({
         id: ProgressTrackerId.UPLOAD_FINISHED,
-        message: `Uploaded ${writtenSinceStart} ${writtenSinceStart === 1 ? 'item' : 'items'} in ${elapsedSec}s.`,
+        message: finalMessage,
       });
     } finally {
       loading.value = false;

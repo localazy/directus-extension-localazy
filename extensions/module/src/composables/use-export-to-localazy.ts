@@ -1,6 +1,5 @@
 import { storeToRefs } from 'pinia';
 import { Ref, ref } from 'vue';
-import { isEmpty } from 'lodash';
 import { ProgressTrackerId } from '../enums/progress-tracker-id';
 import { Settings } from '../../../common/models/collections-data/settings';
 import { KeyValueEntry } from '../../../common/models/localazy-key-entry';
@@ -105,8 +104,6 @@ export const useExportToLocalazy = (token: Ref<string>) => {
       directusSourceLanguage: settings.source_language,
     });
 
-    const nothingToExport = isEmpty(content.sourceLanguage) && Object.values(content.otherLanguages).every(isEmpty);
-
     // Chunk-level success tracking. Items report success only after every chunk they
     // contributed to has landed in this set.
     const chunkSuccesses = new Set<string>();
@@ -173,10 +170,10 @@ export const useExportToLocalazy = (token: Ref<string>) => {
       }
 
       loading.value = false;
-      addProgressMessage({
-        id: ProgressTrackerId.EXPORT_FINISHED,
-        message: nothingToExport ? 'Nothing to export from selected sources' : 'Export finished',
-      });
+      // The orchestrator (`onExport`) owns the final summary message — including the
+      // empty-content short-circuit ("All items already uploaded — nothing to push") and
+      // the populated summary ("Uploaded N items in T.Ts."). Adding `EXPORT_FINISHED`
+      // here too would render a duplicate row in the progress modal.
       // Analytics is fire-and-forget; export completion shouldn't block on telemetry.
       void AnalyticsService.trackUploadToLocalazy(
         ExportToLocalazyCommonService.getPayloadForUploadAnalytics({

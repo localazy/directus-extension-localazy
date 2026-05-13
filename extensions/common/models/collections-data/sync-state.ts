@@ -47,7 +47,7 @@ export type SyncState = {
   cursor_project_id: string;
   /** Schema version of the cursor data. Bump when the storage shape changes. */
   cursor_version: number;
-  /** ISO timestamp of the last successful download sync. */
+  /** ISO timestamp of the last successful sync (upload or download — whichever ran last). */
   last_sync_at: string | null;
 };
 
