@@ -210,6 +210,43 @@ describe('createSyncLogWriter', () => {
     await expect(writer.appendEntry('sx', { timestamp: 'later', level: 'info', message: 'kept' })).resolves.toBeUndefined();
   });
 
+  it('serializes concurrent appendEntry calls on the same session (no lost entries)', async () => {
+    // Simulate a slow GET so two appends can overlap. Without serialization the second
+    // PATCH would clobber the first's append because both reads see the same `stored`
+    // before either PATCH lands.
+    let stored = '[]';
+    let getCallCount = 0;
+    const api: Partial<SyncLogHttpClient> = {
+      async post() {
+        return { data: { data: { id: 'sess-1' } } };
+      },
+      async get() {
+        getCallCount += 1;
+        // Delay the first GET so the second appendEntry overlaps it.
+        if (getCallCount === 1) await new Promise((r) => setTimeout(r, 10));
+        return { data: { data: { entries: stored } } };
+      },
+      async patch(_url, body) {
+        const patch = body as { entries?: string };
+        if (typeof patch.entries === 'string') stored = patch.entries;
+        return { data: { data: {} } };
+      },
+      async delete() {
+        return { data: {} };
+      },
+    };
+    const writer = createSyncLogWriter({ api: api as SyncLogHttpClient, collectionName: 'localazy_sync_log' });
+    const id = await writer.startSession({ eventType: 'download-incremental', initiator: 'u-1', initiatorUser: 'u-1' });
+    // Two concurrent appends. The first is fire-and-forget; the second is awaited.
+    void writer.appendEntry(id, { timestamp: '2026-05-13T00:00:00Z', level: 'info', message: 'first' });
+    await writer.appendEntry(id, { timestamp: '2026-05-13T00:00:01Z', level: 'info', message: 'second' });
+    // Wait for any tail microtasks from the fire-and-forget cleanup chain.
+    await new Promise((r) => setTimeout(r, 30));
+    const parsed = JSON.parse(stored) as SyncLogEntry[];
+    expect(parsed).toHaveLength(2);
+    expect(parsed.map((e) => e.message)).toEqual(['first', 'second']);
+  });
+
   it('finish trim failure does not propagate', async () => {
     const { api } = makeFakeApi();
     api.delete = async () => {

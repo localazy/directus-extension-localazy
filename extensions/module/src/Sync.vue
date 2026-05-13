@@ -97,7 +97,6 @@ import { useSyncContainerActions } from './composables/use-sync-container-action
 import { useLocalazyTransferSetupStore } from './stores/localazy-transfer-setup-store';
 import { useLocalazyConfigurationStatus } from './composables/use-localazy-configuration-status';
 import { useLocalazyBoot } from './composables/use-localazy-boot';
-import { useLocalazySyncStateStore } from './stores/localazy-sync-state-store';
 import { useLocalazySyncLogStore } from './stores/localazy-sync-log-store';
 import { EnabledField } from '../../common/models/collections-data/content-transfer-setup';
 import { EnabledFieldsService } from '../../common/utilities/enabled-fields-service';
@@ -139,8 +138,6 @@ const { installed, localazyData, boot } = useLocalazyBoot();
 const { hasIncompleteConfiguration } = useLocalazyConfigurationStatus();
 
 const router = useRouter();
-const syncStateStore = useLocalazySyncStateStore();
-const { data: syncStateData } = storeToRefs(syncStateStore);
 const syncLogStore = useLocalazySyncLogStore();
 const { sessions: syncLogSessions } = storeToRefs(syncLogStore);
 
@@ -164,9 +161,6 @@ const lastSyncBanner = computed(() => {
     finishedMs && Number.isFinite(finishedMs) && Number.isFinite(startedMs) ? `${((finishedMs - startedMs) / 1000).toFixed(1)}s` : null;
   const parts = [`Last sync: ${startStr}`, `(${last.event_type}, ${last.items_processed} items${durationStr ? `, ${durationStr}` : ''})`];
   parts.push(`— ${last.status}`);
-  // `syncStateData.last_sync_at` available for cross-reference; intentionally not
-  // surfaced — the log row's data is already the human-facing canonical source.
-  void syncStateData.value.last_sync_at;
   return parts.join(' ');
 });
 

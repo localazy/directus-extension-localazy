@@ -6,13 +6,12 @@ import { useErrorsStore } from './errors-store';
 import type { SyncLogSession } from '../../../common/models/collections-data/sync-log';
 
 /**
- * Row-per-record store for `localazy_sync_log`. Unlike the other Localazy collections
- * (singletons), this one is a list — gated on the installer the same way, but reads
- * fetch the most-recent N sessions sorted by `started_at` descending.
+ * Reads / clears / looks up `localazy_sync_log` rows. Unlike the other Localazy
+ * collections (singletons), this one is a list — gated on the installer the same way,
+ * but reads fetch the most-recent N sessions sorted by `started_at` descending.
  *
- * Kept minimal on purpose: filter / sort / pagination live in the Activity page
- * composable. This store just holds the in-memory list and exposes a `reload` to
- * refresh it.
+ * Exposes `{ sessions, loading, error, reload, clearAll, getById }`. The Activity page
+ * composable owns filter / sort / pagination — this store is the data-fetch layer.
  */
 export const useLocalazySyncLogStore = defineStore('localazySyncLog', () => {
   const installer = useLocalazyInstallerStore();
@@ -33,8 +32,9 @@ export const useLocalazySyncLogStore = defineStore('localazySyncLog', () => {
         params: {
           limit: -1,
           sort: '-started_at',
-          // Resolve the m2o initiator_user → just the id (the Activity UI looks up
-          // names via the Directus users store).
+          // `initiator_user` is m2o → `directus_users`, kept for forward compatibility
+          // with a future name-resolution lookup in the Activity UI (currently displays
+          // the raw id).
           fields: ['*'],
         },
       });

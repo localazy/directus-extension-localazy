@@ -18,10 +18,9 @@ export interface SyncLogHttpClient {
 }
 
 /**
- * Generates an RFC 4122 v4 UUID for new sync-log rows. Uses `crypto.randomUUID()` when
- * available (every supported runtime in 2026) and falls back to a `Date.now()` +
- * randomness composite otherwise — the value only needs to be unique enough to avoid
- * collisions in the last-100 retention window.
+ * Opaque session-id generator. Prefers `crypto.randomUUID()` (real UUID v4) when
+ * available; falls back to a `Date.now() + Math.random()` composite otherwise. The id
+ * is only used as a primary key — uniqueness is enough, no UUID semantics required.
  */
 function generateSessionId(): string {
   const cryptoApi = globalThis.crypto;
@@ -89,24 +88,24 @@ type CreateSyncLogWriterInput = {
  *     write, then GETs the full id list ordered by `started_at desc` and DELETEs
  *     everything past index 99 (`SYNC_LOG_RETENTION`).
  *
- * Errors at every level are swallowed — a failing log write must never take down a
- * sync. The orchestrator never awaits log writes inside the hot loop, so a stalled
- * adapter can only delay milestone entries, never the user-facing import.
+ * `appendEntry` and `finish` swallow errors — log writes must not take down a sync.
+ * `startSession` propagates errors because the orchestrator needs a valid session id to
+ * thread through subsequent calls. The orchestrator never awaits log writes inside the
+ * hot loop, so a stalled adapter can only delay milestone entries, never the
+ * user-facing import.
  */
 export function createSyncLogWriter(input: CreateSyncLogWriterInput): SyncLogWriter {
   const { api, collectionName, generateId = generateSessionId } = input;
 
   async function fetchEntriesJson(sessionId: string): Promise<string> {
-    try {
-      const result = await api.get(`/items/${collectionName}/${sessionId}`);
-      const row = (result.data.data ?? {}) as { entries?: string };
-      return row.entries ?? '[]';
-    } catch {
-      // Couldn't read — return an empty array so the next append still produces a
-      // syntactically valid value. The lost entries are acceptable collateral for a
-      // best-effort log writer.
-      return '[]';
-    }
+    // Re-throw GET errors so `doAppend` bails out without writing. Previously this
+    // swallowed the error and returned `'[]'`, which caused the subsequent PATCH to
+    // overwrite the on-disk entries with a single-element array on transient GET
+    // failures. The outer try/catch in `doAppend` still swallows the error so the
+    // sync isn't taken down — but the PATCH is correctly skipped.
+    const result = await api.get(`/items/${collectionName}/${sessionId}`);
+    const row = (result.data.data ?? {}) as { entries?: string };
+    return row.entries ?? '[]';
   }
 
   async function trimToRetention(): Promise<void> {
@@ -130,6 +129,25 @@ export function createSyncLogWriter(input: CreateSyncLogWriterInput): SyncLogWri
     }
   }
 
+  // Per-session promise chain. The orchestrator emits `appendEntry` fire-and-forget at
+  // milestone boundaries, so two callbacks fired in quick succession can have their
+  // GET → mutate → PATCH cycles interleave — the second PATCH would clobber the first's
+  // append. The chain serialises calls within a single session id without blocking
+  // appends across distinct sessions.
+  const appendChains = new Map<string, Promise<void>>();
+
+  async function doAppend(sessionId: string, entry: SyncLogEntry): Promise<void> {
+    try {
+      const currentEntries = await fetchEntriesJson(sessionId);
+      const next = appendEntryToJson(currentEntries, entry);
+      await api.patch(`/items/${collectionName}/${sessionId}`, { entries: next });
+    } catch {
+      // Swallow at this level — a single failed append must not take down the sync. If
+      // the GET re-throws (see `fetchEntriesJson` below) we explicitly skip the PATCH
+      // so the on-disk entries aren't overwritten with a single-element array.
+    }
+  }
+
   return {
     async startSession(params) {
       const id = generateId();
@@ -149,15 +167,19 @@ export function createSyncLogWriter(input: CreateSyncLogWriterInput): SyncLogWri
     },
 
     async appendEntry(sessionId, entry) {
-      const currentEntries = await fetchEntriesJson(sessionId);
-      const next = appendEntryToJson(currentEntries, entry);
-      try {
-        await api.patch(`/items/${collectionName}/${sessionId}`, { entries: next });
-      } catch {
-        // Swallow — the next append will retry the read-modify-write with the new
-        // entry pushed on top. Worst case: one milestone line is missing from the
-        // Activity page.
-      }
+      const prior = appendChains.get(sessionId) ?? Promise.resolve();
+      // Chain this call after any in-flight append for the same session. We deliberately
+      // catch the prior's error so a single failure can't poison subsequent appends.
+      const next = prior.catch(() => undefined).then(() => doAppend(sessionId, entry));
+      appendChains.set(sessionId, next);
+      // Cleanup map entry once this call settles (success or failure) so the map doesn't
+      // grow unbounded across long-running sessions.
+      void next.finally(() => {
+        if (appendChains.get(sessionId) === next) {
+          appendChains.delete(sessionId);
+        }
+      });
+      return next;
     },
 
     async finish(sessionId, params) {

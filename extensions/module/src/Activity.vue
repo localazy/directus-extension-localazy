@@ -68,7 +68,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeMount, ref, watch } from 'vue';
+import { computed, onBeforeMount, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import Navigation from './components/Navigation.vue';
@@ -183,12 +183,6 @@ function onSessionClick(sessionId: string) {
 onBeforeMount(() => {
   void boot();
   void syncLogStore.reload();
-});
-
-// When settings finish loading, the composable picks up the new defaults via its own
-// watch on `initialSortPreferences`. The local copy reseats automatically.
-watch(initialSortPreferences, () => {
-  /* handled inside useActivityLog */
 });
 </script>
 

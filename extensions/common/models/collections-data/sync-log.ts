@@ -35,7 +35,7 @@ export type SyncLogSession = {
   id: string;
   /** `'upload-incremental' | 'upload-full' | 'download-incremental' | 'download-full' | 'webhook'` — free string. */
   event_type: string;
-  /** `'in_progress' | 'completed' | 'failed' | 'partial' | 'skipped'` — free string. */
+  /** `'in_progress' | 'completed' | 'failed' | 'partial' | 'aborted' | 'skipped'` — free string. */
   status: string;
   started_at: string;
   finished_at: string | null;

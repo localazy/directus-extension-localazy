@@ -1132,7 +1132,7 @@ describe('runIncrementalImport — orchestrator', () => {
       expect(session.entries.some((e) => e.message.includes('Already up to date'))).toBe(true);
     });
 
-    it('aborted fetch finalises the session as failed', async () => {
+    it('aborted fetch finalises the session as aborted', async () => {
       const { fetcher } = makeContentFetcher('failure');
       const { writer, sessions } = makeInMemorySyncLogWriter();
       const adapters: OrchestratorAdapters = {

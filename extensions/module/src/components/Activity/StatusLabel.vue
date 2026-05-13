@@ -25,6 +25,8 @@ const label = computed(() => {
       return 'Failed';
     case 'partial':
       return 'Completed (errors)';
+    case 'aborted':
+      return 'Aborted';
     case 'skipped':
       return 'Skipped';
     default:
@@ -42,6 +44,10 @@ const statusClass = computed(() => {
       return 'status-danger';
     case 'partial':
       return 'status-warning';
+    case 'aborted':
+      // Pre-write abort (e.g. fetch from Localazy failed before the upsert step). Read
+      // visually as "didn't complete" — same danger styling as `failed`, distinct label.
+      return 'status-danger';
     case 'skipped':
       return 'status-neutral';
     default:

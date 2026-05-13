@@ -185,9 +185,10 @@ export type SyncLogStartParams = {
  *   3. Finalise the row on `finish` — set `status`, `finished_at`, `summary`,
  *      `items_processed`, and trim the table to `SYNC_LOG_RETENTION` rows.
  *
- * The orchestrator never awaits log writes inside the hot loop — calls are either at
- * milestone boundaries (start / finish, per-collection completion) or fire-and-forget
- * inside try/catch. A failed log write must not take down the sync.
+ * `startSession` and `finish` are awaited at lock-acquire and lock-release boundaries.
+ * `appendEntry` calls inside the orchestrator's body are fire-and-forget
+ * (`void writer.appendEntry(...)`) so milestone emission doesn't pace the sync. A failed
+ * log write must not take down the sync.
  */
 export interface SyncLogWriter {
   /** Creates the row with `status: 'in_progress'`. Returns the new row's id. */

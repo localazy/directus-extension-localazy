@@ -78,12 +78,15 @@ export function filterSessions(
     if (tabForEventType(session.event_type) !== opts.tab) return false;
 
     const startedMs = Date.parse(session.started_at);
+    // Cutoffs are interpreted as UTC midnight to match `session.started_at`'s UTC ISO
+    // string. Mixing local-time `new Date(...)` with `Date.parse(...)` caused TZ-offset
+    // bugs near midnight UTC for non-UTC users.
     if (opts.dateFrom) {
-      const fromMs = new Date(opts.dateFrom.getUTCFullYear(), opts.dateFrom.getUTCMonth(), opts.dateFrom.getUTCDate()).getTime();
+      const fromMs = Date.UTC(opts.dateFrom.getUTCFullYear(), opts.dateFrom.getUTCMonth(), opts.dateFrom.getUTCDate());
       if (Number.isFinite(startedMs) && startedMs < fromMs) return false;
     }
     if (opts.dateTo) {
-      const toMs = new Date(opts.dateTo.getUTCFullYear(), opts.dateTo.getUTCMonth(), opts.dateTo.getUTCDate(), 23, 59, 59, 999).getTime();
+      const toMs = Date.UTC(opts.dateTo.getUTCFullYear(), opts.dateTo.getUTCMonth(), opts.dateTo.getUTCDate(), 23, 59, 59, 999);
       if (Number.isFinite(startedMs) && startedMs > toMs) return false;
     }
 

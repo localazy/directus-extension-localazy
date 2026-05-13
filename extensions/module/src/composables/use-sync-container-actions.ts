@@ -9,6 +9,7 @@ import { useLocalazySettingsStore } from '../stores/localazy-settings-store';
 import { useLocalazyConfigStore } from '../stores/localazy-config-store';
 import { useLocalazyTransferSetupStore } from '../stores/localazy-transfer-setup-store';
 import { useLocalazySyncStateStore } from '../stores/localazy-sync-state-store';
+import { useLocalazySyncLogStore } from '../stores/localazy-sync-log-store';
 import { useProgressTrackerStore } from '../stores/progress-tracker-store';
 import { useDirectusLanguages } from './use-directus-languages';
 import { useCollectionsOrganizer } from './use-collections-organizer';
@@ -63,6 +64,7 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
   const { data: transferSetup } = storeToRefs(transferSetupStore);
   const syncStateStore = useLocalazySyncStateStore();
   const { data: syncStateData } = storeToRefs(syncStateStore);
+  const syncLogStore = useLocalazySyncLogStore();
 
   const accessToken = computed(() => localazyData.value.access_token);
   const exportService = useExportToLocalazy(accessToken);
@@ -302,8 +304,9 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
           languages: importLanguages.map((lang) => lang.directusForm),
         }),
         // UI-triggered runs: the initiator is the current Directus user. The
-        // initiatorUser m2o column points at the same id, so the Activity page can
-        // resolve the user's name via the standard users store.
+        // `initiatorUser` m2o column points at the same id, kept for forward
+        // compatibility with a future name-resolution lookup in the Activity UI
+        // (currently displays the raw id).
         syncLogInitiator: {
           initiator: directusUserId.value,
           initiatorUser: directusUserId.value || null,
@@ -319,6 +322,11 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
         settings: settings.value,
         initiator: mode === 'full' ? 'ui-full' : 'ui-incremental',
       });
+      // Refresh the log store so the Sync page's "Last sync" banner reflects the run
+      // that just completed without requiring a navigation. Fire-and-forget — don't
+      // block the user; the banner reads from `syncLogStore.sessions[0]`, which the
+      // store-level reload will update reactively when the response lands.
+      void syncLogStore.reload();
       // When the advisory lock was held by another run, the orchestrator returns
       // `skipped` without emitting any progress messages. The disabled Import button
       // is the primary signal, but a contender that managed to click anyway (e.g.

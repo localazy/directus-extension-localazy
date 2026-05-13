@@ -323,7 +323,13 @@ function buildResolveLanguageFkField(): ResolveLanguageFkField {
  * orchestrator's wiring.
  */
 function buildSyncLogWriter(): SyncLogWriter {
-  const api = useApi() as unknown as SyncLogHttpClient;
+  // Single targeted cast: `useApi()` returns axios' `AxiosInstance`, whose method
+  // signatures (`post(url, data?, config?)` returning `Promise<AxiosResponse<any>>`)
+  // can't structurally narrow into `SyncLogHttpClient`'s specific response shapes
+  // through `any`. The cast is safe because the writer only calls the documented
+  // axios surface and Directus' response envelope (`{ data: { data: ... } }`) matches
+  // the interface's declared return shapes verbatim at runtime.
+  const api = useApi() as SyncLogHttpClient;
   return createSyncLogWriter({ api, collectionName: LOCALAZY_COLLECTIONS.syncLog });
 }
 

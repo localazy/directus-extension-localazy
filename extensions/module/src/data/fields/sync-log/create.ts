@@ -16,8 +16,9 @@ import { getConfig } from '../../../../../common/config/get-config';
  *     is acceptable because PR D scope is milestone-only logging (≤20 entries per
  *     session typical). A separate row-per-entry collection would be future work if
  *     verbose logging ever lands.
- *   - `initiator_user` is m2o → `directus_users` so the Activity table can resolve the
- *     user name. Nullable because webhook-triggered runs have no Directus user.
+ *   - `initiator_user` is m2o → `directus_users`, kept for forward compatibility with a
+ *     future name-resolution lookup in the Activity UI (currently displays the raw id).
+ *     Nullable because webhook-triggered runs have no Directus user.
  *
  * The `readonly`/`hidden` flags mirror the other Localazy collections in production —
  * the rows are write-once from the module / hook, and surfaced via the Activity page
@@ -118,12 +119,20 @@ export const createSyncLogFields = (): Array<DeepPartial<Field>> => [
         template: '{{first_name}} {{last_name}}',
       },
     },
+    // `on_delete` isn't in `@directus/schema`'s `Column` interface (it's a FK trigger,
+    // not a column attribute), but Directus' POST /fields/{collection} endpoint accepts
+    // it on the schema block and threads it through to the underlying relation. Cast at
+    // the property level so the rest of the schema retains real typing.
     schema: {
       default_value: null,
       is_nullable: true,
       foreign_key_table: 'directus_users',
       foreign_key_column: 'id',
-    },
+      // SET NULL on delete so removing a Directus user doesn't fail when sync_log rows
+      // reference them. Directus' default is RESTRICT, which would block the user-row
+      // delete on any retained session that ran under that user.
+      on_delete: 'SET NULL',
+    } as DeepPartial<Field>['schema'] & { on_delete: 'SET NULL' },
   },
   {
     field: 'summary',

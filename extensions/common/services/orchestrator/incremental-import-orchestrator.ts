@@ -127,8 +127,8 @@ function isLockStale(state: LockState, now: number): boolean {
  * `void` returns so the orchestrator can call them inline without awaiting (log writes
  * never gate the sync).
  *
- * A `null` handle means no writer was supplied — every call is a no-op. Keeps the
- * orchestrator's flow free of conditional checks at every milestone.
+ * When no writer is supplied, the orchestrator uses `makeNoopLogHandle()` — every call
+ * is a no-op. Keeps the orchestrator's flow free of conditional checks at every milestone.
  */
 type LogHandle = {
   appendInfo(message: string, data?: Record<string, unknown>): void;
@@ -493,10 +493,17 @@ export async function runIncrementalImport(
   } finally {
     clearInterval(heartbeatInterval);
 
-    // Finalise the log session before lock release so that even if release somehow
-    // races, the Activity row reflects the run's true outcome. Wrapped in try/catch
-    // because we're inside a finally — a log-finalise failure must not mask the
-    // primary error path.
+    // Release the lock BEFORE finalising the log session. The lock is the load-bearing
+    // piece of state — keeping it held during `syncLogWriter.finish` would extend the
+    // lock-hold duration by an HTTP PATCH + GET + bulk DELETE round-trip (the trim).
+    // Trade-off: if `release` succeeds and `finish` then crashes, the log row stays
+    // `in_progress` until the next run trims it out — harmless, the row is best-effort
+    // observability, not state any consumer depends on. The contender heuristic uses
+    // `last_heartbeat_at` and `started_at` (both on the lock row), not the log row.
+    const releaseOutcome = await lockStore.release(token);
+
+    // Finalise the log session after lock release. Wrapped in try/catch because we're
+    // inside a finally — a log-finalise failure must not mask the primary error path.
     if (syncLogWriter && sessionId) {
       try {
         if (runError) {
@@ -546,8 +553,7 @@ export async function runIncrementalImport(
       }
     }
 
-    const { wasPending } = await lockStore.release(token);
-    if (wasPending) {
+    if (releaseOutcome.wasPending) {
       // Re-fire once. Bounded by the cursor — if nothing's new since the last
       // successful sync, the body short-circuits via the `up-to-date` path. We
       // intentionally do NOT loop here: if the re-fired run also collects a dirty
