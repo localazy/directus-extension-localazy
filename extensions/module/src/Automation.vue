@@ -38,7 +38,7 @@
               Directus instance. Without it, webhook events from Localazy cannot be received.
             </p>
             <p>
-              <a :href="bundleReadmeUrl" target="_blank" rel="noopener noreferrer">Read the bundle installation guide on GitHub</a>
+              <a :href="BUNDLE_README_URL" target="_blank" rel="noopener noreferrer">Read the bundle installation guide on GitHub</a>
             </p>
           </div>
         </v-notice>
@@ -71,8 +71,6 @@ import { useLocalazyBoot } from './composables/use-localazy-boot';
 import { useBundleStatus } from './composables/use-bundle-status';
 import { useDirectusNotificationsStore } from './composables/use-directus-stores';
 import { BUNDLE_README_URL } from './data/constants';
-
-const bundleReadmeUrl = BUNDLE_README_URL;
 
 const settingsStore = useLocalazySettingsStore();
 const { edits: settingsEdits, changesExist, save: saveSettings, loading: saving } = useSingletonForm(settingsStore);

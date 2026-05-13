@@ -1,8 +1,8 @@
 /**
- * Module-wide constants whose value is shared across multiple files. Keep one entry per
- * concept here so a refactor (e.g. moving the README, swapping a custom-id slug) updates
- * a single line — see the `project_automation_page_readme_link.md` memory for why this
- * lives as a constant rather than being inlined on the Automation page.
+ * Module-wide constants that are either shared across files (`BUNDLE_ENDPOINT_PREFIX`,
+ * `BUNDLE_WEBHOOK_PATH`, `WEBHOOK_CUSTOM_ID`, `WEBHOOK_DESCRIPTION`, `WEBHOOK_EVENT`) or
+ * kept here so the GitHub README target lives in one greppable place (`BUNDLE_README_URL`
+ * — see memory `project_automation_page_readme_link.md`).
  */
 
 /**

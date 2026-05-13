@@ -40,7 +40,7 @@
             <li>
               <p class="step-title">2. Confirm the webhook URL.</p>
               <v-input v-model="dialogUrl" />
-              <div v-if="isLocalUrl(dialogUrl)" class="warning-note">
+              <div v-if="isLocalWebhookUrl(dialogUrl)" class="warning-note">
                 <v-icon name="warning" small />
                 <span>
                   This URL is on a local / private network and Localazy can't reach it from the public internet. Use ngrok (or similar) and
@@ -50,6 +50,10 @@
               <p class="step-description">
                 Defaults to <code>{{ defaultWebhookUrl }}</code>
               </p>
+              <v-notice type="info" class="proxy-note">
+                If Directus runs behind a reverse proxy or at a sub-path, edit the URL above to match your public hostname. The pre-filled
+                URL uses your browser's current origin.
+              </v-notice>
             </li>
             <li>
               <p class="step-title">3. Confirm. We'll register the webhook on Localazy under this project.</p>
@@ -84,7 +88,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useLocalazyStore } from '../../stores/localazy-store';
 import { useLocalazyConfigStore } from '../../stores/localazy-config-store';
@@ -164,10 +168,6 @@ async function confirmRemove() {
   }
 }
 
-function isLocalUrl(url: string): boolean {
-  return isLocalWebhookUrl(url);
-}
-
 const errorMessage = computed(() => {
   if (!error.value) return '';
   const err = error.value;
@@ -175,10 +175,8 @@ const errorMessage = computed(() => {
   return 'Failed to update the webhook. Check the URL and try again.';
 });
 
-// Re-run the status check once the localazy project finishes hydrating — the initial
-// mount fires before `useLocalazyStore` has the project ID, so the first refresh would
-// otherwise short-circuit to an empty list. Watch handles both the "already hydrated"
-// case (immediate fire) and the "still loading" case.
+// Re-fetch when the project ID hydrates or changes. `immediate: true` covers both first
+// mount (project may already be hydrated) and the steady-state navigation case.
 watch(
   () => localazyProject.value?.id,
   (projectId) => {
@@ -186,12 +184,6 @@ watch(
   },
   { immediate: true },
 );
-
-onMounted(() => {
-  // Best-effort initial fetch in case the watcher's `immediate` already fired with no
-  // project ID. Once hydration completes the watcher above will re-fetch.
-  void refresh();
-});
 </script>
 
 <style lang="scss" scoped>
@@ -279,5 +271,9 @@ onMounted(() => {
 
 .dialog-error {
   margin-top: 16px;
+}
+
+.proxy-note {
+  margin-top: 12px;
 }
 </style>

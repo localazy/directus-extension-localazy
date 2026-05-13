@@ -161,9 +161,6 @@ const selectedLanguages = computed<string[]>({
 onMounted(() => {
   void loadAdminUsers();
 });
-
-/** Exposed for unit tests — keeps the filter shape grep-friendly across renames. */
-defineExpose({ ADMIN_USERS_FILTER });
 </script>
 
 <style lang="scss" scoped>

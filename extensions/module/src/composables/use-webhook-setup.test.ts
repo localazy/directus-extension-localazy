@@ -33,11 +33,15 @@ describe('isLocalWebhookUrl', () => {
   it.each([
     ['http://localhost:8055/foo', true],
     ['https://127.0.0.1/foo', true],
+    ['http://127.0.0.5/', true], // anywhere in the 127.0.0.0/8 loopback /8
     ['http://0.0.0.0/foo', true],
     ['http://10.0.0.5/foo', true],
     ['http://172.16.0.1/foo', true],
     ['http://172.31.255.1/foo', true],
     ['http://192.168.1.1/foo', true],
+    ['http://169.254.1.1/', true], // 169.254/16 link-local
+    ['http://[::1]/', true], // IPv6 loopback
+    ['http://[fe80::1]/', true], // IPv6 link-local
     ['https://example.com/foo', false],
     ['https://abc.ngrok.io/foo', false],
     ['http://172.32.0.1/foo', false], // outside the 172.16-31 private range

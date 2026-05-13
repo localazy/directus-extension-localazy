@@ -15,9 +15,9 @@ export type BundleStatus = {
 export type BundleStatusState = {
   /** True while the initial status check is in flight. */
   loading: Ref<boolean>;
-  /** Parsed response body once the check resolves with a 2xx. Null otherwise. */
+  /** Parsed response body when the check resolves with 2xx AND `installed: true`. Null otherwise. */
   status: Ref<BundleStatus | null>;
-  /** `true` iff the bundle responded successfully — drives the State A/B switch. */
+  /** `true` iff the bundle's `/status` endpoint returns `installed: true` — drives the State A/B switch. */
   installed: Ref<boolean>;
   /** Re-run the status check. The Automation page calls this after a manual install. */
   check: () => Promise<void>;
@@ -51,9 +51,9 @@ export function useBundleStatus(api: StatusFetcher): BundleStatusState {
     loading.value = true;
     try {
       const result = await api.get<BundleStatus>(`${BUNDLE_ENDPOINT_PREFIX}/status`);
-      // The endpoint always returns `installed: true` when present — the field exists
-      // mainly to make the response self-describing, not to expose a real toggle. Treat
-      // a missing or non-true value the same as a 404: the bundle isn't usable.
+      // Defensive guard: today the endpoint always returns `installed: true`, but treat any
+      // other body shape as bundle-absent so a future endpoint change can't silently render
+      // the form when the bundle isn't actually ready.
       if (result.data?.installed === true) {
         status.value = { installed: true, version: result.data.version ?? '' };
         installed.value = true;

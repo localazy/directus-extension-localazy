@@ -25,16 +25,17 @@ export type WebhookSetupApi = {
   state: ComputedRef<WebhookSetupState>;
   /** The URL currently registered for this extension's webhook, if any. */
   configuredUrl: Ref<string>;
-  /** Last error from a setup or remove operation, surfaced under the form. Null when clean. */
+  /** Last error from refresh / setup / remove, surfaced under the form. Null when clean. */
   error: Ref<unknown>;
   /** True while a save / remove is in flight (drives button spinners). */
   saving: Ref<boolean>;
-  /** Refresh the registered-webhook state. Called once on mount. */
+  /** Refresh the registered-webhook state. Consumer calls on mount and on project-id changes; safe to call repeatedly. */
   refresh: () => Promise<void>;
   /**
    * Upsert this extension's webhook. Lists existing entries, filters ours out by
-   * `customId`, and PUTs the merged list back. Mirrors Strapi's pattern — Localazy's
-   * webhooks endpoint is bulk-replace, so we have to preserve the operator's other entries.
+   * `customId`, and writes the merged list back via the API client. Mirrors Strapi's
+   * pattern — Localazy's webhooks endpoint is bulk-replace, so we have to preserve the
+   * operator's other entries.
    */
   setup: (url: string) => Promise<void>;
   /** Remove this extension's webhook entry, preserving any other entries on the project. */
@@ -48,7 +49,7 @@ export type WebhookSetupApi = {
  * unreachable from the public internet 99.9% of the time, so flagging it as local is
  * the right call even when an operator runs an exotic tunnel.
  */
-const LOCAL_URL_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/;
+const LOCAL_URL_REGEX = /^https?:\/\/(localhost|127\.|0\.0\.0\.0|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|\[::1\]|\[fe80:)/i;
 
 export function isLocalWebhookUrl(url: string): boolean {
   return LOCAL_URL_REGEX.test(url);
