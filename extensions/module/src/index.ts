@@ -6,6 +6,7 @@ import Overview from './Overview.vue';
 import About from './About.vue';
 import Activity from './Activity.vue';
 import ActivityDetail from './ActivityDetail.vue';
+import Automation from './Automation.vue';
 import { getConfig } from '../../common/config/get-config';
 
 export default defineModule({
@@ -33,6 +34,10 @@ export default defineModule({
     {
       path: 'activity/:sessionId',
       component: ActivityDetail,
+    },
+    {
+      path: 'automation',
+      component: Automation,
     },
     {
       path: 'additional-settings',

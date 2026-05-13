@@ -1,4 +1,12 @@
-import { FileListKeysRequest, FilesListRequest, ImportJsonRequest, KeyUpdateRequest, ProjectsListRequest } from '@localazy/api-client';
+import {
+  FileListKeysRequest,
+  FilesListRequest,
+  ImportJsonRequest,
+  KeyUpdateRequest,
+  ProjectsListRequest,
+  WebhooksListRequest,
+  WebhooksUpdateRequest,
+} from '@localazy/api-client';
 import { sleep } from '../utilities/sleep';
 import { getLocalazyApi } from '../api/localazy-api';
 
@@ -136,5 +144,15 @@ export class LocalazyApiThrottleService {
   static async updateKey(token: string, options: KeyUpdateRequest) {
     this.localazyApi = getLocalazyApi(token);
     return localazyRequestProcessor.addRequest(() => this.localazyApi.keys.update(options));
+  }
+
+  static async listWebhooks(token: string, options: WebhooksListRequest) {
+    this.localazyApi = getLocalazyApi(token);
+    return localazyRequestProcessor.addRequest(() => this.localazyApi.webhooks.list(options));
+  }
+
+  static async updateWebhooks(token: string, options: WebhooksUpdateRequest) {
+    this.localazyApi = getLocalazyApi(token);
+    return localazyRequestProcessor.addRequest(() => this.localazyApi.webhooks.update(options));
   }
 }
