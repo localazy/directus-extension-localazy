@@ -10,7 +10,7 @@
   <br>
 </p>
 
-# 📦
+# 📦 Directus Extension Localazy
 
 > Turn translation of your Directus project into a seamless experience.
 
