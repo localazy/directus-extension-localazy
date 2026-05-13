@@ -133,6 +133,11 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
   async function onExport(mode: SyncMode = 'incremental') {
     loading.value = true;
     showProgress.value = true;
+    // Clear any messages left over from a prior run so the modal starts fresh. Without
+    // this the tracker accumulates across syncs — `resetProgressTracker` previously only
+    // ran when the user explicitly closed the modal via the Done button, and any other
+    // dismissal path (re-clicking Export, switching pages) left stale messages behind.
+    resetProgressTracker();
     const startedAt = Date.now();
 
     addProgressMessage({
@@ -155,7 +160,7 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
       //     cursor here — merge-on-persist gives precedence to the in-memory cursor for
       //     cells we touched, and preserves disk entries for cells we didn't.
       const baseUploadCursor: UploadCursor =
-        mode === 'full' || syncStateData.value.cursor_project_id !== (localazyProject.value?.id || '')
+        mode === 'full' || !cursorMatchesProject(syncStateData.value.cursor_project_id, localazyProject.value?.id || '')
           ? createEmptyUploadCursor()
           : parseUploadCursor(syncStateData.value.uploaded_hashes);
       // Tracks only what we successfully pushed in this run. Merged with on-disk on flush.
@@ -302,6 +307,9 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
   async function onImport(mode: SyncMode = 'incremental') {
     showProgress.value = true;
     loading.value = true;
+    // See the matching call in `onExport` — without this the tracker accumulates
+    // messages across runs whenever the user dismisses the modal without clicking Done.
+    resetProgressTracker();
     const startedAt = Date.now();
 
     addProgressMessage({
