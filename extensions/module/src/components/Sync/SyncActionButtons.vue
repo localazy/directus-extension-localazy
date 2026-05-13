@@ -1,12 +1,27 @@
 <template>
   <div>
     <div class="sync-action-buttons">
-      <v-button :disabled="disableSyncButtons" secondary @click="$emit('upload')"> Export to Localazy </v-button>
-      <div class="import-group">
+      <div class="sync-group">
+        <v-button :disabled="disableSyncButtons" secondary @click="$emit('upload')"> Export to Localazy </v-button>
+        <v-menu show-arrow placement="bottom-end">
+          <template #activator="{ toggle }">
+            <v-button :disabled="disableSyncButtons" secondary class="sync-options" @click="toggle">
+              <v-icon name="expand_more" />
+            </v-button>
+          </template>
+          <v-list>
+            <v-list-item clickable @click="$emit('upload-full')">
+              <v-list-item-icon><v-icon name="refresh" /></v-list-item-icon>
+              <v-list-item-content>Full Upload (re-push everything)</v-list-item-content>
+            </v-list-item>
+          </v-list>
+        </v-menu>
+      </div>
+      <div class="sync-group">
         <v-button :disabled="disableSyncButtons" secondary @click="$emit('download')"> Import to Directus </v-button>
         <v-menu show-arrow placement="bottom-end">
           <template #activator="{ toggle }">
-            <v-button :disabled="disableSyncButtons" secondary class="import-options" @click="toggle">
+            <v-button :disabled="disableSyncButtons" secondary class="sync-options" @click="toggle">
               <v-icon name="expand_more" />
             </v-button>
           </template>
@@ -30,7 +45,9 @@ import { useLocalazyStore } from '../../stores/localazy-store';
 
 // `download` runs an incremental sync (default). `download-full` triggers a Full Sync,
 // which rebuilds from scratch by running the same flow with an empty in-memory cursor.
-defineEmits(['download', 'download-full', 'upload', 'save-settings']);
+// `upload` mirrors `download` for the export flow (incremental by default), and
+// `upload-full` triggers a Full Upload (re-push every item regardless of cursor state).
+defineEmits(['download', 'download-full', 'upload', 'upload-full', 'save-settings']);
 
 const props = defineProps({
   hasChanges: {
@@ -56,12 +73,12 @@ const disableSyncButtons = computed(() => props.disableSync || isNotConnectedToL
   gap: 4px;
 }
 
-.import-group {
+.sync-group {
   display: flex;
   gap: 2px;
 }
 
-.import-options {
+.sync-options {
   --v-button-min-width: 28px;
   --v-button-padding: 0 8px;
 }

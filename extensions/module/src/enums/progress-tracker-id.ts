@@ -18,4 +18,13 @@ export enum ProgressTrackerId {
   NOTHING_TO_IMPORT,
   NOT_CONNECTED_TO_LOCALAZY,
   UPDATING_DIRECTUS_COLLECTION_ERROR,
+
+  // Incremental upload sync progress markers — same de-dupe-by-id contract as the
+  // download markers above. UPLOAD_MODE_HEADER mirrors SYNC_MODE_HEADER but for the
+  // export flow; UPLOAD_CHANGES_SUMMARY mirrors CHANGES_SUMMARY; UPLOAD_UP_TO_DATE is
+  // the "nothing changed" short-circuit message.
+  UPLOAD_MODE_HEADER,
+  UPLOAD_CHANGES_SUMMARY,
+  UPLOAD_UP_TO_DATE,
+  UPLOAD_FINISHED,
 }

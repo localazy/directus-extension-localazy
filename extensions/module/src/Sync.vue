@@ -12,7 +12,8 @@
       <sync-action-buttons
         :has-changes="hasChanges"
         :disable-sync="!someTranslatableFieldsChecked && !synchronizeTranslationStrings"
-        @upload="onExport"
+        @upload="onExport('incremental')"
+        @upload-full="onExport('full')"
         @download="onImport('incremental')"
         @download-full="onImport('full')"
         @save-settings="onSaveSettings({ notify: true })"

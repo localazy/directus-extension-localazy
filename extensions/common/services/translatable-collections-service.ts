@@ -8,6 +8,7 @@ import { TranslatableContent } from '../models/translatable-content';
 import { FieldsUtilsService } from '../utilities/fields-utils-service';
 import { DirectusApi } from '../interfaces/directus-api';
 import { DirectusDataModel } from '../interfaces/directus-data-model';
+import { computeItemHash } from '../utilities/upload-cursor';
 
 type ResolveContentForCollectionReturn = {
   collection: string;
@@ -16,6 +17,25 @@ type ResolveContentForCollectionReturn = {
     fieldLanguageCodeField: string;
   }[];
   items: Item[];
+};
+
+/**
+ * Per-item slice returned by `fetchContentWithHashesByCollection`. `id` is the Directus
+ * item id; `hash` is the 16-hex-char SHA-256 of the canonical KV payload that would be
+ * uploaded for this item right now (using the current `enabledFields`, source language,
+ * `upload_existing_translations` mode, etc.); `content` is the assembled
+ * `TranslatableContent` slice covering only this item. The orchestrator filters by hash
+ * against the upload cursor, then merges the surviving slices into the global payload.
+ */
+export type CollectionItemWithHash = {
+  id: string | number;
+  hash: string;
+  content: TranslatableContent;
+};
+
+export type CollectionContentWithHashes = {
+  collection: string;
+  items: CollectionItemWithHash[];
 };
 
 export type TranslatableCollectionsServiceOptions = {
@@ -162,5 +182,69 @@ export class TranslatableCollectionsService {
     }
 
     return translatableContent;
+  }
+
+  /**
+   * Same fetch shape as `fetchContentFromTranslatableCollections`, but returns per-item
+   * slices with stable content hashes attached. The caller (the user-clicked Export
+   * orchestrator) filters the per-item list against the upload cursor and only assembles
+   * what remains.
+   *
+   * Hash inputs are the per-item slice of the canonical assembly output for "this item
+   * with the current settings" — meaning anything that affects the wire payload (enabled
+   * fields, source language code, `upload_existing_translations` mode via the fetched
+   * language set, field values) naturally changes the hash. We deliberately do NOT hash a
+   * synthetic "settings fingerprint" — the assembled per-item payload already reflects
+   * every settings effect that matters.
+   */
+  async fetchContentWithHashesByCollection(options: TranslatableCollectionsServiceOptions): Promise<CollectionContentWithHashes[]> {
+    const { enabledFields, settings, languages, translatableCollections } = options;
+    const { add, execute } = createAsyncQueue();
+
+    const enabledTranslatableCollections = translatableCollections.filter((collection) =>
+      enabledFields.find((field) => field.collection === collection.collection),
+    );
+
+    enabledTranslatableCollections.forEach((data) => {
+      add(async () =>
+        this.resolveContentForCollection({
+          collection: data.collection,
+          itemIds: data.itemIds || [],
+          translationTypeFields: await this.getTranslationTypeFieldsForCollection(data.collection),
+          languages,
+          languagesCollection: settings.language_collection,
+          languagesCollectionCodeField: settings.language_code_field,
+        }),
+      );
+    });
+
+    const results = await execute<ResolveContentForCollectionReturn>({ delayBetween: 50 });
+    const output: CollectionContentWithHashes[] = [];
+
+    for (const result of results) {
+      if (!result.data) continue;
+      const collectionFields = (await this.translatableCollectionsContent.getFieldsForCollection(result.data.collection)) || [];
+      const itemsWithHashes: CollectionItemWithHash[] = [];
+
+      for (const item of result.data.items) {
+        // Build the per-item content slice using the same assembly the multi-item path
+        // uses — so the hash mechanically reflects exactly what would go on the wire for
+        // this item under the current settings + enabled-fields configuration.
+        const content = ContentFromCollections.createContentFromCollectionItems({
+          collection: result.data.collection,
+          items: [item],
+          enabledFields,
+          collectionFields,
+          translatableFieldAttributes: result.data.translatableFieldAttributes,
+          settings,
+        });
+        const hash = await computeItemHash(content);
+        itemsWithHashes.push({ id: item.id, hash, content });
+      }
+
+      output.push({ collection: result.data.collection, items: itemsWithHashes });
+    }
+
+    return output;
   }
 }

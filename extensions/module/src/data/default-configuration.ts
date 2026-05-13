@@ -31,6 +31,7 @@ export const defaultConfiguration = (): Configuration => ({
   },
   sync_state: {
     processed_keys: '{}',
+    uploaded_hashes: '{}',
     cursor_project_id: '',
     cursor_version: CURSOR_VERSION,
     last_sync_at: null,
