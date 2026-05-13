@@ -1,9 +1,20 @@
 import { Item } from '@directus/types';
 import { uniqWith } from 'lodash';
-import { TranslationPayload } from '../models/directus/translation-payload';
-import { LocalazyCollectionItem } from '../../../common/models/localazy-content';
+import { LocalazyCollectionItem } from '../../models/localazy-content';
 
-type Options = {
+/**
+ * Shape of the PATCH body the orchestrator builds for one collection item, keyed by
+ * translation field. Mirrors Directus' relational-update format — a per-field bucket
+ * with `create` and `update` arrays.
+ */
+export type TranslationPayload = {
+  [collection: string]: {
+    update?: Item[];
+    create?: Item[];
+  };
+};
+
+type MergeOptions = {
   localazyItem: LocalazyCollectionItem;
   translationItem?: Partial<Item>;
   language: string;
@@ -15,7 +26,7 @@ type Options = {
 const areDirectusItemsEqual = (a: Item, b: Item) => a.id === b.id && a.id !== undefined;
 const areCreateItemsEqual = (a: Item, b: Item, languagesCodeField: string) => a[languagesCodeField] === b[languagesCodeField];
 
-function resolveStagedItem(payload: TranslationPayload, data: Options) {
+function resolveStagedItem(payload: TranslationPayload, data: MergeOptions) {
   const { localazyItem, translationItem, type, language, languageCodeField } = data;
 
   const stagedItems = payload[localazyItem.translationField]?.[type];
@@ -30,7 +41,12 @@ function resolveStagedItem(payload: TranslationPayload, data: Options) {
   return stagedItems.find((d: Item) => d.id === translationItem?.id);
 }
 
-export const mergeTranslationPayload = (payload: TranslationPayload, data: Options) => {
+/**
+ * Merge a single (field, language, value) write into an in-progress translation payload.
+ * Mutates `payload` for convenience and returns it for chained-call ergonomics. Uses
+ * `uniqWith` so re-merging an identical create / update is idempotent.
+ */
+export const mergeTranslationPayload = (payload: TranslationPayload, data: MergeOptions) => {
   const { localazyItem, translationItem, type, value } = data;
   const stagedItem = resolveStagedItem(payload, data);
 
@@ -54,3 +70,19 @@ export const mergeTranslationPayload = (payload: TranslationPayload, data: Optio
 
   return payload;
 };
+
+/**
+ * Resolves the language code from a translation row's FK field. Directus expands
+ * relations into objects, but legacy callers may pass the bare string — accept both.
+ * Exported so the logic can be tested without standing up the Pinia stores.
+ */
+export function extractLanguageCode(fkValue: unknown, languageCodeField: string): string | undefined {
+  if (typeof fkValue === 'string') {
+    return fkValue;
+  }
+  if (fkValue && typeof fkValue === 'object') {
+    const codeValue = (fkValue as Record<string, unknown>)[languageCodeField];
+    return typeof codeValue === 'string' ? codeValue : undefined;
+  }
+  return undefined;
+}

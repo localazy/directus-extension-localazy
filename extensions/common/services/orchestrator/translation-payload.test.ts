@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractLanguageCode } from './use-directus-localazy-adapter';
+import { extractLanguageCode } from './translation-payload';
 
 describe('extractLanguageCode', () => {
   it('returns the value when the FK column is a bare string', () => {

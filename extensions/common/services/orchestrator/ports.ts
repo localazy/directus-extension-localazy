@@ -1,0 +1,113 @@
+import { Key, Project } from '@localazy/api-client';
+import { DirectusApi } from '../../interfaces/directus-api';
+import { DirectusLocalazyLanguage } from '../../models/directus-localazy-language';
+import { EnabledField } from '../../models/collections-data/content-transfer-setup';
+import { LocalazyData } from '../../models/collections-data/localazy-data';
+import { LocalazyContent } from '../../models/localazy-content';
+import { SyncCursor } from '../../models/collections-data/sync-state';
+
+/**
+ * Cursor I/O port. Both the read side (`load`) and the write side (`persist`) are async
+ * because the module-side Pinia store and the future server-side `ItemsService` adapter
+ * both round-trip the singleton row over the wire / through a transaction. The orchestrator
+ * doesn't care about the storage backend — it just needs the current cursor + the project
+ * id it was written against, and a way to save updates.
+ *
+ * `persist` is expected to implement merge-on-persist semantics — re-read the latest
+ * on-disk cursor, take `max(event)` per cell, write back — so two concurrent runs never
+ * clobber each other. The orchestrator hands `persist` only the in-memory cursor of the
+ * current run; the merge happens inside the adapter.
+ */
+export interface CursorStore {
+  /**
+   * Returns the latest on-disk cursor and the project id it was written against. The
+   * orchestrator uses the project id to auto-invalidate when the user reconnects to a
+   * different Localazy project.
+   */
+  load(): Promise<{ cursor: SyncCursor; projectId: string }>;
+  /**
+   * Persist the in-memory cursor (orchestrator's accumulated writes for the current run).
+   * The implementation is expected to re-read the latest on-disk state, merge with this
+   * input cell-by-cell (max-event-wins), and write the result back. Errors are intentionally
+   * swallowed by the adapter — a flush failure shouldn't take down a sync, the next flush
+   * will retry, and the orchestrator's final flush in `finally` is a last-resort backstop.
+   */
+  persist(cursor: SyncCursor): Promise<void>;
+}
+
+/**
+ * Parameters the Localazy content fetcher receives. The shape mirrors the existing
+ * `importContentFromLocalazy` interface so adapters can pass these through verbatim.
+ * The optional `filterKeysForLanguage` is injected by the orchestrator and applies the
+ * cursor-based incremental filter before parsing.
+ */
+export type FetchLocalazyContentInput = {
+  languages: DirectusLocalazyLanguage[];
+  enabledFields: EnabledField[];
+  localazyData: LocalazyData;
+  localazyProject: Project;
+  filterKeysForLanguage?: (language: string, keys: Key[]) => Key[];
+};
+
+export type FetchLocalazyContentResult = { success: true; content: LocalazyContent } | { success: false };
+
+/**
+ * Wraps the existing Localazy file/keys fetch + parse pipeline. The module adapter wires
+ * this to `importFromLocalazyService.importContentFromLocalazy(...)`; the future server
+ * adapter will call the same service through the hook's Node-side runtime.
+ */
+export interface LocalazyContentFetcher {
+  fetchContent(input: FetchLocalazyContentInput): Promise<FetchLocalazyContentResult>;
+}
+
+/** Progress message severity. */
+export type ProgressLevel = 'info' | 'warn' | 'error';
+
+/** Numeric id the progress tracker uses to de-dupe / upsert messages. */
+export type ProgressId = number | string;
+
+/**
+ * Progress callback. The orchestrator emits one call per state transition; the module
+ * adapter routes it to the Pinia progress-tracker store, the server adapter will route it
+ * to log lines / future activity-log rows. `id` enables in-place updates (e.g. the
+ * "Updating {collection} (i/n)" line being replaced as items are written).
+ */
+export type ProgressSink = (message: { id: ProgressId; message: string; level?: ProgressLevel; mode?: 'add' | 'upsert' }) => void;
+
+/**
+ * Resolves the FK column on a translation collection that points back at the languages
+ * collection. The Directus convention is `languages_code`, but real-world installs often
+ * use a different name (`lang_code`, `language`, etc.) — hardcoding breaks them.
+ *
+ * Module adapter wires this through the Pinia relations store; server adapter will read
+ * `schema.relations`. Returning `'languages_code'` as the fallback preserves the existing
+ * behaviour when the relation can't be located.
+ */
+export type ResolveLanguageFkField = (parentCollection: string, translationField: string, languagesCollection: string) => string;
+
+/**
+ * Sink for non-fatal errors that occur during the upsert step. Both error paths in the
+ * existing code routed to `useErrorsStore()`; lifting splits that responsibility — the
+ * orchestrator hands errors back through this port, the module adapter relays them to the
+ * Pinia errors store.
+ */
+export type ErrorSink = (error: unknown) => void;
+
+/**
+ * Bundle of side-effect adapters the orchestrator needs. The orchestrator file reads
+ * top-to-bottom like a recipe; everything stateful is reached through one of these.
+ */
+export type OrchestratorAdapters = {
+  cursorStore: CursorStore;
+  localazyContentFetcher: LocalazyContentFetcher;
+  progress: ProgressSink;
+  directusApi: DirectusApi;
+  resolveLanguageFkField: ResolveLanguageFkField;
+  onDirectusError: ErrorSink;
+  /**
+   * Fire-and-forget analytics hook. The orchestrator never awaits this — analytics latency
+   * shouldn't block the user's sync. The module adapter wires it to
+   * `AnalyticsService.trackDownloadFromLocalazy(...)`.
+   */
+  reportDownloadAnalytics?: () => void;
+};

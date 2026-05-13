@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Key } from '@localazy/api-client';
-import { LocalazyContent, LocalazyCollectionBlock, LocalazyTranslationStringBlock } from '../../../common/models/localazy-content';
+import { LocalazyContent, LocalazyCollectionBlock, LocalazyTranslationStringBlock } from '../../models/localazy-content';
 import { summarizeLocalazyContent } from './summarize-localazy-content';
 
 const k = (id: string, event = 0): Key => ({ id, key: ['k'], value: 'v', event }) as Key;

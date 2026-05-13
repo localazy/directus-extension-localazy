@@ -1,4 +1,4 @@
-import { LocalazyContent } from '../../../common/models/localazy-content';
+import { LocalazyContent } from '../../models/localazy-content';
 
 export type LocalazyContentSummary = {
   /** Total per-(item, language, field) cells to write. Drives the "N changes" wording. */
@@ -15,10 +15,10 @@ export type LocalazyContentSummary = {
  * Build the headline summary stats the sync orchestrator emits to the progress modal
  * (e.g. "Found 42 changes across 3 languages — applying to 12 items in 4 collections").
  *
- * Pure and synchronous — extracted from `use-sync-container-actions` so the message
- * arithmetic can be unit-tested without standing up Pinia. The shape mirrors what the
- * design's decision-19 messages reference; counts are intentionally aggregate (no
- * per-language drilldown here — that's reserved for an optional expansion in the modal).
+ * Pure and synchronous — extracted so the message arithmetic can be unit-tested without
+ * standing up Pinia. The shape mirrors what the design's decision-19 messages reference;
+ * counts are intentionally aggregate (no per-language drilldown here — that's reserved
+ * for an optional expansion in the modal).
  */
 export function summarizeLocalazyContent(content: LocalazyContent): LocalazyContentSummary {
   let changes = 0;
