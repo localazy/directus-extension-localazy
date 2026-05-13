@@ -1,12 +1,12 @@
 {
   "name": "@localazy/directus-extension-localazy-automation",
-  "description": "The official Localazy hook extension for Directus to automate synchronization of content",
+  "description": "The official Localazy server-side bundle for Directus that automates synchronization of content",
   "icon": "cloud_sync",
-  "version": "1.0.10",
+  "version": "1.1.0",
   "keywords": [
     "directus",
     "directus-extension",
-    "directus-extension-hook",
+    "directus-extension-bundle",
     "localazy"
   ],
   "repository": {
@@ -23,9 +23,23 @@
     "dist"
   ],
   "directus:extension": {
-    "type": "hook",
-    "path": "dist/index.js",
-    "source": "src/index.ts",
+    "type": "bundle",
+    "path": {
+      "app": "dist/app.js",
+      "api": "dist/api.js"
+    },
+    "entries": [
+      {
+        "type": "hook",
+        "name": "localazy-automation-hook",
+        "source": "src/hook/index.ts"
+      },
+      {
+        "type": "endpoint",
+        "name": "localazy-automation",
+        "source": "src/endpoint/index.ts"
+      }
+    ],
     "host": "^11.0.0"
   },
   "scripts": {

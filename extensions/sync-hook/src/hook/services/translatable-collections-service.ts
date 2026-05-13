@@ -5,7 +5,7 @@ import { ApiDirectusDataModelService } from './api-directus-data-model-service';
 import {
   TranslatableCollectionsService,
   TranslatableCollectionsServiceOptions,
-} from '../../../common/services/translatable-collections-service';
+} from '../../../../common/services/translatable-collections-service';
 import type { FieldsServiceCtor, ItemsServiceCtor } from '../types/directus-services';
 
 export class ApiTranslatableCollectionsService {

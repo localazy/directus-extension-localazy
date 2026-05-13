@@ -1,6 +1,6 @@
 import type { CollectionOverview, Item, MutationOptions, Query, SchemaOverview } from '@directus/types';
-import { DirectusApi } from '../../../common/interfaces/directus-api';
-import { DirectusApiResultTranslationString } from '../../../common/models/translation-string';
+import { DirectusApi } from '../../../../common/interfaces/directus-api';
+import { DirectusApiResultTranslationString } from '../../../../common/models/translation-string';
 import { useGetCollectionFromSchema } from '../composables/use-get-collection-from-schema';
 import type { ItemsServiceCtor } from '../types/directus-services';
 

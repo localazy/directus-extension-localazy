@@ -1,14 +1,14 @@
 import { isEmpty } from 'lodash';
 import { Project } from '@localazy/api-client';
-import { Settings } from '../../../common/models/collections-data/settings';
-import { KeyValueEntry } from '../../../common/models/localazy-key-entry';
-import { TranslatableContent } from '../../../common/models/translatable-content';
-import { ContentFromCollections } from '../../../common/utilities/content-from-collections-service';
-import { createAsyncQueue } from '../../../common/utilities/async-queue';
-import { DirectusLocalazyAdapter } from '../../../common/services/directus-localazy-adapter';
+import { Settings } from '../../../../common/models/collections-data/settings';
+import { KeyValueEntry } from '../../../../common/models/localazy-key-entry';
+import { TranslatableContent } from '../../../../common/models/translatable-content';
+import { ContentFromCollections } from '../../../../common/utilities/content-from-collections-service';
+import { createAsyncQueue } from '../../../../common/utilities/async-queue';
+import { DirectusLocalazyAdapter } from '../../../../common/services/directus-localazy-adapter';
 import { trackLocalazyError } from '../functions/track-error';
-import { ExportToLocalazyCommonService } from '../../../common/services/export-to-localazy-common-service';
-import { LocalazyData } from '../../../common/models/collections-data/localazy-data';
+import { ExportToLocalazyCommonService } from '../../../../common/services/export-to-localazy-common-service';
+import { LocalazyData } from '../../../../common/models/collections-data/localazy-data';
 
 type ExportContentToLocalazy = {
   content: TranslatableContent;

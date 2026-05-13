@@ -1,10 +1,10 @@
 import { SchemaOverview } from '@directus/types';
 import { isEmpty } from 'lodash';
-import { TranslatableContent } from '../../../../common/models/translatable-content';
-import { TranslationStringsService } from '../../../../common/services/translation-strings-service';
+import { TranslatableContent } from '../../../../../common/models/translatable-content';
+import { TranslationStringsService } from '../../../../../common/services/translation-strings-service';
 import { BaseContentSynchronizationService } from './base-content-synchronization-service';
-import { Settings } from '../../../../common/models/collections-data/settings';
-import { ContentTransferSetupDatabase } from '../../../../common/models/collections-data/content-transfer-setup';
+import { Settings } from '../../../../../common/models/collections-data/settings';
+import { ContentTransferSetupDatabase } from '../../../../../common/models/collections-data/content-transfer-setup';
 import { DirectusApiService } from '../directus-service';
 import { trackDirectusError } from '../../functions/track-error';
 import type { DirectusLogger, ItemsServiceCtor } from '../../types/directus-services';

@@ -1,11 +1,11 @@
 import { uniqWith } from 'lodash';
 import { Locales, Project } from '@localazy/api-client';
-import { LocalazyApiThrottleService } from '../../../common/services/localazy-api-throttle-service';
+import { LocalazyApiThrottleService } from '../../../../common/services/localazy-api-throttle-service';
 import { trackLocalazyError } from '../functions/track-error';
-import { DirectusLocalazyLanguage } from '../../../common/models/directus-localazy-language';
-import { ContentFromLocalazyService } from '../../../common/services/content-from-localazy-service';
-import { EnabledField } from '../../../common/models/collections-data/content-transfer-setup';
-import { LocalazyData } from '../../../common/models/collections-data/localazy-data';
+import { DirectusLocalazyLanguage } from '../../../../common/models/directus-localazy-language';
+import { ContentFromLocalazyService } from '../../../../common/services/content-from-localazy-service';
+import { EnabledField } from '../../../../common/models/collections-data/content-transfer-setup';
+import { LocalazyData } from '../../../../common/models/collections-data/localazy-data';
 
 type FetchContentInLanguage = {
   lang: DirectusLocalazyLanguage;
