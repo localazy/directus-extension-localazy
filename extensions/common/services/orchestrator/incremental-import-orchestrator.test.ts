@@ -179,11 +179,16 @@ function makeInMemoryLockStore(initial: Partial<LockState> = {}) {
     },
     async acquire(initiator, token) {
       acquireCalls.push({ initiator, token });
+      // Mirrors production: `pending` is intentionally NOT overwritten on acquire.
+      // A contender's `markPending()` set before our acquire (e.g. after the prior
+      // run's release-clear but before our token landed) must survive — release
+      // then re-fires once. Stomping the bit here would silently drop the contender's
+      // "please re-fire me" signal.
       state = {
+        ...state,
         in_progress: true,
         started_at: new Date().toISOString(),
         initiator,
-        pending: false,
         items_processed: 0,
         last_heartbeat_at: null,
         acquired_token: token,
@@ -756,6 +761,26 @@ describe('runIncrementalImport — orchestrator', () => {
       expect(lock.state.pending).toBe(false);
       // The fetcher saw exactly 2 calls — first run + 1 bounded re-fire.
       expect(callIndex).toBe(2);
+    });
+
+    it('preserves a contender-set dirty bit through acquire (no stomp)', async () => {
+      // Setup: prior run released cleanly, then a contender between then and our
+      // acquire called `markPending()` and surrendered. The on-disk state therefore
+      // has `pending: true` with no current holder. `acquire` must NOT overwrite
+      // that bit — otherwise the contender's "please re-fire me" signal silently
+      // drops, and the work they wanted picked up never gets picked up. This test
+      // would have falsely passed before the production fix that stopped writing
+      // `sync_pending: false` in the acquire payload.
+      const lock = makeInMemoryLockStore({ in_progress: false, pending: true });
+      const empty: LocalazyContent = { collections: new Map(), translationStrings: new Map() };
+      const { fetcher } = makeContentFetcher(empty);
+
+      await runIncrementalImport(makeAdapters({ localazyContentFetcher: fetcher, lockStore: lock.store }), baseParams);
+
+      // Two acquires: the initial run + the re-fire triggered by the preserved bit.
+      expect(lock.acquireCalls).toHaveLength(2);
+      // After both releases, the bit is cleared.
+      expect(lock.state.pending).toBe(false);
     });
 
     it('stale by heartbeat: contender takes over despite in_progress=true', async () => {
