@@ -4,6 +4,7 @@ import {
   ImportJsonRequest,
   KeyUpdateRequest,
   ProjectsListRequest,
+  WebhooksGetSecretRequest,
   WebhooksListRequest,
   WebhooksUpdateRequest,
 } from '@localazy/api-client';
@@ -154,5 +155,10 @@ export class LocalazyApiThrottleService {
   static async updateWebhooks(token: string, options: WebhooksUpdateRequest) {
     this.localazyApi = getLocalazyApi(token);
     return localazyRequestProcessor.addRequest(() => this.localazyApi.webhooks.update(options));
+  }
+
+  static async getWebhookSecret(token: string, options: WebhooksGetSecretRequest) {
+    this.localazyApi = getLocalazyApi(token);
+    return localazyRequestProcessor.addRequest(() => this.localazyApi.webhooks.getSecret(options));
   }
 }
