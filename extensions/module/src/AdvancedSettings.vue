@@ -120,11 +120,22 @@ function formatTimestamp(value: string | null | undefined): string {
   return new Date(ms).toLocaleString();
 }
 
+/**
+ * Map the persisted `sync_initiator` to a human-readable label for the operator-tools
+ * details block. The lock's `sync_initiator` is one of four values per the orchestrator's
+ * `runIncrementalImport` contract: `'webhook'` (server-side webhook flow),
+ * `'ui-incremental'` / `'ui-full'` (browser-initiated sync), or `''` (no sync has ever
+ * run, in which case this block isn't rendered anyway because `syncLookStuck` requires
+ * `sync_in_progress`). Anything else falls through to `'Unknown'` rather than leaking a
+ * raw user UUID into the UI.
+ */
 const lockInitiatorLabel = computed(() => {
   const initiator = syncStateData.value.sync_initiator;
   if (!initiator) return '—';
   if (initiator === 'webhook') return 'Webhook';
-  return initiator;
+  if (initiator === 'ui-incremental') return 'User-initiated (incremental)';
+  if (initiator === 'ui-full') return 'User-initiated (full sync)';
+  return 'Unknown';
 });
 
 const lockStartedAtLabel = computed(() => formatTimestamp(syncStateData.value.sync_started_at));

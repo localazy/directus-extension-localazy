@@ -483,8 +483,14 @@ describe('SyncLogWriter failure-notification side-effect', () => {
     }).syncLogWriter;
   }
 
-  /** Helper: start a session, returning its id. Default event_type is the real webhook value. */
-  async function start(writer: ReturnType<typeof buildWriter>, eventType = 'webhook'): Promise<string> {
+  /**
+   * Helper: start a session, returning its id. Default `event_type` mirrors what the
+   * orchestrator persists for webhook-driven runs (`download-incremental` via
+   * `eventTypeForMode('incremental')`) — NOT the literal `'webhook'`, which is only
+   * used by early-reject rows that bypass `finish()`. Tests can override to exercise
+   * other event_type values.
+   */
+  async function start(writer: ReturnType<typeof buildWriter>, eventType = 'download-incremental'): Promise<string> {
     return writer.startSession({ eventType, initiator: 'webhook', initiatorUser: null });
   }
 
@@ -533,12 +539,14 @@ describe('SyncLogWriter failure-notification side-effect', () => {
   });
 
   it('suppresses a follow-up failure inside the 12h dedupe window', async () => {
-    // Seed a prior webhook failure 30 minutes ago.
+    // Seed a prior webhook failure 30 minutes ago. `event_type` matches the production
+    // value the orchestrator persists for incremental webhook runs; `initiator: 'webhook'`
+    // is what the dedupe filter actually keys off.
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
     fake.tables.set('localazy_sync_log', [
       {
         id: 'prior-1',
-        event_type: 'webhook',
+        event_type: 'download-incremental',
         status: 'failed',
         started_at: thirtyMinutesAgo,
         finished_at: thirtyMinutesAgo,
@@ -558,12 +566,13 @@ describe('SyncLogWriter failure-notification side-effect', () => {
   });
 
   it('does not suppress when the prior failure is outside the window', async () => {
-    // Seed a prior webhook failure 13h ago — past the 12h cut-off.
+    // Seed a prior webhook failure 13h ago — past the 12h cut-off. Same realistic
+    // `event_type` + `initiator` pairing as the in-window test above.
     const longAgo = new Date(Date.now() - 13 * 60 * 60 * 1000).toISOString();
     fake.tables.set('localazy_sync_log', [
       {
         id: 'prior-1',
-        event_type: 'webhook',
+        event_type: 'download-incremental',
         status: 'failed',
         started_at: longAgo,
         finished_at: longAgo,

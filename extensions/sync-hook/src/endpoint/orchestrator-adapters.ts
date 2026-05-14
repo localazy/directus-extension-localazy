@@ -60,17 +60,6 @@ const LOCALAZY_COLLECTIONS = {
 const FAILURE_STATUSES: ReadonlySet<string> = new Set(['failed', 'partial', 'aborted']);
 
 /**
- * Subject lines for the bell-icon notification. `'partial'` gets a softer phrasing
- * because the import did run and some content landed — the row also gives the operator
- * a click-through to inspect the per-language errors. `'failed'` / `'aborted'` get the
- * stronger phrasing because nothing useful happened.
- */
-function notificationSubjectFor(status: string): string {
-  if (status === 'partial') return 'Localazy automated import completed with errors';
-  return 'Localazy automated import failed';
-}
-
-/**
  * Construct an `ItemsService` for a given collection using the supplied accountability.
  * Centralised so every adapter writes with consistent options (emitEvents off so hook
  * writes don't recurse, schema threaded through).
@@ -559,6 +548,14 @@ function buildSyncLogWriter(
  * Read the most recent prior webhook-initiated failure session, excluding the session
  * that's about to emit the notification. Returns `null` when no such prior row exists.
  *
+ * Filters on `initiator: 'webhook'` rather than `event_type: 'webhook'` because the
+ * orchestrator persists `event_type: 'download-incremental'` (via `eventTypeForMode(mode)`)
+ * for webhook-driven runs that reach `finish()`. The literal `'webhook'` `event_type`
+ * only appears on early-reject rows (HMAC mismatch, missing user, etc.) which bypass
+ * `SyncLogWriter.finish()` and therefore never emit notifications. `initiator` is the
+ * correct discriminator — the webhook handler sets it explicitly via the orchestrator's
+ * `initiator: 'webhook'` parameter.
+ *
  * The current-session exclusion (`id: { _neq: sessionId }`) matters because the
  * just-finalised row is itself a webhook failure — without the exclusion we'd suppress
  * the very notification we're trying to emit on the very first failure of a stretch.
@@ -571,7 +568,7 @@ async function readMostRecentPriorWebhookFailure(
   const service = makeItemsService<Partial<SyncLogSession>>(ItemsService, LOCALAZY_COLLECTIONS.syncLog, schema, null);
   const rows = await service.readByQuery({
     filter: {
-      event_type: { _eq: 'webhook' },
+      initiator: { _eq: 'webhook' },
       status: { _in: ['failed', 'partial', 'aborted'] },
       id: { _neq: excludeSessionId },
     },
@@ -629,11 +626,14 @@ async function emitFailureNotification(args: {
   ) {
     return;
   }
+  // Subject phrasing: `'partial'` gets a softer line because the import did run and some
+  // content landed (the row gives the operator a click-through to per-language errors);
+  // `'failed'` / `'aborted'` get the stronger "failed" subject because nothing landed.
   const service = makeItemsService<DirectusNotificationRow>(ItemsService, 'directus_notifications', schema, null);
   await service.createOne(
     {
       recipient: recipientUserId,
-      subject: notificationSubjectFor(status),
+      subject: status === 'partial' ? 'Localazy automated import completed with errors' : 'Localazy automated import failed',
       message: summary,
       status: 'inbox',
       collection: LOCALAZY_COLLECTIONS.syncLog,

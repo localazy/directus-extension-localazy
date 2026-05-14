@@ -6,10 +6,12 @@
  * `directus_notifications` row — 60+ identical notifications in the bell-icon dropdown
  * before the operator notices.
  *
- * Rule: skip the notification when the most-recent prior webhook-initiated session that
- * also ended in failure (`failed | partial | aborted`) finished within the dedupe window.
- * A successful webhook between two failures resets the dedupe — the most-recent prior
- * session is no longer a failure, so the next failure notifies.
+ * Rule: skip the notification when the most-recent prior webhook-initiated failure (any
+ * `failed`/`partial`/`aborted` status, ignoring successful rows in between) finished
+ * within the last 12 hours. Successful syncs do NOT reset the dedupe — the lookup query
+ * filters them out entirely, so they're invisible. The window is wall-clock from the
+ * prior failure's `finished_at`, so once 12h elapses the next failure always notifies —
+ * even if the failure mode is the same revoked-token error in a tight retry loop.
  */
 
 /**

@@ -54,13 +54,21 @@ export function formatEventType(eventType: string): string {
 }
 
 /**
- * `initiator` → human-readable label. `'webhook'` is the literal label the bundle
- * persists; anything else is interpreted as a Directus user id which the caller may
- * resolve through `lookupUserName`. Pure — the optional name lookup is decoupled so
- * the formatter stays synchronous + testable.
+ * `initiator` → human-readable label. Three input shapes are expected — the orchestrator
+ * always populates `initiator` on persisted rows, so the function doesn't defend against
+ * an empty value:
+ *
+ * - The literal `'webhook'` → `"Triggered by webhook"`. Both the webhook handler's
+ *   early-reject rows and the orchestrator's webhook-driven runs persist this value.
+ * - A Directus user id WITH a successful `lookupUserName` resolve → `"Triggered by <name>"`.
+ *   Only the currently-logged-in user's name is reachable synchronously; other ids fall
+ *   through to the generic label.
+ * - A Directus user id WITHOUT a lookup (or one returning `null`) → `"Triggered by user"`.
+ *
+ * Pure — the optional name lookup is decoupled so the formatter stays synchronous and
+ * testable.
  */
 export function formatInitiator(initiator: string, lookupUserName?: (userId: string) => string | null): string {
-  if (!initiator) return '—';
   if (initiator === 'webhook') return 'Triggered by webhook';
   const resolved = lookupUserName?.(initiator);
   if (resolved) return `Triggered by ${resolved}`;

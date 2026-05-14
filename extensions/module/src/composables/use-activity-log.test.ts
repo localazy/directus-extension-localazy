@@ -216,8 +216,4 @@ describe('formatInitiator', () => {
   it('falls back to a generic label when no lookup is supplied for a non-webhook initiator', () => {
     expect(formatInitiator('user-1')).toBe('Triggered by user');
   });
-
-  it('returns an em-dash for an empty initiator', () => {
-    expect(formatInitiator('')).toBe('—');
-  });
 });

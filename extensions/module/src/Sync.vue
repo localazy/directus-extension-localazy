@@ -145,10 +145,10 @@ const { sessions: syncLogSessions } = storeToRefs(syncLogStore);
 const directusUserStore = useDirectusUserStore();
 
 /**
- * Resolve a Directus user id to a display name. Only the current admin user is reachable
- * from `useUserStore()` without an extra `/users` round-trip — that's enough for the
- * common case (operator looks at the banner for a sync they just kicked off). For other
- * user ids, `formatInitiator` falls back to the generic "Triggered by user" label.
+ * Resolve a Directus user id to a display name. Only the current logged-in user is
+ * reachable from `useUserStore()` without an extra `/users` round-trip — enough for the
+ * common case (the operator who triggered this run is also viewing this page). For any
+ * other user id, `formatInitiator` falls back to the generic "Triggered by user" label.
  */
 function lookupUserName(userId: string): string | null {
   const current = directusUserStore.currentUser;
