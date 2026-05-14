@@ -31,6 +31,43 @@ export function tabForEventType(eventType: string): ActivityTab {
 }
 
 /**
+ * Free-string `event_type` → human-readable label. Mirrors the values the orchestrator
+ * + webhook flow persist (`download-incremental`, `download-full`, `upload-incremental`,
+ * `upload-full`, `webhook`). Unknown values pass through verbatim so a future
+ * `event_type` doesn't disappear from the UI before we've taught the mapping. Pure.
+ */
+export function formatEventType(eventType: string): string {
+  switch (eventType) {
+    case 'download-incremental':
+      return 'Incremental download';
+    case 'download-full':
+      return 'Full download';
+    case 'upload-incremental':
+      return 'Incremental upload';
+    case 'upload-full':
+      return 'Full upload';
+    case 'webhook':
+      return 'Webhook';
+    default:
+      return eventType;
+  }
+}
+
+/**
+ * `initiator` → human-readable label. `'webhook'` is the literal label the bundle
+ * persists; anything else is interpreted as a Directus user id which the caller may
+ * resolve through `lookupUserName`. Pure — the optional name lookup is decoupled so
+ * the formatter stays synchronous + testable.
+ */
+export function formatInitiator(initiator: string, lookupUserName?: (userId: string) => string | null): string {
+  if (!initiator) return '—';
+  if (initiator === 'webhook') return 'Triggered by webhook';
+  const resolved = lookupUserName?.(initiator);
+  if (resolved) return `Triggered by ${resolved}`;
+  return 'Triggered by user';
+}
+
+/**
  * Returns duration in milliseconds, or `null` if the session hasn't finished. Used by
  * both the table sort and the "Duration" column rendering.
  */

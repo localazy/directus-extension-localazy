@@ -3,6 +3,8 @@ import {
   compareSessions,
   filterSessions,
   formatDuration,
+  formatEventType,
+  formatInitiator,
   paginate,
   parseSortPreferences,
   PAGE_SIZE,
@@ -179,5 +181,43 @@ describe('parseSortPreferences / serializeSortPreferences', () => {
     expect(parseSortPreferences('')).toEqual({});
     expect(parseSortPreferences('not json')).toEqual({});
     expect(parseSortPreferences('null')).toEqual({});
+  });
+});
+
+describe('formatEventType', () => {
+  it('maps each known event type to a human-readable label', () => {
+    expect(formatEventType('download-incremental')).toBe('Incremental download');
+    expect(formatEventType('download-full')).toBe('Full download');
+    expect(formatEventType('upload-incremental')).toBe('Incremental upload');
+    expect(formatEventType('upload-full')).toBe('Full upload');
+    expect(formatEventType('webhook')).toBe('Webhook');
+  });
+
+  it('passes unknown values through verbatim so future event types remain visible', () => {
+    expect(formatEventType('some-future-event')).toBe('some-future-event');
+  });
+});
+
+describe('formatInitiator', () => {
+  it('returns the webhook label for the literal "webhook" initiator', () => {
+    expect(formatInitiator('webhook')).toBe('Triggered by webhook');
+  });
+
+  it('returns the resolved user name when the lookup succeeds', () => {
+    const lookup = (id: string) => (id === 'user-1' ? 'Alice' : null);
+    expect(formatInitiator('user-1', lookup)).toBe('Triggered by Alice');
+  });
+
+  it('falls back to a generic label when the lookup returns null', () => {
+    const lookup = () => null;
+    expect(formatInitiator('user-1', lookup)).toBe('Triggered by user');
+  });
+
+  it('falls back to a generic label when no lookup is supplied for a non-webhook initiator', () => {
+    expect(formatInitiator('user-1')).toBe('Triggered by user');
+  });
+
+  it('returns an em-dash for an empty initiator', () => {
+    expect(formatInitiator('')).toBe('—');
   });
 });

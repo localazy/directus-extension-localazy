@@ -23,6 +23,7 @@ import { useGetCollectionFromSchema } from '../hook/composables/use-get-collecti
 import type { DirectusLogger, ItemsServiceCtor } from '../hook/types/directus-services';
 import { SyncLogEntry, SyncLogSession } from '../../../common/models/collections-data/sync-log';
 import { appendEntryToJson, idsToTrim } from '../../../common/utilities/sync-log-helpers';
+import { FAILURE_NOTIFICATION_WINDOW_MS, shouldSuppressFailureNotification } from './notification-dedupe';
 
 /**
  * Shape of the `localazy_sync_state` row the orchestrator's lock cares about. Mirrors the
@@ -49,6 +50,25 @@ const LOCALAZY_COLLECTIONS = {
   syncState: 'localazy_sync_state',
   syncLog: 'localazy_sync_log',
 } as const;
+
+/**
+ * Statuses that count as "user-actionable failure" for the bell-icon notification path.
+ * `'aborted'` is rare (the orchestrator only emits it when a fetch step fails before the
+ * write phase), but it's still a failure mode the operator needs to see. `'skipped'` is
+ * deliberately NOT included — that's a healthy "nothing to do" outcome.
+ */
+const FAILURE_STATUSES: ReadonlySet<string> = new Set(['failed', 'partial', 'aborted']);
+
+/**
+ * Subject lines for the bell-icon notification. `'partial'` gets a softer phrasing
+ * because the import did run and some content landed — the row also gives the operator
+ * a click-through to inspect the per-language errors. `'failed'` / `'aborted'` get the
+ * stronger phrasing because nothing useful happened.
+ */
+function notificationSubjectFor(status: string): string {
+  if (status === 'partial') return 'Localazy automated import completed with errors';
+  return 'Localazy automated import failed';
+}
 
 /**
  * Construct an `ItemsService` for a given collection using the supplied accountability.
@@ -395,6 +415,22 @@ function buildProgressSink(logger: DirectusLogger): ProgressSink {
 }
 
 /**
+ * Configuration for the bell-icon notification side-effect on the server-side
+ * `SyncLogWriter`. Optional — callers that don't need notifications (the unit tests,
+ * future non-webhook paths) can omit it and the writer behaves exactly like the
+ * module-side adapter.
+ *
+ * `recipientUserId` is the `automated_import_user` resolved by the webhook handler. We
+ * already know they're an Admin (the gating layer confirmed it) so the bell icon will
+ * be visible to them. `logger` is used only for the fire-and-forget error breadcrumb if
+ * the notification write itself throws.
+ */
+type NotifyOnFailureConfig = {
+  recipientUserId: string;
+  logger: DirectusLogger;
+};
+
+/**
  * Server-side `SyncLogWriter`. Same per-session promise chain as the module-side adapter
  * so concurrent `appendEntry` fire-and-forgets don't interleave their read-modify-write
  * cycles. Writes through `ItemsService` instead of `useApi()`.
@@ -402,8 +438,18 @@ function buildProgressSink(logger: DirectusLogger): ProgressSink {
  * Retention trim deletes everything past `SYNC_LOG_RETENTION` rows ordered by
  * `started_at desc`. Directus' `ItemsService.deleteMany(ids)` accepts an array of ids
  * which maps to the SQL `DELETE … WHERE id IN (…)` bulk delete.
+ *
+ * When `notifyOnFailure` is supplied, `finish()` additionally writes a
+ * `directus_notifications` row addressed to the recipient whenever the terminal status
+ * is one of the failure variants AND no recent prior webhook failure has notified
+ * inside the dedupe window. The notification write is best-effort — failures are logged
+ * but never propagate; the sync's outcome is already persisted in `localazy_sync_log`.
  */
-function buildSyncLogWriter(ItemsService: ItemsServiceCtor, schema: SchemaOverview): SyncLogWriter {
+function buildSyncLogWriter(
+  ItemsService: ItemsServiceCtor,
+  schema: SchemaOverview,
+  notifyOnFailure: NotifyOnFailureConfig | null,
+): SyncLogWriter {
   const appendChains = new Map<string, Promise<void>>();
 
   async function readEntries(sessionId: string): Promise<string> {
@@ -486,8 +532,115 @@ function buildSyncLogWriter(ItemsService: ItemsServiceCtor, schema: SchemaOvervi
         // Even finalisation is best-effort.
       }
       await trimToRetention();
+
+      // Fire-and-forget bell-icon notification on failure. Wrapped in a single
+      // try/catch so a missing notifications collection, a permissions error, or any
+      // other write-time failure can't propagate up into the orchestrator's `finally`
+      // and mask the primary outcome.
+      if (notifyOnFailure && FAILURE_STATUSES.has(params.status)) {
+        try {
+          await emitFailureNotification({
+            ItemsService,
+            schema,
+            sessionId,
+            status: params.status,
+            summary: params.summary,
+            recipientUserId: notifyOnFailure.recipientUserId,
+          });
+        } catch (err) {
+          notifyOnFailure.logger.warn({ err, sessionId }, 'Localazy webhook: failure notification emit threw');
+        }
+      }
     },
   };
+}
+
+/**
+ * Read the most recent prior webhook-initiated failure session, excluding the session
+ * that's about to emit the notification. Returns `null` when no such prior row exists.
+ *
+ * The current-session exclusion (`id: { _neq: sessionId }`) matters because the
+ * just-finalised row is itself a webhook failure — without the exclusion we'd suppress
+ * the very notification we're trying to emit on the very first failure of a stretch.
+ */
+async function readMostRecentPriorWebhookFailure(
+  ItemsService: ItemsServiceCtor,
+  schema: SchemaOverview,
+  excludeSessionId: string,
+): Promise<{ finished_at: string | null } | null> {
+  const service = makeItemsService<Partial<SyncLogSession>>(ItemsService, LOCALAZY_COLLECTIONS.syncLog, schema, null);
+  const rows = await service.readByQuery({
+    filter: {
+      event_type: { _eq: 'webhook' },
+      status: { _in: ['failed', 'partial', 'aborted'] },
+      id: { _neq: excludeSessionId },
+    },
+    sort: ['-started_at'],
+    limit: 1,
+  });
+  const row = rows[0];
+  if (!row) return null;
+  return { finished_at: row.finished_at ?? null };
+}
+
+/**
+ * Notification row shape Directus' `directus_notifications` collection accepts. The
+ * `status: 'inbox'` value mirrors what Directus' own UI uses for an unread notification
+ * — the alternative is `'archived'`, which would file it away without showing on the
+ * bell icon.
+ *
+ * Setting `collection` + `item` lets the bell-icon dropdown render the notification as a
+ * clickable link to the corresponding `localazy_sync_log` row. The Activity detail page
+ * picks up that route via Directus' standard `/admin/content/{collection}/{item}` URL
+ * pattern (the module's Activity page mirrors that route under
+ * `/admin/localazy/activity/{id}`; we let Directus pick the more general one for the
+ * notification click-through).
+ */
+type DirectusNotificationRow = {
+  recipient: string;
+  subject: string;
+  message: string;
+  status: string;
+  collection?: string;
+  item?: string;
+};
+
+/**
+ * Emit the failure notification, gated by the dedupe rule. Pulled into a free function so
+ * the `finish()` call site stays readable; not exported because the dedupe + emit pair
+ * is meaningful only as a unit.
+ */
+async function emitFailureNotification(args: {
+  ItemsService: ItemsServiceCtor;
+  schema: SchemaOverview;
+  sessionId: string;
+  status: string;
+  summary: string;
+  recipientUserId: string;
+}): Promise<void> {
+  const { ItemsService, schema, sessionId, status, summary, recipientUserId } = args;
+  const prior = await readMostRecentPriorWebhookFailure(ItemsService, schema, sessionId);
+  if (
+    shouldSuppressFailureNotification({
+      now: new Date(),
+      mostRecentPriorFailure: prior,
+      windowMs: FAILURE_NOTIFICATION_WINDOW_MS,
+    })
+  ) {
+    return;
+  }
+  const service = makeItemsService<DirectusNotificationRow>(ItemsService, 'directus_notifications', schema, null);
+  await service.createOne(
+    {
+      recipient: recipientUserId,
+      subject: notificationSubjectFor(status),
+      message: summary,
+      status: 'inbox',
+      collection: LOCALAZY_COLLECTIONS.syncLog,
+      item: sessionId,
+    },
+    { emitEvents: false } as MutationOptions,
+  );
 }
 
 export type ServerOrchestratorAdaptersInput = {
@@ -502,6 +655,14 @@ export type ServerOrchestratorAdaptersInput = {
    */
   writeAccountability: Accountability | null;
   localazyProject: Project;
+  /**
+   * Directus user id that bell-icon failure notifications are addressed to. Optional —
+   * when omitted (e.g. from the existing adapter tests that don't exercise the notify
+   * path), the writer skips the notification emit and the rest of the adapter behaves
+   * unchanged. The webhook handler always supplies the resolved `automated_import_user`
+   * id here.
+   */
+  notificationRecipientUserId?: string | null;
 };
 
 /**
@@ -516,8 +677,12 @@ export type ServerOrchestratorAdaptersInput = {
 export function buildServerOrchestratorAdapters(input: ServerOrchestratorAdaptersInput): OrchestratorAdapters & {
   syncLogWriter: SyncLogWriter;
 } {
-  const { ItemsService, schema, logger, writeAccountability, localazyProject } = input;
+  const { ItemsService, schema, logger, writeAccountability, localazyProject, notificationRecipientUserId } = input;
   const onDirectusError: ErrorSink = (err) => logger.error({ err }, 'Localazy webhook: orchestrator write error');
+
+  const notifyOnFailure: NotifyOnFailureConfig | null = notificationRecipientUserId
+    ? { recipientUserId: notificationRecipientUserId, logger }
+    : null;
 
   return {
     cursorStore: buildCursorStore(ItemsService, schema, localazyProject, logger),
@@ -527,7 +692,7 @@ export function buildServerOrchestratorAdapters(input: ServerOrchestratorAdapter
     directusApi: new WebhookDirectusApi(ItemsService, schema, writeAccountability),
     resolveLanguageFkField: buildResolveLanguageFkField(schema),
     onDirectusError,
-    syncLogWriter: buildSyncLogWriter(ItemsService, schema),
+    syncLogWriter: buildSyncLogWriter(ItemsService, schema, notifyOnFailure),
     // `syncLogInitiator` is supplied by the endpoint handler — it's the per-request
     // bit ("webhook" + `null` user), not adapter-state.
   };
