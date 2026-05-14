@@ -24,17 +24,34 @@
           A sync has been running for more than 5 minutes without finishing. If you're sure no sync is in flight (e.g. the Directus instance
           was restarted mid-run), clear the lock so the next Import can proceed.
         </p>
-        <v-button kind="warning" small @click="onClearStuckSync"> Clear stuck sync </v-button>
+
+        <dl class="lock-state" data-testid="lock-state-details">
+          <div class="lock-state-row">
+            <dt>Initiator</dt>
+            <dd>{{ lockInitiatorLabel }}</dd>
+          </div>
+          <div class="lock-state-row">
+            <dt>Started at</dt>
+            <dd>{{ lockStartedAtLabel }}</dd>
+          </div>
+          <div class="lock-state-row">
+            <dt>Last heartbeat</dt>
+            <dd>{{ lockLastHeartbeatLabel }}</dd>
+          </div>
+        </dl>
+
+        <v-button kind="warning" small :disabled="clearing" :loading="clearing" @click="onClearStuckSync"> Clear stuck sync </v-button>
         <v-dialog v-model="showClearConfirmDialog" @esc="showClearConfirmDialog = false">
           <v-card>
             <v-card-title>Clear the stuck sync lock?</v-card-title>
             <v-card-text>
-              This forces the sync state to "idle" without verifying whether a run is actually live. Use only if you're sure no sync is in
-              progress.
+              Clearing the lock will let the next sync proceed. Any in-flight work (server-side or another browser tab) will be abandoned
+              but will not be undone — partially-imported translations stay in place. Use this only if a sync has been stuck for more than 5
+              minutes.
             </v-card-text>
             <v-card-actions>
               <v-button secondary @click="showClearConfirmDialog = false">Cancel</v-button>
-              <v-button kind="warning" :loading="clearing" @click="confirmClearStuckSync">Clear lock</v-button>
+              <v-button kind="warning" :disabled="clearing" :loading="clearing" @click="confirmClearStuckSync">Clear lock</v-button>
             </v-card-actions>
           </v-card>
         </v-dialog>
@@ -92,6 +109,38 @@ const syncLookStuck = computed(() => {
   return now.value - startedMs > SYNC_LOCK_STUCK_HINT_MS;
 });
 
+/**
+ * Pretty-format an ISO timestamp using the browser locale. Returns `'—'` when the field
+ * is missing / unparseable so the operator-tools details block doesn't leak raw `null`s.
+ */
+function formatTimestamp(value: string | null | undefined): string {
+  if (!value) return '—';
+  const ms = Date.parse(value);
+  if (!Number.isFinite(ms)) return value;
+  return new Date(ms).toLocaleString();
+}
+
+/**
+ * Map the persisted `sync_initiator` to a human-readable label for the operator-tools
+ * details block. The lock's `sync_initiator` is one of four values per the orchestrator's
+ * `runIncrementalImport` contract: `'webhook'` (server-side webhook flow),
+ * `'ui-incremental'` / `'ui-full'` (browser-initiated sync), or `''` (no sync has ever
+ * run, in which case this block isn't rendered anyway because `syncLookStuck` requires
+ * `sync_in_progress`). Anything else falls through to `'Unknown'` rather than leaking a
+ * raw user UUID into the UI.
+ */
+const lockInitiatorLabel = computed(() => {
+  const initiator = syncStateData.value.sync_initiator;
+  if (!initiator) return '—';
+  if (initiator === 'webhook') return 'Webhook';
+  if (initiator === 'ui-incremental') return 'User-initiated (incremental)';
+  if (initiator === 'ui-full') return 'User-initiated (full sync)';
+  return 'Unknown';
+});
+
+const lockStartedAtLabel = computed(() => formatTimestamp(syncStateData.value.sync_started_at));
+const lockLastHeartbeatLabel = computed(() => formatTimestamp(syncStateData.value.sync_last_heartbeat_at));
+
 function onClearStuckSync() {
   showClearConfirmDialog.value = true;
 }
@@ -111,7 +160,7 @@ async function confirmClearStuckSync() {
       sync_last_heartbeat_at: null,
       acquired_token: '',
     });
-    notificationsStore.add({ title: 'Sync lock cleared' });
+    notificationsStore.add({ title: 'Sync lock cleared', type: 'success' });
     showClearConfirmDialog.value = false;
   } finally {
     clearing.value = false;
@@ -170,5 +219,33 @@ async function onSaveChanges() {
   color: var(--foreground-subdued);
   margin: 0 0 12px 0;
   max-width: 640px;
+}
+
+.lock-state {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0 0 16px 0;
+  padding: 8px 12px;
+  background: var(--background-normal);
+  border: 1px solid var(--border-subdued);
+  border-radius: var(--border-radius);
+  font-size: 12px;
+  max-width: 640px;
+}
+
+.lock-state-row {
+  display: contents;
+
+  dt {
+    color: var(--foreground-subdued);
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+    color: var(--foreground-normal);
+    font-family: var(--family-monospace);
+  }
 }
 </style>

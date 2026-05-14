@@ -98,6 +98,8 @@ import { useLocalazyTransferSetupStore } from './stores/localazy-transfer-setup-
 import { useLocalazyConfigurationStatus } from './composables/use-localazy-configuration-status';
 import { useLocalazyBoot } from './composables/use-localazy-boot';
 import { useLocalazySyncLogStore } from './stores/localazy-sync-log-store';
+import { useDirectusUserStore } from './composables/use-directus-stores';
+import { formatEventType, formatInitiator } from './composables/use-activity-log';
 import { EnabledField } from '../../common/models/collections-data/content-transfer-setup';
 import { EnabledFieldsService } from '../../common/utilities/enabled-fields-service';
 import { defaultConfiguration } from './data/default-configuration';
@@ -140,6 +142,21 @@ const { hasIncompleteConfiguration } = useLocalazyConfigurationStatus();
 const router = useRouter();
 const syncLogStore = useLocalazySyncLogStore();
 const { sessions: syncLogSessions } = storeToRefs(syncLogStore);
+const directusUserStore = useDirectusUserStore();
+
+/**
+ * Resolve a Directus user id to a display name. Only the current logged-in user is
+ * reachable from `useUserStore()` without an extra `/users` round-trip — enough for the
+ * common case (the operator who triggered this run is also viewing this page). For any
+ * other user id, `formatInitiator` falls back to the generic "Triggered by user" label.
+ */
+function lookupUserName(userId: string): string | null {
+  const current = directusUserStore.currentUser;
+  if (!current || current.id !== userId) return null;
+  const name = [current.first_name, current.last_name].filter(Boolean).join(' ').trim();
+  if (name) return name;
+  return current.email ?? null;
+}
 
 /**
  * Most recent sync log session, used for the "Last sync" banner below the notices.
@@ -159,7 +176,15 @@ const lastSyncBanner = computed(() => {
   const startStr = Number.isFinite(startedMs) ? new Date(startedMs).toLocaleString() : last.started_at;
   const durationStr =
     finishedMs && Number.isFinite(finishedMs) && Number.isFinite(startedMs) ? `${((finishedMs - startedMs) / 1000).toFixed(1)}s` : null;
-  const parts = [`Last sync: ${startStr}`, `(${last.event_type}, ${last.items_processed} items${durationStr ? `, ${durationStr}` : ''})`];
+
+  // Initiator + event-type rendering: for webhook flows the initiator already implies
+  // the event_type, so we drop the redundant "Webhook" label in that case. UI flows
+  // render both ("Triggered by Alice — Incremental download").
+  const initiatorLabel = formatInitiator(last.initiator, lookupUserName);
+  const eventTypeLabel = last.initiator === 'webhook' ? null : formatEventType(last.event_type);
+  const headlineSuffix = eventTypeLabel ? `${initiatorLabel} — ${eventTypeLabel}` : initiatorLabel;
+
+  const parts = [`Last sync: ${startStr}`, `(${headlineSuffix}, ${last.items_processed} items${durationStr ? `, ${durationStr}` : ''})`];
   parts.push(`— ${last.status}`);
   return parts.join(' ');
 });

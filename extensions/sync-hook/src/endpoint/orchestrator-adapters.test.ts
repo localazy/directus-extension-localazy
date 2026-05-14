@@ -14,6 +14,26 @@ const unused = (): never => {
 };
 
 /**
+ * Minimal Directus filter matcher. Supports the operators the adapter actually issues —
+ * `_eq`, `_in`, `_neq` — applied as an implicit AND across the top-level keys. Anything
+ * the real Directus filter DSL supports beyond these is intentionally absent; if a new
+ * filter shape lands in adapter code, this fake gets a one-line extension.
+ */
+function matchesFilter(row: Record<string, unknown>, filter: Record<string, unknown>): boolean {
+  for (const [field, predicate] of Object.entries(filter)) {
+    const value = row[field];
+    const pred = predicate as Record<string, unknown>;
+    if ('_eq' in pred && value !== pred._eq) return false;
+    if ('_neq' in pred && value === pred._neq) return false;
+    if ('_in' in pred) {
+      const list = pred._in as unknown[];
+      if (!list.includes(value)) return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Minimal in-memory `ItemsService` fake the adapter tests run against. Surfaces a
  * constructor-call spy so tests can assert that adapters use the expected accountability
  * (`null` for lock/cursor/sync_log, the webhook user's accountability for translation
@@ -51,8 +71,11 @@ function makeFakeItemsService(initial: Record<string, FakeRow[]>) {
       this.collection = collection;
       ctorCalls.push({ collection, options });
     }
-    async readByQuery(q: { sort?: string[] } = {}): Promise<T[]> {
-      const list = ((tables.get(this.collection) ?? []) as T[]).slice();
+    async readByQuery(q: { sort?: string[]; filter?: Record<string, unknown>; limit?: number } = {}): Promise<T[]> {
+      let list = ((tables.get(this.collection) ?? []) as T[]).slice();
+      if (q.filter) {
+        list = list.filter((row) => matchesFilter(row as Record<string, unknown>, q.filter ?? {}));
+      }
       const sortKey = q.sort?.[0];
       if (sortKey) {
         const desc = sortKey.startsWith('-');
@@ -67,6 +90,9 @@ function makeFakeItemsService(initial: Record<string, FakeRow[]>) {
           if (av > bv) return desc ? -1 : 1;
           return 0;
         });
+      }
+      if (typeof q.limit === 'number' && q.limit >= 0) {
+        list = list.slice(0, q.limit);
       }
       return list;
     }
@@ -431,5 +457,182 @@ describe('WebhookDirectusApi accountability propagation', () => {
 
     const writeCall = fake.ctorCalls.find((c) => c.collection === 'posts');
     expect(writeCall?.options.accountability).toEqual(writeAccountability);
+  });
+});
+
+describe('SyncLogWriter failure-notification side-effect', () => {
+  let fake: ReturnType<typeof makeFakeItemsService>;
+  let logger: ReturnType<typeof makeLogger>;
+
+  beforeEach(() => {
+    fake = makeFakeItemsService({ localazy_sync_log: [], directus_notifications: [] });
+    logger = makeLogger();
+  });
+
+  function buildWriter(opts: { notificationRecipientUserId?: string | null } = {}) {
+    // The default recipient is `'recipient-1'`; explicit `null` from a caller suppresses
+    // the notify path entirely so we exercise the "no recipient configured" branch.
+    const recipient = 'notificationRecipientUserId' in opts ? opts.notificationRecipientUserId : 'recipient-1';
+    return buildServerOrchestratorAdapters({
+      ItemsService: fake.FakeService as ItemsServiceCtor,
+      schema: { collections: {}, relations: [] },
+      logger: asDirectusLogger(logger),
+      writeAccountability: null,
+      localazyProject: project,
+      notificationRecipientUserId: recipient,
+    }).syncLogWriter;
+  }
+
+  /**
+   * Helper: start a session, returning its id. Default `event_type` mirrors what the
+   * orchestrator persists for webhook-driven runs (`download-incremental` via
+   * `eventTypeForMode('incremental')`) — NOT the literal `'webhook'`, which is only
+   * used by early-reject rows that bypass `finish()`. Tests can override to exercise
+   * other event_type values.
+   */
+  async function start(writer: ReturnType<typeof buildWriter>, eventType = 'download-incremental'): Promise<string> {
+    return writer.startSession({ eventType, initiator: 'webhook', initiatorUser: null });
+  }
+
+  it('emits a notification on status=failed when no prior failure exists', async () => {
+    const writer = buildWriter();
+    const id = await start(writer);
+    await writer.finish(id, { status: 'failed', summary: 'boom', itemsProcessed: 0 });
+
+    const notifications = fake.tables.get('directus_notifications') ?? [];
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0]?.recipient).toBe('recipient-1');
+    expect(notifications[0]?.subject).toBe('Localazy automated import failed');
+    expect(notifications[0]?.message).toBe('boom');
+    expect(notifications[0]?.status).toBe('inbox');
+    expect(notifications[0]?.collection).toBe('localazy_sync_log');
+    expect(notifications[0]?.item).toBe(id);
+  });
+
+  it('uses the "completed with errors" subject for status=partial', async () => {
+    const writer = buildWriter();
+    const id = await start(writer);
+    await writer.finish(id, { status: 'partial', summary: 'half done', itemsProcessed: 5 });
+    const notifications = fake.tables.get('directus_notifications') ?? [];
+    expect(notifications[0]?.subject).toBe('Localazy automated import completed with errors');
+  });
+
+  it('emits a notification on status=aborted', async () => {
+    const writer = buildWriter();
+    const id = await start(writer);
+    await writer.finish(id, { status: 'aborted', summary: 'aborted before write phase', itemsProcessed: 0 });
+    expect((fake.tables.get('directus_notifications') ?? []).length).toBe(1);
+  });
+
+  it('does NOT emit a notification on status=completed', async () => {
+    const writer = buildWriter();
+    const id = await start(writer);
+    await writer.finish(id, { status: 'completed', summary: 'done', itemsProcessed: 3 });
+    expect((fake.tables.get('directus_notifications') ?? []).length).toBe(0);
+  });
+
+  it('does NOT emit a notification on status=skipped', async () => {
+    const writer = buildWriter();
+    const id = await start(writer);
+    await writer.finish(id, { status: 'skipped', summary: 'nothing to do', itemsProcessed: 0 });
+    expect((fake.tables.get('directus_notifications') ?? []).length).toBe(0);
+  });
+
+  it('suppresses a follow-up failure inside the 12h dedupe window', async () => {
+    // Seed a prior webhook failure 30 minutes ago. `event_type` matches the production
+    // value the orchestrator persists for incremental webhook runs; `initiator: 'webhook'`
+    // is what the dedupe filter actually keys off.
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    fake.tables.set('localazy_sync_log', [
+      {
+        id: 'prior-1',
+        event_type: 'download-incremental',
+        status: 'failed',
+        started_at: thirtyMinutesAgo,
+        finished_at: thirtyMinutesAgo,
+        initiator: 'webhook',
+        initiator_user: null,
+        summary: 'prior',
+        items_processed: 0,
+        entries: '[]',
+      },
+    ]);
+
+    const writer = buildWriter();
+    const id = await start(writer);
+    await writer.finish(id, { status: 'failed', summary: 'second boom', itemsProcessed: 0 });
+
+    expect((fake.tables.get('directus_notifications') ?? []).length).toBe(0);
+  });
+
+  it('does not suppress when the prior failure is outside the window', async () => {
+    // Seed a prior webhook failure 13h ago — past the 12h cut-off. Same realistic
+    // `event_type` + `initiator` pairing as the in-window test above.
+    const longAgo = new Date(Date.now() - 13 * 60 * 60 * 1000).toISOString();
+    fake.tables.set('localazy_sync_log', [
+      {
+        id: 'prior-1',
+        event_type: 'download-incremental',
+        status: 'failed',
+        started_at: longAgo,
+        finished_at: longAgo,
+        initiator: 'webhook',
+        initiator_user: null,
+        summary: 'stale prior',
+        items_processed: 0,
+        entries: '[]',
+      },
+    ]);
+
+    const writer = buildWriter();
+    const id = await start(writer);
+    await writer.finish(id, { status: 'failed', summary: 'fresh boom', itemsProcessed: 0 });
+
+    expect((fake.tables.get('directus_notifications') ?? []).length).toBe(1);
+  });
+
+  it('excludes the just-finalised session from the dedupe lookup (first failure of a stretch still notifies)', async () => {
+    // No seeded priors — the dedupe lookup must NOT return the current session (which
+    // itself was just written as `failed`). If the exclusion was buggy, we'd suppress
+    // the very notification we're trying to emit.
+    const writer = buildWriter();
+    const id = await start(writer);
+    await writer.finish(id, { status: 'failed', summary: 'first failure ever', itemsProcessed: 0 });
+
+    expect((fake.tables.get('directus_notifications') ?? []).length).toBe(1);
+  });
+
+  it('skips the notify path entirely when no recipient is configured', async () => {
+    const writer = buildWriter({ notificationRecipientUserId: null });
+    const id = await start(writer);
+    await writer.finish(id, { status: 'failed', summary: 'boom', itemsProcessed: 0 });
+    expect((fake.tables.get('directus_notifications') ?? []).length).toBe(0);
+  });
+
+  it('swallows + logs a notification-write failure rather than throwing', async () => {
+    // Override the FakeService so `createOne` on `directus_notifications` throws while
+    // every other collection still behaves normally. The finish() call must resolve
+    // without propagating the error; the logger.warn breadcrumb captures the failure.
+    const broken = makeFakeItemsService({ localazy_sync_log: [], directus_notifications: [] });
+    class FakeServiceBroken<T extends Item = Item, Collection extends string = string> extends broken.FakeService<T, Collection> {
+      override async createOne(data: Partial<T>) {
+        if (this['collection'] === 'directus_notifications') {
+          throw new Error('notifications collection unavailable');
+        }
+        return super.createOne(data);
+      }
+    }
+    const writer = buildServerOrchestratorAdapters({
+      ItemsService: FakeServiceBroken as ItemsServiceCtor,
+      schema: { collections: {}, relations: [] },
+      logger: asDirectusLogger(logger),
+      writeAccountability: null,
+      localazyProject: project,
+      notificationRecipientUserId: 'recipient-1',
+    }).syncLogWriter;
+
+    const id = await writer.startSession({ eventType: 'webhook', initiator: 'webhook', initiatorUser: null });
+    await expect(writer.finish(id, { status: 'failed', summary: 'boom', itemsProcessed: 0 })).resolves.toBeUndefined();
+    expect(logger.warn).toHaveBeenCalled();
   });
 });

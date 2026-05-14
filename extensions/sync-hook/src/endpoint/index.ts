@@ -360,13 +360,16 @@ export function createWebhookHandler(getDeps: () => Promise<RegisterDependencies
 
         // Build the orchestrator adapter bundle. Webhook-driven writes run under the
         // configured user's accountability; lock + cursor + sync_log writes use admin
-        // accountability internally regardless.
+        // accountability internally regardless. The notification recipient is the same
+        // resolved user — the bell-icon row is filed in their Directus inbox on a
+        // failure / partial / aborted outcome.
         const adapters = buildServerOrchestratorAdapters({
           ItemsService,
           schema,
           logger,
           writeAccountability,
           localazyProject,
+          notificationRecipientUserId: resolvedUser.id,
         });
 
         const enabledFields = EnabledFieldsService.parseFromDatabase(transferSetup.enabled_fields);

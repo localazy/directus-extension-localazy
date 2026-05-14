@@ -31,6 +31,51 @@ export function tabForEventType(eventType: string): ActivityTab {
 }
 
 /**
+ * Free-string `event_type` → human-readable label. Mirrors the values the orchestrator
+ * + webhook flow persist (`download-incremental`, `download-full`, `upload-incremental`,
+ * `upload-full`, `webhook`). Unknown values pass through verbatim so a future
+ * `event_type` doesn't disappear from the UI before we've taught the mapping. Pure.
+ */
+export function formatEventType(eventType: string): string {
+  switch (eventType) {
+    case 'download-incremental':
+      return 'Incremental download';
+    case 'download-full':
+      return 'Full download';
+    case 'upload-incremental':
+      return 'Incremental upload';
+    case 'upload-full':
+      return 'Full upload';
+    case 'webhook':
+      return 'Webhook';
+    default:
+      return eventType;
+  }
+}
+
+/**
+ * `initiator` → human-readable label. Callers should populate `initiator` (the
+ * orchestrator does so for every row it writes); an empty value falls through to the
+ * generic "Triggered by user" label rather than crashing. Three input shapes:
+ *
+ * - The literal `'webhook'` → `"Triggered by webhook"`. Both the webhook handler's
+ *   early-reject rows and the orchestrator's webhook-driven runs persist this value.
+ * - A Directus user id WITH a successful `lookupUserName` resolve → `"Triggered by <name>"`.
+ *   Only the currently-logged-in user's name is reachable synchronously; other ids fall
+ *   through to the generic label.
+ * - A Directus user id WITHOUT a lookup (or one returning `null`) → `"Triggered by user"`.
+ *
+ * Pure — the optional name lookup is decoupled so the formatter stays synchronous and
+ * testable.
+ */
+export function formatInitiator(initiator: string, lookupUserName?: (userId: string) => string | null): string {
+  if (initiator === 'webhook') return 'Triggered by webhook';
+  const resolved = lookupUserName?.(initiator);
+  if (resolved) return `Triggered by ${resolved}`;
+  return 'Triggered by user';
+}
+
+/**
  * Returns duration in milliseconds, or `null` if the session hasn't finished. Used by
  * both the table sort and the "Duration" column rendering.
  */
