@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { Accountability, Item, MutationOptions, Query, SchemaOverview } from '@directus/types';
 import { Project } from '@localazy/api-client';
 import { DirectusApi } from '../../../common/interfaces/directus-api';
@@ -20,8 +21,8 @@ import { ContentFromLocalazyService } from '../../../common/services/content-fro
 import { uniqWith } from 'lodash';
 import { useGetCollectionFromSchema } from '../hook/composables/use-get-collection-from-schema';
 import type { DirectusLogger, ItemsServiceCtor } from '../hook/types/directus-services';
-import { SYNC_LOG_RETENTION, SyncLogEntry, SyncLogSession } from '../../../common/models/collections-data/sync-log';
-import { appendEntryToJson, idsToTrim } from './sync-log-writer-helpers';
+import { SyncLogEntry, SyncLogSession } from '../../../common/models/collections-data/sync-log';
+import { appendEntryToJson, idsToTrim } from '../../../common/utilities/sync-log-helpers';
 
 /**
  * Shape of the `localazy_sync_state` row the orchestrator's lock cares about. Mirrors the
@@ -195,7 +196,7 @@ function buildCursorStore(
       } catch (err) {
         // Log at debug so a noisy run doesn't flood the server log, but leave a
         // breadcrumb the operator can find if a webhook run reports zero progress.
-        logger.warn({ err }, 'Localazy webhook: cursor persist failed; will retry on next flush');
+        logger.debug({ err }, 'Localazy webhook: cursor persist failed; will retry on next flush');
       }
     },
   };
@@ -403,12 +404,6 @@ function buildProgressSink(logger: DirectusLogger): ProgressSink {
  * which maps to the SQL `DELETE … WHERE id IN (…)` bulk delete.
  */
 function buildSyncLogWriter(ItemsService: ItemsServiceCtor, schema: SchemaOverview): SyncLogWriter {
-  function generateId(): string {
-    const cryptoApi = globalThis.crypto;
-    if (cryptoApi && typeof cryptoApi.randomUUID === 'function') return cryptoApi.randomUUID();
-    return `${Date.now()}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`;
-  }
-
   const appendChains = new Map<string, Promise<void>>();
 
   async function readEntries(sessionId: string): Promise<string> {
@@ -444,7 +439,7 @@ function buildSyncLogWriter(ItemsService: ItemsServiceCtor, schema: SchemaOvervi
 
   return {
     async startSession(params) {
-      const id = generateId();
+      const id = randomUUID();
       const service = makeItemsService<Partial<SyncLogSession>>(ItemsService, LOCALAZY_COLLECTIONS.syncLog, schema, null);
       await service.createOne(
         {
@@ -537,5 +532,3 @@ export function buildServerOrchestratorAdapters(input: ServerOrchestratorAdapter
     // bit ("webhook" + `null` user), not adapter-state.
   };
 }
-
-export { SYNC_LOG_RETENTION, LOCALAZY_COLLECTIONS };

@@ -404,7 +404,10 @@ describe('webhook handler — gating outcomes', () => {
     return createWebhookHandler(getDeps);
   }
 
-  it('master toggle off → 200 skipped + writes a sync_log row with status="skipped"', async () => {
+  it('master toggle off → 200 skipped WITHOUT writing a sync_log row (pre-HMAC short-circuit)', async () => {
+    // Per Fix 1: the master-toggle-off path short-circuits before HMAC verification.
+    // Writing a sync_log row here would let an unauthenticated caller flood the
+    // Activity table — the customer toggled it off, they don't need an Activity entry.
     const handler = setupHandler({ automated_import: false });
     const { res, captured } = makeFakeRes();
 
@@ -413,9 +416,7 @@ describe('webhook handler — gating outcomes', () => {
     expect(captured.status).toBe(200);
     expect(captured.body).toEqual({ skipped: true, reason: 'disabled' });
     const logs = tables.get('localazy_sync_log') ?? [];
-    expect(logs).toHaveLength(1);
-    expect(logs[0]?.status).toBe('skipped');
-    expect(logs[0]?.event_type).toBe('webhook');
+    expect(logs).toHaveLength(0);
   });
 
   it('no user configured → 200 failed + writes a sync_log row with status="failed"', async () => {

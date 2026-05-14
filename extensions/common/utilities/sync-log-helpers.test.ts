@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { appendEntryToJson, idsToTrim } from './sync-log-writer-helpers';
-import { SYNC_LOG_RETENTION } from '../../../common/models/collections-data/sync-log';
+import { appendEntryToJson, idsToTrim } from './sync-log-helpers';
+import { SYNC_LOG_RETENTION } from '../models/collections-data/sync-log';
 
 describe('appendEntryToJson', () => {
   it('appends a new entry to an existing array', () => {

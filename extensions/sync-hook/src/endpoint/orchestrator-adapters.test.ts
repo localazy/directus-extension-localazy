@@ -1,47 +1,53 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Project } from '@localazy/api-client';
+import type { AbstractServiceOptions, Item } from '@directus/types';
 import { buildServerOrchestratorAdapters, WebhookDirectusApi } from './orchestrator-adapters';
 import type { DirectusLogger, ItemsServiceCtor } from '../hook/types/directus-services';
 
 type FakeRow = Record<string, unknown>;
 
-/**
- * Single targeted cast: the FakeService class structurally matches Directus' generic
- * `ItemsServiceCtor` (the only contractual surface we exercise) but TS rejects the
- * comparison because Directus' signature is keyed on `Item` (not `Record<string,
- * unknown>`) and accepts an optional `accountability`. Funneling every test's pass to
- * this helper keeps the cast count to one.
- */
-function asItemsServiceCtor(ctor: unknown): ItemsServiceCtor {
-  return ctor as ItemsServiceCtor;
-}
-
-/**
- * Pino's `Logger` (which `DirectusLogger` aliases) declares ~20 members; the adapters
- * only call `info` / `warn` / `error`. A direct `as DirectusLogger` cast fails the
- * structural compatibility check, and re-declaring the full Pino surface in tests
- * brings no value. The boundary-cast through `unknown` is contained to this helper —
- * one place, no spread of casts.
- */
-function asDirectusLogger(logger: unknown): DirectusLogger {
-  return logger as DirectusLogger;
-}
+/** Stub that throws when called — the adapters never reach these `AbstractService` */
+/** methods, but they have to be present on the class for the structural cast at the */
+/** call site to land directly as `as ItemsServiceCtor` (no `unknown` hop required). */
+const unused = (): never => {
+  throw new Error('FakeService: stub method called — not implemented in test fake');
+};
 
 /**
  * Minimal in-memory `ItemsService` fake the adapter tests run against. Surfaces a
  * constructor-call spy so tests can assert that adapters use the expected accountability
  * (`null` for lock/cursor/sync_log, the webhook user's accountability for translation
  * writes).
+ *
+ * Generics, constructor signature, and method signatures mirror Directus'
+ * `AbstractService<T>` structurally so call-site usage like
+ * `FakeService as ItemsServiceCtor` succeeds without an `as unknown as` double-cast.
+ * The methods the adapters don't call (`createMany`, `readMany`, `updateMany`, …) are
+ * implemented as `unused` stubs so they throw if reached unexpectedly.
  */
 function makeFakeItemsService(initial: Record<string, FakeRow[]>) {
   const tables = new Map<string, FakeRow[]>();
   for (const [k, v] of Object.entries(initial)) tables.set(k, [...v]);
 
-  const ctorCalls: Array<{ collection: string; options: { accountability: unknown } }> = [];
+  const ctorCalls: Array<{ collection: string; options: AbstractServiceOptions }> = [];
 
-  class FakeService<T extends FakeRow = FakeRow> {
-    private collection: string;
-    constructor(collection: string, options: { accountability: unknown }) {
+  class FakeService<T extends Item = Item, Collection extends string = string> {
+    private collection: Collection;
+    // Stubs that fill out `AbstractService<T>` structurally.
+    readonly knex = unused as never;
+    readonly accountability = null;
+    readonly nested: string[] = [];
+    getKeysByQuery = unused;
+    createMany = unused;
+    readMany = unused;
+    updateByQuery = unused;
+    updateBatch = unused;
+    updateMany = unused;
+    upsertMany = unused;
+    deleteByQuery = unused;
+    deleteOne = unused;
+    readSingleton = unused;
+    constructor(collection: Collection, options: AbstractServiceOptions) {
       this.collection = collection;
       ctorCalls.push({ collection, options });
     }
@@ -111,6 +117,15 @@ function makeFakeItemsService(initial: Record<string, FakeRow[]>) {
   return { FakeService, tables, ctorCalls };
 }
 
+/**
+ * Pino-shaped logger fake. The adapters only call `info` / `warn` / `error` / `debug`,
+ * but Pino's `Logger` interface declares ~25 additional members (`version`, `levels`,
+ * `child`, `bindings`, `flush`, an `EventEmitter` surface, …) — stubbing them all out
+ * to satisfy a direct `as DirectusLogger` cast would more than triple the size of this
+ * fake for zero behavioural benefit. The boundary helper below has a typed parameter
+ * (the real fake's `ReturnType`) so callers can't pass arbitrary values; the lone
+ * `as unknown as` inside is the contained boundary cast.
+ */
 function makeLogger() {
   return {
     info: vi.fn(),
@@ -120,6 +135,11 @@ function makeLogger() {
     trace: vi.fn(),
     fatal: vi.fn(),
   };
+}
+type FakeLogger = ReturnType<typeof makeLogger>;
+
+function asDirectusLogger(logger: FakeLogger): DirectusLogger {
+  return logger as unknown as DirectusLogger;
 }
 
 /**
@@ -161,7 +181,7 @@ describe('CursorStore adapter', () => {
 
   it('load() returns the parsed cursor + stored project id', async () => {
     const adapters = buildServerOrchestratorAdapters({
-      ItemsService: asItemsServiceCtor(fake.FakeService),
+      ItemsService: fake.FakeService as ItemsServiceCtor,
       schema: { collections: {}, relations: [] },
       logger: asDirectusLogger(logger),
       writeAccountability: null,
@@ -176,7 +196,7 @@ describe('CursorStore adapter', () => {
 
   it('persist() merges with on-disk cursor via max(event) and writes the project id', async () => {
     const adapters = buildServerOrchestratorAdapters({
-      ItemsService: asItemsServiceCtor(fake.FakeService),
+      ItemsService: fake.FakeService as ItemsServiceCtor,
       schema: { collections: {}, relations: [] },
       logger: asDirectusLogger(logger),
       writeAccountability: null,
@@ -193,16 +213,18 @@ describe('CursorStore adapter', () => {
     expect(row?.cursor_project_id).toBe('proj-1');
   });
 
-  it('persist() swallows errors and logs a warning', async () => {
-    // Force the write path to throw — table doesn't exist.
+  it('persist() swallows errors and logs at debug', async () => {
+    // Force the write path to throw — table doesn't exist. Wrapping the override in
+    // a generic class preserves the `<T, Collection>` parameters from the parent so
+    // the result remains assignable to `FakeItemsService`.
     const broken = makeFakeItemsService({});
-    const FakeServiceBroken = class extends broken.FakeService {
-      async upsertSingleton(): Promise<number> {
+    class FakeServiceBroken<T extends Item = Item, Collection extends string = string> extends broken.FakeService<T, Collection> {
+      override async upsertSingleton(): Promise<number> {
         throw new Error('boom');
       }
-    };
+    }
     const adapters = buildServerOrchestratorAdapters({
-      ItemsService: asItemsServiceCtor(FakeServiceBroken),
+      ItemsService: FakeServiceBroken as ItemsServiceCtor,
       schema: { collections: {}, relations: [] },
       logger: asDirectusLogger(logger),
       writeAccountability: null,
@@ -210,7 +232,7 @@ describe('CursorStore adapter', () => {
     });
 
     await expect(adapters.cursorStore.persist({ processed_keys: {} })).resolves.toBeUndefined();
-    expect(logger.warn).toHaveBeenCalled();
+    expect(logger.debug).toHaveBeenCalled();
   });
 });
 
@@ -227,7 +249,7 @@ describe('LockStore adapter', () => {
 
   function buildLock() {
     return buildServerOrchestratorAdapters({
-      ItemsService: asItemsServiceCtor(fake.FakeService),
+      ItemsService: fake.FakeService as ItemsServiceCtor,
       schema: { collections: {}, relations: [] },
       logger: asDirectusLogger(logger),
       writeAccountability: null,
@@ -326,7 +348,7 @@ describe('SyncLogWriter adapter', () => {
 
   function buildWriter() {
     return buildServerOrchestratorAdapters({
-      ItemsService: asItemsServiceCtor(fake.FakeService),
+      ItemsService: fake.FakeService as ItemsServiceCtor,
       schema: { collections: {}, relations: [] },
       logger: asDirectusLogger(logger),
       writeAccountability: null,
@@ -403,7 +425,7 @@ describe('WebhookDirectusApi accountability propagation', () => {
   it('forwards the configured accountability to ItemsService for write paths', async () => {
     const fake = makeFakeItemsService({ posts: [{ id: 1 }] });
     const writeAccountability = { user: 'u', role: 'r', roles: ['r'], admin: true, app: true, ip: null };
-    const api = new WebhookDirectusApi(asItemsServiceCtor(fake.FakeService), { collections: {}, relations: [] }, writeAccountability);
+    const api = new WebhookDirectusApi(fake.FakeService as ItemsServiceCtor, { collections: {}, relations: [] }, writeAccountability);
 
     await api.updateDirectusItem('posts', 1, { id: 1, foo: 'bar' });
 

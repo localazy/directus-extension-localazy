@@ -1,56 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { appendEntryToJson, createSyncLogWriter, idsToTrim, SyncLogHttpClient } from './sync-log-writer';
+import { createSyncLogWriter, SyncLogHttpClient } from './sync-log-writer';
 import type { SyncLogEntry } from '../../../common/models/collections-data/sync-log';
 
 /* -------------------------------------------------------------------------- */
-/*  Pure helpers                                                              */
-/* -------------------------------------------------------------------------- */
-
-describe('appendEntryToJson', () => {
-  const entry: SyncLogEntry = { timestamp: '2026-05-12T12:00:00Z', level: 'info', message: 'hello' };
-
-  it('starts from an empty array when the input is empty', () => {
-    const result = appendEntryToJson('', entry);
-    expect(JSON.parse(result)).toEqual([entry]);
-  });
-
-  it('appends to a non-empty array', () => {
-    const existing: SyncLogEntry[] = [{ timestamp: '2026-05-12T11:59:59Z', level: 'info', message: 'first' }];
-    const result = appendEntryToJson(JSON.stringify(existing), entry);
-    expect(JSON.parse(result)).toEqual([...existing, entry]);
-  });
-
-  it('treats corrupted JSON as an empty array', () => {
-    const result = appendEntryToJson('not json', entry);
-    expect(JSON.parse(result)).toEqual([entry]);
-  });
-
-  it('treats a non-array JSON value as an empty array', () => {
-    const result = appendEntryToJson(JSON.stringify({ not: 'an array' }), entry);
-    expect(JSON.parse(result)).toEqual([entry]);
-  });
-});
-
-describe('idsToTrim', () => {
-  it('returns [] when below the retention threshold', () => {
-    const ids = Array.from({ length: 50 }, (_, i) => `id-${i}`);
-    expect(idsToTrim(ids)).toEqual([]);
-  });
-
-  it('returns [] at exactly 100 rows', () => {
-    const ids = Array.from({ length: 100 }, (_, i) => `id-${i}`);
-    expect(idsToTrim(ids)).toEqual([]);
-  });
-
-  it('returns the overflow when above 100 rows', () => {
-    const ids = Array.from({ length: 105 }, (_, i) => `id-${i}`);
-    // Inputs are newest-first; the oldest 5 (indices 100..104) should be trimmed.
-    expect(idsToTrim(ids)).toEqual(['id-100', 'id-101', 'id-102', 'id-103', 'id-104']);
-  });
-});
-
-/* -------------------------------------------------------------------------- */
 /*  Adapter integration                                                       */
+/* -------------------------------------------------------------------------- */
+/*  (The pure `appendEntryToJson` / `idsToTrim` helpers used to live here.    */
+/*  They've been lifted into `extensions/common/utilities/sync-log-helpers`   */
+/*  and are covered by `sync-log-helpers.test.ts` alongside the source.)      */
 /* -------------------------------------------------------------------------- */
 
 type CallLog = {

@@ -32,8 +32,9 @@ export type WebhookVerificationResult = { ok: true } | { ok: false; reason: 'mis
 /**
  * Inputs the verifier needs. The body is passed as a parsed object — the verifier
  * re-serialises via `JSON.stringify(body)` to mirror the Strapi plugin's exact contract.
- * The body string therefore depends on Node's serialiser; both ends of the wire use V8,
- * so key ordering is preserved (V8 keeps insertion order for non-integer string keys).
+ * `JSON.stringify` preserves insertion order for non-integer string keys
+ * (ECMAScript-spec-guaranteed since ES2015), so the body string is deterministic given
+ * the upstream parsed body.
  */
 export type WebhookVerificationInput = {
   secret: string;

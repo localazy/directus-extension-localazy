@@ -1,5 +1,6 @@
-import { SYNC_LOG_RETENTION, SyncLogEntry } from '../../../common/models/collections-data/sync-log';
+import { SyncLogEntry } from '../../../common/models/collections-data/sync-log';
 import { SyncLogWriter } from '../../../common/services/orchestrator/ports';
+import { appendEntryToJson, idsToTrim } from '../../../common/utilities/sync-log-helpers';
 
 /**
  * Minimal HTTP surface this module talks through. Modelled after the slice of
@@ -28,41 +29,6 @@ function generateSessionId(): string {
     return cryptoApi.randomUUID();
   }
   return `${Date.now()}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`;
-}
-
-/**
- * Pure helper: parse the current `entries` JSON, append the new entry, return the
- * re-serialised string. Extracted so tests can verify the read-modify-write contract
- * without standing up Directus / axios.
- *
- * Bad input is treated as `[]` — a corrupted entries column shouldn't fail the sync,
- * and the next `finish` will overwrite the bad state with a fresh array.
- */
-export function appendEntryToJson(currentEntriesJson: string, entry: SyncLogEntry): string {
-  let parsed: SyncLogEntry[] = [];
-  try {
-    const candidate: unknown = JSON.parse(currentEntriesJson || '[]');
-    if (Array.isArray(candidate)) parsed = candidate as SyncLogEntry[];
-  } catch {
-    parsed = [];
-  }
-  parsed.push(entry);
-  return JSON.stringify(parsed);
-}
-
-/**
- * Pure helper: given a list of row ids ordered newest-first, returns the ids that fall
- * past the retention window and should be deleted. Always retains the first
- * `SYNC_LOG_RETENTION` rows; everything past index `SYNC_LOG_RETENTION - 1` is trimmed.
- *
- * Extracted so the trim logic is testable without the Directus client. The writer
- * itself does one GET (to fetch ids ordered by `started_at desc`) and one DELETE
- * (the bulk delete) — both wrapped in try/catch because trim failures must not
- * propagate.
- */
-export function idsToTrim(idsOrderedNewestFirst: string[]): string[] {
-  if (idsOrderedNewestFirst.length <= SYNC_LOG_RETENTION) return [];
-  return idsOrderedNewestFirst.slice(SYNC_LOG_RETENTION);
 }
 
 type CreateSyncLogWriterInput = {

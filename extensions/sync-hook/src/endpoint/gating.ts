@@ -1,10 +1,15 @@
 import { Settings } from '../../../common/models/collections-data/settings';
 
 /**
- * Pure-function gating decision per the Q12 plan:
- *   12a — master toggle off                                   → `skip` (logged as `skipped`)
- *   12b — `automated_import_user` is null                     → `fail` (logged as `failed`)
- *   12c — user no longer has Admin role                       → `fail` (logged as `failed`)
+ * Pure-function gating decision per the Q12 plan. Five possible outcomes:
+ *   12a — master toggle off                                   → `skip` reason `disabled`
+ *         NOTE: the endpoint handler short-circuits Q12a BEFORE this gate runs and
+ *         returns 200 *without* writing a sync_log row — see `index.ts`'s pre-HMAC
+ *         disabled-path comment. The `skip` decision returned here only fires when the
+ *         master toggle flips off between HMAC verification and this gate (a race).
+ *   12b — `automated_import_user` is null                     → `fail` reason `no_user`
+ *   12c1 — configured user no longer exists in directus_users → `fail` reason `user_missing`
+ *   12c2 — user exists but no longer has Admin role           → `fail` reason `user_not_admin`
  *   12d — `automated_import_languages` is empty               → `proceed` with `fallbackLanguages: true`
  *         (caller falls back to the same `resolveImportLanguages()` the UI uses)
  *
@@ -36,9 +41,9 @@ export type GatingDecision =
  * found (the user was deleted). The latter is reported as `user_missing` so the operator
  * can tell from the sync_log row that the configured id no longer exists.
  *
- * `userHasAdminAccess` is the `admin_access` flag from the user's role row, or `false`
- * when no role is attached. We don't surface "role exists but admin_access=false" as a
- * distinct failure because the outcome is the same — the user can't drive the import.
+ * `userHasAdminAccess` is the `admin_access` column on the `directus_users` row.
+ * We don't surface "role exists but admin_access=false" as a distinct failure because
+ * the outcome is the same — the user can't drive the import.
  */
 export type GatingInput = {
   settings: Pick<Settings, 'automated_import' | 'automated_import_user' | 'automated_import_languages'>;
@@ -84,12 +89,14 @@ export function decideGating(input: GatingInput): GatingDecision {
     return { kind: 'fail', reason: 'no_user' };
   }
 
-  // 12c — user exists but no longer has Admin role. The Automation page filters the
-  // dropdown to Admin users only, but a role demotion after configuration would land
-  // us here.
+  // 12c1 — configured user id no longer resolves to a `directus_users` row (deleted
+  // user, or a transient lookup error which the caller normalises to `found: false`).
   if (!input.userExists) {
     return { kind: 'fail', reason: 'user_missing' };
   }
+  // 12c2 — user exists but no longer has Admin role. The Automation page filters the
+  // dropdown to Admin users only, but a role demotion after configuration would land
+  // us here.
   if (!input.user || !input.user.userHasAdminAccess) {
     return { kind: 'fail', reason: 'user_not_admin' };
   }
