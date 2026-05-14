@@ -1,17 +1,24 @@
 /**
  * Dedupe helpers for the webhook-failure notification path.
  *
- * Background: a revoked Localazy access token causes every incoming `project_published`
- * webhook to fail the secret-fetch (401). Without dedupe, every retry would mint a fresh
- * `directus_notifications` row — 60+ identical notifications in the bell-icon dropdown
- * before the operator notices.
+ * Background: a persistent failure mode causes every incoming `project_published`
+ * webhook to write a `'failed'` `localazy_sync_log` row — e.g. the customer deleted the
+ * `localazy_content_transfer_setup` singleton, or the upstream Localazy project was
+ * deleted, or the configured `automated_import_user` lost Admin role. Each of those
+ * failures lands in the log (via `writeOutcomeSessionRow` for early-reject cases or via
+ * the orchestrator's `finish()` for later failures). Without dedupe, every retry would
+ * mint a fresh `directus_notifications` row — 60+ identical notifications in the
+ * bell-icon dropdown before the operator notices.
+ *
+ * (HMAC-mismatch and secret-fetch failures do NOT participate in the dedupe — those
+ * paths return 401/4xx without writing a log row, by design, to avoid letting an
+ * unauthenticated attacker flood the Activity table or the notifications inbox.)
  *
  * Rule: skip the notification when the most-recent prior webhook-initiated failure (any
  * `failed`/`partial`/`aborted` status, ignoring successful rows in between) finished
  * within the last 12 hours. Successful syncs do NOT reset the dedupe — the lookup query
  * filters them out entirely, so they're invisible. The window is wall-clock from the
- * prior failure's `finished_at`, so once 12h elapses the next failure always notifies —
- * even if the failure mode is the same revoked-token error in a tight retry loop.
+ * prior failure's `finished_at`, so once 12h elapses the next failure always notifies.
  */
 
 /**

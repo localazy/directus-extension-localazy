@@ -54,9 +54,9 @@ export function formatEventType(eventType: string): string {
 }
 
 /**
- * `initiator` → human-readable label. Three input shapes are expected — the orchestrator
- * always populates `initiator` on persisted rows, so the function doesn't defend against
- * an empty value:
+ * `initiator` → human-readable label. Callers should populate `initiator` (the
+ * orchestrator does so for every row it writes); an empty value falls through to the
+ * generic "Triggered by user" label rather than crashing. Three input shapes:
  *
  * - The literal `'webhook'` → `"Triggered by webhook"`. Both the webhook handler's
  *   early-reject rows and the orchestrator's webhook-driven runs persist this value.

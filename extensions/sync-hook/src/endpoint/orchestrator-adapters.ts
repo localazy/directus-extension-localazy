@@ -551,10 +551,16 @@ function buildSyncLogWriter(
  * Filters on `initiator: 'webhook'` rather than `event_type: 'webhook'` because the
  * orchestrator persists `event_type: 'download-incremental'` (via `eventTypeForMode(mode)`)
  * for webhook-driven runs that reach `finish()`. The literal `'webhook'` `event_type`
- * only appears on early-reject rows (HMAC mismatch, missing user, etc.) which bypass
- * `SyncLogWriter.finish()` and therefore never emit notifications. `initiator` is the
- * correct discriminator — the webhook handler sets it explicitly via the orchestrator's
- * `initiator: 'webhook'` parameter.
+ * only appears on rows written via `writeOutcomeSessionRow` — disabled / gating-fail
+ * (no_user / user_missing / user_no_admin) / missing-content-transfer-setup /
+ * missing-Localazy-project / dispatch-threw. Those paths bypass `SyncLogWriter.finish()`
+ * and therefore never emit notifications themselves, BUT they ARE returned by this
+ * lookup, so a `no_user` early-reject failure at T=0 can suppress an orchestrator-driven
+ * failure notification at T=11h. That's intentional — if the operator already has
+ * unfixed broken config, a fresh notification 11h later about a different failure mode
+ * isn't more useful than the first one. `initiator` is the correct discriminator — the
+ * webhook handler sets it explicitly via the orchestrator's `initiator: 'webhook'`
+ * parameter, and `writeOutcomeSessionRow` writes the same string.
  *
  * The current-session exclusion (`id: { _neq: sessionId }`) matters because the
  * just-finalised row is itself a webhook failure — without the exclusion we'd suppress
