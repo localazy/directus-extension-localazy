@@ -5,8 +5,10 @@ import { Settings } from '../../../common/models/collections-data/settings';
  *   12a — master toggle off                                   → `skip` reason `disabled`
  *         NOTE: the endpoint handler short-circuits Q12a BEFORE this gate runs and
  *         returns 200 *without* writing a sync_log row — see `index.ts`'s pre-HMAC
- *         disabled-path comment. The `skip` decision returned here only fires when the
- *         master toggle flips off between HMAC verification and this gate (a race).
+ *         disabled-path comment. The `skip` decision returned here is only reachable
+ *         via direct test invocation of `decideGating`; in production, the pre-HMAC
+ *         short-circuit always catches Q12a first (the same in-memory `settings`
+ *         object feeds both checks, so there's no race window).
  *   12b — `automated_import_user` is null                     → `fail` reason `no_user`
  *   12c1 — configured user no longer exists in directus_users → `fail` reason `user_missing`
  *   12c2 — user exists but no longer has Admin role           → `fail` reason `user_not_admin`

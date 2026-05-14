@@ -121,9 +121,10 @@ async function lookupWebhookUser(ItemsService: ItemsServiceCtor, schema: SchemaO
  * configured user in `directus_revisions` rather than `null` (system).
  *
  * `admin: true` is honest here — the gate has already confirmed the user is Admin.
- * When the user has a role, `roles` is `[user.role]`; the array is only empty for a
- * role-less user (which would have failed gating earlier). `app: true` matches what
- * the standard auth pipeline writes for an interactive user.
+ * When the user has a role, `roles` is `[user.role]`; the array is empty for role-less
+ * users (rare but reachable — the gate checks `admin_access` rather than role presence,
+ * so an Admin user with no role passes). `app: true` matches what the standard auth
+ * pipeline writes for an interactive user.
  */
 function buildAccountability(user: { id: string; admin_access: boolean; role: string | null }): Accountability {
   return {
