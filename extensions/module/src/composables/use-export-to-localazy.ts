@@ -171,7 +171,7 @@ export const useExportToLocalazy = (token: Ref<string>) => {
 
       loading.value = false;
       // The orchestrator (`onExport`) owns the final summary message — including the
-      // empty-content short-circuit ("All items already uploaded — nothing to push") and
+      // empty-content short-circuit ("Already up to date — no items have changed…") and
       // the populated summary ("Uploaded N items in T.Ts."). Adding `EXPORT_FINISHED`
       // here too would render a duplicate row in the progress modal.
       // Analytics is fire-and-forget; export completion shouldn't block on telemetry.
