@@ -66,21 +66,28 @@ describe('formatDuration', () => {
 
 describe('filterSessions', () => {
   const sessions: SyncLogSession[] = [
-    make({ id: '1', event_type: 'upload-incremental', initiator: 'alice' }),
-    make({ id: '2', event_type: 'upload-full', initiator: 'bob' }),
-    make({ id: '3', event_type: 'download-incremental', initiator: 'alice' }),
-    make({ id: '4', event_type: 'webhook', initiator: 'webhook' }),
+    make({ id: '1', event_type: 'upload-incremental', initiator: 'alice', status: 'completed' }),
+    make({ id: '2', event_type: 'upload-full', initiator: 'bob', status: 'failed' }),
+    make({ id: '3', event_type: 'download-incremental', initiator: 'alice', status: 'skipped' }),
+    make({ id: '4', event_type: 'webhook', initiator: 'webhook', status: 'completed' }),
   ];
 
   it('filters by tab', () => {
-    expect(filterSessions(sessions, { tab: 'upload', searchQuery: '' }).map((s) => s.id)).toEqual(['1', '2']);
-    expect(filterSessions(sessions, { tab: 'download', searchQuery: '' }).map((s) => s.id)).toEqual(['3']);
-    expect(filterSessions(sessions, { tab: 'webhook', searchQuery: '' }).map((s) => s.id)).toEqual(['4']);
+    expect(filterSessions(sessions, { tab: 'upload' }).map((s) => s.id)).toEqual(['1', '2']);
+    expect(filterSessions(sessions, { tab: 'download' }).map((s) => s.id)).toEqual(['3']);
+    expect(filterSessions(sessions, { tab: 'webhook' }).map((s) => s.id)).toEqual(['4']);
   });
 
-  it('filters by search query against summary, initiator, status, and date', () => {
-    const result = filterSessions(sessions, { tab: 'upload', searchQuery: 'bob' });
-    expect(result.map((s) => s.id)).toEqual(['2']);
+  it('treats an empty / missing `statuses` set as "show all"', () => {
+    expect(filterSessions(sessions, { tab: 'upload', statuses: [] }).map((s) => s.id)).toEqual(['1', '2']);
+    expect(filterSessions(sessions, { tab: 'upload' }).map((s) => s.id)).toEqual(['1', '2']);
+  });
+
+  it('filters by `statuses` as an OR set', () => {
+    expect(filterSessions(sessions, { tab: 'upload', statuses: ['completed'] }).map((s) => s.id)).toEqual(['1']);
+    expect(filterSessions(sessions, { tab: 'upload', statuses: ['completed', 'failed'] }).map((s) => s.id)).toEqual(['1', '2']);
+    // A status that no upload row carries returns nothing within the tab.
+    expect(filterSessions(sessions, { tab: 'upload', statuses: ['skipped'] }).map((s) => s.id)).toEqual([]);
   });
 
   it('filters by dateFrom / dateTo', () => {
@@ -91,7 +98,6 @@ describe('filterSessions', () => {
     ];
     const result = filterSessions(mixed, {
       tab: 'upload',
-      searchQuery: '',
       dateFrom: new Date(Date.UTC(2026, 4, 1)),
       dateTo: new Date(Date.UTC(2026, 4, 31)),
     });

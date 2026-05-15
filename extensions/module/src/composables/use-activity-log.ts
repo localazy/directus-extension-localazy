@@ -106,21 +106,25 @@ export function formatStartedAt(session: SyncLogSession): string {
 }
 
 /**
- * Pure: filters a session list by the current tab, search query, and date range.
+ * Pure: filters a session list by the current tab, status set, and date range.
  * Extracted so the filter behaviour is testable without mounting the Vue component.
+ *
+ * `statuses` is an OR set — an empty (or omitted) array means "no status filter,
+ * show all". Mirrors the multi-select interface in the Activity page header.
  */
 export function filterSessions(
   sessions: SyncLogSession[],
   opts: {
     tab: ActivityTab;
-    searchQuery: string;
+    statuses?: string[];
     dateFrom?: Date;
     dateTo?: Date;
   },
 ): SyncLogSession[] {
-  const lcQuery = opts.searchQuery.trim().toLowerCase();
+  const statusSet = opts.statuses && opts.statuses.length > 0 ? new Set(opts.statuses) : null;
   return sessions.filter((session) => {
     if (tabForEventType(session.event_type) !== opts.tab) return false;
+    if (statusSet && !statusSet.has(session.status)) return false;
 
     const startedMs = Date.parse(session.started_at);
     // Cutoffs are interpreted as UTC midnight to match `session.started_at`'s UTC ISO
@@ -135,9 +139,7 @@ export function filterSessions(
       if (Number.isFinite(startedMs) && startedMs > toMs) return false;
     }
 
-    if (!lcQuery) return true;
-    const haystacks = [session.summary, session.initiator, session.status, formatStartedAt(session)];
-    return haystacks.some((h) => h.toLowerCase().includes(lcQuery));
+    return true;
   });
 }
 
@@ -211,10 +213,14 @@ export function useActivityLog(input: {
   onSortPreferencesChange: (prefs: SortPreferences) => void;
 }) {
   const activeTab = ref<ActivityTab>('upload');
-  const searchInput = ref('');
-  const searchQuery = ref('');
-  const dateFrom = ref<Date | undefined>(undefined);
-  const dateTo = ref<Date | undefined>(undefined);
+  const statusFilter = ref<string[]>([]);
+  // Default range mirrors Strapi: From = 30 days ago, To = today. UTC midnight on both
+  // ends so the cutoffs line up with `filterSessions`' UTC-based comparison.
+  const today = new Date();
+  const defaultDateTo = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const defaultDateFrom = new Date(defaultDateTo.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const dateFrom = ref<Date | undefined>(defaultDateFrom);
+  const dateTo = ref<Date | undefined>(defaultDateTo);
   const page = ref(1);
   const sortPreferences = ref<SortPreferences>({ ...input.initialSortPreferences.value });
 
@@ -225,19 +231,9 @@ export function useActivityLog(input: {
     sortPreferences.value = { ...next };
   });
 
-  // Debounced search input → query. 300ms matches Strapi.
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  function setSearch(value: string) {
-    searchInput.value = value;
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      searchQuery.value = value;
-    }, 300);
-  }
-
   // Whenever the filter inputs change, reset to page 1 — otherwise a 5-page result
   // suddenly collapsing to 1 page would leave the user on a non-existent page 4.
-  watch([searchQuery, dateFrom, dateTo, activeTab], () => {
+  watch([statusFilter, dateFrom, dateTo, activeTab], () => {
     page.value = 1;
   });
 
@@ -255,7 +251,7 @@ export function useActivityLog(input: {
   const filteredSessions = computed(() =>
     filterSessions(input.sessions.value, {
       tab: activeTab.value,
-      searchQuery: searchQuery.value,
+      statuses: statusFilter.value,
       dateFrom: dateFrom.value,
       dateTo: dateTo.value,
     }),
@@ -268,9 +264,7 @@ export function useActivityLog(input: {
 
   return {
     activeTab,
-    searchInput,
-    searchQuery,
-    setSearch,
+    statusFilter,
     dateFrom,
     dateTo,
     page,

@@ -23,30 +23,45 @@
 
     <div class="panel">
       <div class="retention-note">
-        <v-icon name="info_outline" small />
+        <v-icon name="info" small />
         <span>Last 100 sync sessions are retained. Older sessions are automatically deleted.</span>
       </div>
 
       <v-notice v-if="clearedNotice" type="success" class="cleared-notice"> Activity logs cleared. </v-notice>
 
       <div class="filters">
-        <v-input v-model="searchValue" placeholder="Search by summary, initiator, status, or date" class="search-input" />
-        <interface-datetime type="date" :value="dateFromValue" :include-seconds="false" @input="onDateFromInput" />
-        <interface-datetime type="date" :value="dateToValue" :include-seconds="false" @input="onDateToInput" />
+        <div class="filter-field status-field">
+          <label class="filter-label">Status</label>
+          <v-select v-model="statusFilter" :items="STATUS_OPTIONS" multiple placeholder="All statuses" />
+        </div>
+        <div class="date-range">
+          <div class="filter-field">
+            <label class="filter-label">From</label>
+            <interface-datetime type="date" :value="dateFromValue" :include-seconds="false" @input="onDateFromInput" />
+          </div>
+          <div class="filter-field">
+            <label class="filter-label">To</label>
+            <interface-datetime type="date" :value="dateToValue" :include-seconds="false" @input="onDateToInput" />
+          </div>
+        </div>
       </div>
 
-      <v-tabs v-model="activeTabModel">
-        <v-tab value="upload">Upload</v-tab>
-        <v-tab value="download">Download</v-tab>
-        <v-tab value="webhook">Webhooks</v-tab>
-      </v-tabs>
+      <div class="sessions-tabs">
+        <v-tabs v-model="activeTabModel">
+          <v-tab value="upload">Upload</v-tab>
+          <v-tab value="download">Download</v-tab>
+          <v-tab value="webhook">Webhooks</v-tab>
+        </v-tabs>
+      </div>
 
-      <div class="tab-content">
+      <div class="sessions-card">
         <sessions-table
           :rows="paginatedSessions"
           :current-sort="currentSort"
           :page="page"
           :total-pages="totalPages"
+          :tab="activeTab"
+          :lookup-user-name="lookupUserName"
           @sort="setSort"
           @select="onSessionClick"
           @update:page="page = $event"
@@ -76,6 +91,7 @@ import SessionsTable from './components/Activity/SessionsTable.vue';
 import { useLocalazyBoot } from './composables/use-localazy-boot';
 import { useLocalazySyncLogStore } from './stores/localazy-sync-log-store';
 import { useLocalazySettingsStore } from './stores/localazy-settings-store';
+import { useSyncLogUserNames } from './composables/use-sync-log-user-names';
 import {
   parseSortPreferences,
   serializeSortPreferences,
@@ -94,6 +110,11 @@ const { boot } = useLocalazyBoot();
 const syncLogStore = useLocalazySyncLogStore();
 const { sessions } = storeToRefs(syncLogStore);
 
+// Resolve Directus user names for each row's initiator id so the table shows
+// "Triggered by Jane Doe" instead of a raw UUID. Watches `sessions` and batches
+// one `/users?filter[id][_in]=...` fetch per fresh set of ids.
+const { lookupUserName } = useSyncLogUserNames(sessions);
+
 const settingsStore = useLocalazySettingsStore();
 const { data: settings } = storeToRefs(settingsStore);
 const initialSortPreferences = computed<SortPreferences>(() => parseSortPreferences(settings.value.activity_logs_sort));
@@ -108,37 +129,62 @@ function onSortPreferencesChange(next: SortPreferences) {
   }, 600);
 }
 
-const { activeTab, searchInput, dateFrom, dateTo, page, totalPages, currentSort, setSort, filteredSessions, paginatedSessions, setSearch } =
-  useActivityLog({
-    sessions,
-    initialSortPreferences,
-    onSortPreferencesChange,
-  });
-
-const searchValue = computed({
-  get: () => searchInput.value,
-  set: (v: string) => setSearch(v),
+const { activeTab, statusFilter, dateFrom, dateTo, page, totalPages, currentSort, setSort, filteredSessions, paginatedSessions } = useActivityLog({
+  sessions,
+  initialSortPreferences,
+  onSortPreferencesChange,
 });
 
-// `<v-tabs>` model-value is a string; the composable uses a constrained `ActivityTab`
-// union. Bridge through a computed so the cast happens in one place.
-const activeTabModel = computed<string>({
+// `<v-select :items>` shape: `{ text, value }`. The statuses mirror StatusLabel.vue's
+// known set; an unknown status read from disk still passes through the filter (the
+// select just won't offer it as a checkbox option, which is fine — Strapi parity).
+const STATUS_OPTIONS = [
+  { text: 'Completed', value: 'completed' },
+  { text: 'Completed (errors)', value: 'partial' },
+  { text: 'Failed', value: 'failed' },
+  { text: 'Aborted', value: 'aborted' },
+  { text: 'Skipped', value: 'skipped' },
+  { text: 'In progress', value: 'in_progress' },
+];
+
+// Directus' `<v-tabs>` is declared as a single-select group (`multiple: false`) but
+// its emit on `update:modelValue` still produces a one-element ARRAY (`["download"]`)
+// rather than the unwrapped string. Without the `Array.isArray` unwrap, clicking a
+// tab sets `activeTab` to `["download"]`, the `tabForEventType(...) !== activeTab`
+// check fails for every row (string vs. array comparison), and the table empties.
+// Accepting both shapes here keeps the composable's `ActivityTab` union intact.
+const activeTabModel = computed<string | string[]>({
   get: () => activeTab.value,
-  set: (v: string) => {
-    activeTab.value = v as ActivityTab;
+  set: (v: string | string[]) => {
+    const next = Array.isArray(v) ? v[0] : v;
+    if (next) activeTab.value = next as ActivityTab;
   },
 });
 
-// `<interface-datetime>` returns ISO strings; the filter helpers consume `Date` objects
-// (or `undefined` for "no filter"). The bridges normalise both sides.
-const dateFromValue = computed(() => (dateFrom.value ? dateFrom.value.toISOString() : null));
-const dateToValue = computed(() => (dateTo.value ? dateTo.value.toISOString() : null));
+// `<interface-datetime type="date">` parses its value with date-fns `parse(value, 'yyyy-MM-dd', new Date)`.
+// Passing a full ISO string makes the value-display branch render `<!---->` (empty activator),
+// and triggers the "default" behaviour described as "calendar shows no value". The bridges
+// therefore round-trip `yyyy-MM-dd` strings — the filter helpers still consume `Date`
+// objects (UTC midnight matches `filterSessions`' UTC-based cutoffs).
+function toIsoDate(d: Date): string {
+  const yyyy = String(d.getUTCFullYear()).padStart(4, '0');
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+const dateFromValue = computed(() => (dateFrom.value ? toIsoDate(dateFrom.value) : null));
+const dateToValue = computed(() => (dateTo.value ? toIsoDate(dateTo.value) : null));
 
+function parseIsoDate(value: string): Date | undefined {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return undefined;
+  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+}
 function onDateFromInput(value: string | null) {
-  dateFrom.value = value ? new Date(value) : undefined;
+  dateFrom.value = value ? parseIsoDate(value) : undefined;
 }
 function onDateToInput(value: string | null) {
-  dateTo.value = value ? new Date(value) : undefined;
+  dateTo.value = value ? parseIsoDate(value) : undefined;
 }
 
 const showClearDialog = ref(false);
@@ -216,15 +262,51 @@ onBeforeMount(() => {
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
-  align-items: center;
-
-  .search-input {
-    flex: 1;
-    min-width: 240px;
-  }
+  align-items: flex-end;
 }
 
-.tab-content {
-  margin-top: 16px;
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 160px;
+}
+
+.status-field {
+  flex: 1;
+  min-width: 240px;
+  /* Match the date picker's 40px activator height — Directus form components
+     pick this variable up from the surrounding scope. */
+  --theme--form--field--input--height: 40px;
+}
+
+.filter-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--foreground-subdued);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.date-range {
+  display: flex;
+  gap: 12px;
+}
+
+/* Tabs sit on the page background — only the active label gets recolored. The
+   default Directus active-tab color shift was too subtle, so we promote it to
+   `--primary` and bump weight; no card, no underline strip. */
+.sessions-tabs :deep(.v-tab.active) {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* Card wrapping just the session list (table or empty state) so the logs area
+   has its own surface separate from the tabs above. */
+.sessions-card {
+  background-color: var(--theme--background-normal);
+  border: 1px solid var(--theme--border-color-subdued);
+  border-radius: var(--theme--border-radius);
+  overflow: hidden;
 }
 </style>

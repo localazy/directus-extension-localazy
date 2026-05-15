@@ -24,13 +24,13 @@
           </td>
           <td>{{ formatStartedAt(session) }}</td>
           <td>{{ formatDuration(session) }}</td>
-          <td>{{ session.initiator }}</td>
+          <td>{{ formatInitiator(session.initiator, props.lookupUserName) }}</td>
           <td class="summary-cell">{{ session.summary || '-' }}</td>
         </tr>
       </tbody>
     </table>
 
-    <div v-else class="empty-state">No sync sessions to display.</div>
+    <div v-else class="empty-state">{{ emptyStateMessage }}</div>
 
     <v-pagination
       v-if="totalPages > 1"
@@ -43,16 +43,35 @@
 </template>
 
 <script lang="ts" setup>
+import { computed } from 'vue';
 import StatusLabel from './StatusLabel.vue';
-import { formatDuration, formatStartedAt, type SortKey, type SortPreference } from '../../composables/use-activity-log';
+import {
+  formatDuration,
+  formatInitiator,
+  formatStartedAt,
+  type ActivityTab,
+  type SortKey,
+  type SortPreference,
+} from '../../composables/use-activity-log';
 import type { SyncLogSession } from '../../../../common/models/collections-data/sync-log';
 
-defineProps<{
+const props = defineProps<{
   rows: SyncLogSession[];
   currentSort: SortPreference;
   page: number;
   totalPages: number;
+  tab: ActivityTab;
+  /**
+   * Resolves a Directus user id to a display name (full name, or email fallback).
+   * Returns `null` for unknown / deleted users — `formatInitiator` then falls back
+   * to the generic "Triggered by user" label. The function is read inside the
+   * template so Vue tracks its internal reactive deps and the cells re-render
+   * once the names arrive from the `/users` fetch.
+   */
+  lookupUserName: (userId: string) => string | null;
 }>();
+
+const emptyStateMessage = computed(() => `No ${props.tab} sessions to display.`);
 
 const emit = defineEmits<{
   (event: 'sort', key: SortKey): void;
@@ -122,8 +141,9 @@ const columns: Array<{ key: SortKey; label: string }> = [
 }
 
 .empty-state {
-  padding: 32px;
+  padding: 56px 32px;
   text-align: center;
   color: var(--foreground-subdued);
+  font-size: 14px;
 }
 </style>
