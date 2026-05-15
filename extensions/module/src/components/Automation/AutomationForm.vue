@@ -95,13 +95,15 @@ const adminUsers = ref<AdminUser[]>([]);
 const loadingUsers = ref(false);
 
 /**
- * Filter to `role.admin_access._eq: true`. Directus' standard filter syntax for traversing
- * relations — same shape the Directus admin uses internally. The role lookup walks one
- * level: `directus_users.role` is m2o → `directus_roles`, which has an `admin_access`
- * boolean. Excluding non-admin users client-side instead would still leak their existence
+ * Filter for users whose role has at least one policy with `admin_access = true`.
+ * In Directus 11, `admin_access` lives on `directus_policies`, not on `directus_roles`
+ * (which was the v10 shape). The traversal is
+ * `directus_users.role` (m2o) → `directus_roles.policies` (o2m to `directus_access`)
+ * → `directus_access.policy` (m2o to `directus_policies`) → `admin_access`.
+ * Excluding non-admin users client-side instead would still leak their existence
  * via the API response, and we'd pay the bandwidth for a list we then discard.
  */
-const ADMIN_USERS_FILTER = { role: { admin_access: { _eq: true } } } as const;
+const ADMIN_USERS_FILTER = { role: { policies: { policy: { admin_access: { _eq: true } } } } } as const;
 
 async function loadAdminUsers(): Promise<void> {
   loadingUsers.value = true;
