@@ -25,12 +25,10 @@
         </section>
 
         <section class="entries-section">
-          <v-input v-model="searchValue" class="entries-search" placeholder="Filter entries by message or timestamp" />
-
-          <div v-if="filteredEntries.length === 0" class="empty-state">No log entries to display.</div>
+          <div v-if="entries.length === 0" class="empty-state">No log entries to display.</div>
 
           <div v-else class="entries-list">
-            <div v-for="(entry, idx) in filteredEntries" :key="idx" class="entry-row" :class="`entry-${entry.level}`">
+            <div v-for="(entry, idx) in entries" :key="idx" class="entry-row" :class="`entry-${entry.level}`">
               <div class="entry-header">
                 <v-icon :name="iconForLevel(entry.level)" small class="entry-icon" />
                 <span class="entry-timestamp">{{ formatTime(entry.timestamp) }}</span>
@@ -76,29 +74,6 @@ const entries = computed<SyncLogEntry[]>(() => {
   } catch {
     return [];
   }
-});
-
-// Debounced entries search. Same 300 ms cadence as the list page.
-const searchInput = ref('');
-const searchQuery = ref('');
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-const searchValue = computed({
-  get: () => searchInput.value,
-  set: (v: string) => {
-    searchInput.value = v;
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      searchQuery.value = v;
-    }, 300);
-  },
-});
-
-const filteredEntries = computed(() => {
-  const lc = searchQuery.value.trim().toLowerCase();
-  if (!lc) return entries.value;
-  return entries.value.filter(
-    (entry) => entry.message.toLowerCase().includes(lc) || formatTime(entry.timestamp).toLowerCase().includes(lc),
-  );
 });
 
 function formatTime(ts: string): string {
@@ -173,10 +148,6 @@ onBeforeMount(async () => {
   background-color: var(--background-normal);
   padding: 24px;
   border-radius: var(--border-radius);
-}
-
-.entries-search {
-  margin-bottom: 16px;
 }
 
 .entries-list {
