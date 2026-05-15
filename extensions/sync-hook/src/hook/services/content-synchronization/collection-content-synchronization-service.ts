@@ -95,7 +95,9 @@ class CollectionContentSynchronizationService extends BaseContentSynchronization
         return;
       }
 
-      if (!settings.automated_deprecation) {
+      // Deprecation is a sub-behavior of automated export — gated by both flags so the master
+      // toggle on the Automation page guarantees zero outbound activity when off. See ADR-0001.
+      if (!settings.automated_upload || !settings.automated_deprecation) {
         return;
       }
 

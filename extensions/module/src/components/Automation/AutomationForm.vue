@@ -1,6 +1,49 @@
 <template>
   <div class="automation-form">
     <div class="form grid">
+      <header class="section-header">
+        <h2 class="section-title">Export</h2>
+        <p class="note section-description">From Directus to Localazy &mdash; triggered by changes to translatable content inside Directus.</p>
+      </header>
+
+      <div class="half">
+        <p class="type-label">Enable automated export</p>
+        <v-select v-model="localEdits.automated_upload" :items="enabledOptions" />
+      </div>
+      <div class="half-right">
+        <p class="note configuration-description">
+          When enabled, content saved in Directus is pushed to Localazy automatically &mdash; create and update events on translatable
+          collections and translation strings.
+        </p>
+      </div>
+
+      <div :class="['settings-group', { disabled: !localEdits.automated_upload }]">
+        <div class="grid">
+          <div class="half">
+            <p class="type-label">Also deprecate Localazy source keys on Directus delete</p>
+            <v-select v-model="localEdits.automated_deprecation" :items="enabledOptions" :disabled="!localEdits.automated_upload" />
+            <p class="note hint">
+              When on, deleting a translatable entry in Directus marks the matching Localazy source keys as
+              <a href="https://localazy.com/faq/localazy/what-is-the-difference-between-hidden-and-deprecated-source-keys" target="_blank">
+                deprecated
+              </a>
+              rather than leaving them active.
+            </p>
+          </div>
+          <div class="half-right">
+            <p class="note configuration-description">
+              Deprecation is a sub-behaviour of automated export &mdash; if export is off, deletes are not propagated to Localazy regardless
+              of this setting.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <header class="section-header section-header-divider">
+        <h2 class="section-title">Import</h2>
+        <p class="note section-description">From Localazy to Directus &mdash; triggered by Localazy's <code>project_published</code> webhook.</p>
+      </header>
+
       <div class="half">
         <p class="type-label">Enable automated import</p>
         <v-select v-model="localEdits.automated_import" :items="enabledOptions" />
@@ -59,8 +102,8 @@
           <div class="webhook-section">
             <h3 class="webhook-title">Webhook registration</h3>
             <p class="note webhook-description">
-              Localazy needs a public URL to post events to. This block registers / removes the webhook on Localazy directly — no Directus
-              server round-trip required.
+              Automated import relies on a webhook: Localazy calls this Directus site whenever translations are ready. Use the button below
+              to register the webhook, or remove it later.
             </p>
             <WebhookSetup />
           </div>
@@ -189,6 +232,28 @@ onMounted(() => {
   &.disabled {
     opacity: 0.55;
   }
+}
+
+.section-header {
+  grid-column: 1 / span 2;
+  margin-bottom: 8px;
+}
+
+.section-header-divider {
+  margin-top: 16px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border-subdued);
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  color: var(--foreground-normal);
+}
+
+.section-description {
+  margin: 0;
 }
 
 .webhook-section {
