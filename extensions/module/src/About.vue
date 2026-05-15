@@ -18,6 +18,12 @@
       </p>
 
       <p>
+        You can also automate the import step: once you install the companion automation bundle, Localazy notifies your Directus instance
+        whenever new translations are ready, and the plugin imports them back without any manual action. Every synchronisation — whether
+        manual or automated — is recorded on the Activity page so you can review what happened, when, and by whom.
+      </p>
+
+      <p>
         To learn more about this plugin, visit
         <a href="https://localazy.com/docs/directus/directus-plugin-introduction-installation" target="_blank">
           the Localazy documentation section</a
@@ -25,14 +31,14 @@
       </p>
 
       <h2>Plugin Pages</h2>
-      <h3>Overview Screen</h3>
+      <h3><v-icon name="home" /><span>Overview Screen</span></h3>
       <p>On the overview screen, users can find basic information about the Localazy connection with their Directus project.</p>
       <p>
         Learn more in
         <a href="https://localazy.com/docs/directus/directus-overview-screen" target="_blank">the documentation</a>.
       </p>
 
-      <h3>Import & Export</h3>
+      <h3><v-icon name="translate" /><span>Import & Export</span></h3>
       <p>
         The Import & Export page allows you to synchronize the content between Directus and Localazy. From here, you may choose which
         translatable collections will be exported from Directus and imported back. You may also synchronize the Directus
@@ -43,7 +49,30 @@
         <a href="https://localazy.com/docs/directus/directus-import-export" target="_blank">the documentation</a>.
       </p>
 
-      <h3>Project Setup</h3>
+      <h3><v-icon name="history" /><span>Activity</span></h3>
+      <p>
+        The Activity page lists every synchronisation session — uploads to Localazy, downloads back into Directus, and incoming webhook
+        events from automated imports. Each session is grouped by type, can be filtered by initiator, status, date range, or free-text
+        search, and opens into a detail view with per-step logs. You can export the currently visible sessions as JSON or clear the log
+        entirely. The last 100 sessions are retained; older ones are pruned automatically.
+      </p>
+
+      <h3><v-icon name="cloud_sync" /><span>Automation</span></h3>
+      <p>
+        The Automation page configures hands-off, webhook-driven import. When the companion
+        <code>@localazy/directus-extension-localazy-automation</code> bundle is installed, Localazy can call back into your Directus
+        instance the moment translations are ready, and the plugin re-imports them on your behalf — no scheduled job, no manual click. The
+        page guides you through generating a shared webhook secret, picking which events should trigger an import, and verifying the bundle
+        is reachable. If the bundle is not installed, the page surfaces a link to the installation guide instead.
+      </p>
+      <p>
+        Learn more in the
+        <a href="https://github.com/localazy/directus-extension-localazy/blob/main/extensions/sync-hook/README.md" target="_blank"
+          >automation bundle README</a
+        >.
+      </p>
+
+      <h3><v-icon name="lan" /><span>Project Setup</span></h3>
       <p>
         The Project Setup page serves to configure the connection between Localazy and Directus. <br />
         To start using this plugin, login to your Localazy project.<br />
@@ -72,7 +101,7 @@
         <a href="https://localazy.com/docs/directus/directus-project-setup" target="_blank">the documentation</a>.
       </p>
 
-      <h3>Additional Settings</h3>
+      <h3><v-icon name="settings" /><span>Additional Settings</span></h3>
       <p>
         The Additional Settings page allows you to customize the behavior of import & export operations and their side effects. The default
         configuration works well for most use cases, but you may want to change it to fit your needs.
@@ -117,13 +146,20 @@ h2 {
 }
 
 h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 600;
-  margin-top: 30px;
-  margin-bottom: 10px;
+  margin-top: 56px;
+  margin-bottom: 14px;
   padding-bottom: 4px;
   font-size: 20px;
   line-height: 22px;
   border-bottom: 1px solid var(--border-subdued);
+
+  .v-icon {
+    color: var(--primary);
+  }
 }
 
 p {

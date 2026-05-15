@@ -12,12 +12,6 @@
         <v-text-overflow text="Import & Export" />
       </v-list-item-content>
     </v-list-item>
-    <v-list-item to="/localazy/activity">
-      <v-list-item-icon><v-icon name="history" /></v-list-item-icon>
-      <v-list-item-content>
-        <v-text-overflow text="Activity" />
-      </v-list-item-content>
-    </v-list-item>
     <v-list-item to="/localazy/project-setup">
       <v-list-item-icon><v-icon name="lan" /></v-list-item-icon>
       <v-list-item-content>
@@ -34,6 +28,12 @@
       <v-list-item-icon><v-icon name="settings" /></v-list-item-icon>
       <v-list-item-content>
         <v-text-overflow text="Additional Settings" />
+      </v-list-item-content>
+    </v-list-item>
+    <v-list-item to="/localazy/activity">
+      <v-list-item-icon><v-icon name="history" /></v-list-item-icon>
+      <v-list-item-content>
+        <v-text-overflow text="Activity" />
       </v-list-item-content>
     </v-list-item>
     <v-list-item to="/localazy/about">
