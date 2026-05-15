@@ -1,6 +1,7 @@
 import { isEqual, merge } from 'lodash';
 import { Ref, computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
+import { useApi } from '@directus/extensions-sdk';
 import { ProgressTrackerId } from '../enums/progress-tracker-id';
 import { EnabledFieldsService } from '../../../common/utilities/enabled-fields-service';
 import { useExportToLocalazy, UploadTrackedItem } from './use-export-to-localazy';
@@ -29,9 +30,24 @@ import {
 import { CURSOR_VERSION, UploadCursor } from '../../../common/models/collections-data/sync-state';
 import { TranslatableContent } from '../../../common/models/translatable-content';
 import { UploadedTriple } from '../models/upload-write-result';
-import { useDirectusNotificationsStore, useDirectusUserStore } from './use-directus-stores';
+import {
+  useDirectusCollectionsStore,
+  useDirectusNotificationsStore,
+  useDirectusRelationsStore,
+  useDirectusUserStore,
+} from './use-directus-stores';
 import { buildOrchestratorAdapters } from '../services/orchestrator-adapters';
+import { createSyncLogWriter, type SyncLogHttpClient } from '../services/sync-log-writer';
+import { LOCALAZY_COLLECTIONS } from '../stores/localazy-installer-store';
 import { runIncrementalImport } from '../../../common/services/orchestrator/incremental-import-orchestrator';
+
+/**
+ * Mirrors the orchestrator's terminal-status string for the sync-log row. Free-string
+ * column on disk; this union narrows the producer side so a typo in `onExport` can't
+ * write an unrecognised status that the Activity page's `<status-label>` doesn't know
+ * how to colour.
+ */
+type SyncLogStatus = 'completed' | 'failed' | 'skipped';
 
 type SyncMode = 'incremental' | 'full';
 
@@ -68,6 +84,26 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
 
   const accessToken = computed(() => localazyData.value.access_token);
   const exportService = useExportToLocalazy(accessToken);
+
+  // Resolve setup-only dependencies once here — calling `useApi()` /
+  // `useStores()` from the click handler (`onImport`) crashes with
+  // "The api could not be found" / "The stores could not be found" because
+  // Vue's `inject` requires an active component instance. Threading the
+  // pre-resolved values into `buildOrchestratorAdapters` keeps the orchestrator
+  // bundle (and its `syncLogWriter`) reachable from event handlers.
+  const api = useApi();
+  const collectionsStore = useDirectusCollectionsStore();
+  const relationsStore = useDirectusRelationsStore();
+
+  // The download path uses its own writer (built inside `buildOrchestratorAdapters`).
+  // The upload path doesn't go through the orchestrator, so we instantiate a separate
+  // writer here against the same axios client — both paths target the same
+  // `localazy_sync_log` collection and the writer is stateless beyond its per-session
+  // append-chain map.
+  const uploadSyncLogWriter = createSyncLogWriter({
+    api: api as unknown as SyncLogHttpClient,
+    collectionName: LOCALAZY_COLLECTIONS.syncLog,
+  });
 
   const loading = ref(false);
   const showProgress = ref(false);
@@ -141,6 +177,29 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
     });
     // Save settings is fire-and-forget; errors surface via the errors store inside onSaveSettings.
     void onSaveSettings();
+
+    // Open a sync-log session up-front so the run shows on the Activity page even if
+    // the body throws halfway through. `startSession` is best-effort — a failure here
+    // falls back to no logging for this run, the upload itself still proceeds. The
+    // finalise step in `finally` is gated on `sessionId !== null`.
+    let sessionId: string | null = null;
+    try {
+      sessionId = await uploadSyncLogWriter.startSession({
+        eventType: mode === 'full' ? 'upload-full' : 'upload-incremental',
+        initiator: directusUserId.value,
+        initiatorUser: directusUserId.value || null,
+      });
+    } catch {
+      // Swallow — see comment above. The Activity page just won't show this run.
+    }
+
+    // Mutated by `onWritten` deep inside the export body and the various exit paths
+    // below; declared here so the `finally` block can read both. `runError` mirrors the
+    // orchestrator's pattern — capture, finalise the log, then re-throw.
+    let writtenSinceStart = 0;
+    let runError: unknown = null;
+    let logStatus: SyncLogStatus = 'completed';
+    let logSummary = '';
     try {
       const exportLanguages = await resolveExportLanguages(settings.value);
 
@@ -202,11 +261,13 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
       if (totalTrackedItems === 0 && summary.sourceLangEntries === 0 && summary.translationEntries === 0) {
         addProgressMessage({
           id: ProgressTrackerId.UPLOAD_UP_TO_DATE,
-          message: 'All items already uploaded — nothing to push',
+          message: 'Already up to date — no items have changed since the last upload',
         });
         // Touch last_sync_at so the UX reflects the most recent successful run; merge
         // preserves the on-disk cursor verbatim.
         await persistUploadCursor(inMemoryUploadCursor);
+        logStatus = 'skipped';
+        logSummary = 'Already up to date — no items have changed since the last upload';
         return;
       }
 
@@ -219,7 +280,6 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
       // total work, minimum 50). Final flush in `finally` is unconditional.
       const flushEvery = Math.max(50, Math.ceil(totalTrackedItems / 10));
       let sinceLastFlush = 0;
-      let writtenSinceStart = 0;
 
       const onWritten = (uploads: UploadedTriple[]) => {
         uploads.forEach((u) => {
@@ -264,8 +324,38 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
         id: ProgressTrackerId.UPLOAD_FINISHED,
         message: finalMessage,
       });
+      logSummary = finalMessage;
+    } catch (err) {
+      runError = err;
+      throw err;
     } finally {
       loading.value = false;
+
+      // Finalise the sync-log row even on throw. Status precedence: an explicit
+      // `skipped` set in the up-to-date short-circuit wins; otherwise an unhandled
+      // throw flips to `failed`; otherwise the default `completed` stands.
+      if (sessionId) {
+        try {
+          let status: SyncLogStatus = logStatus;
+          let summary = logSummary;
+          if (runError) {
+            status = 'failed';
+            summary = `Upload failed: ${runError instanceof Error ? runError.message : String(runError)}`;
+          }
+          await uploadSyncLogWriter.finish(sessionId, {
+            status,
+            summary,
+            itemsProcessed: writtenSinceStart,
+          });
+        } catch {
+          // Swallow — a left-in-progress row is fine for the Activity page; the next
+          // run's trim cycle cleans it up. The user-facing outcome (toast, banner) is
+          // already driven by the progress tracker, not the log row.
+        }
+      }
+      // Refresh so the "Last sync" banner + Activity page reflect this run without
+      // requiring a manual reload.
+      void syncLogStore.reload();
     }
   }
 
@@ -296,6 +386,9 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
       }
 
       const adapters = buildOrchestratorAdapters({
+        api,
+        collectionsStore,
+        relationsStore,
         getAnalyticsContext: () => ({
           userId: localazyUser.value.id,
           orgId: localazyProject.value?.orgId || '',

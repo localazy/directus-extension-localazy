@@ -1,4 +1,4 @@
-import { useApi } from '@directus/extensions-sdk';
+import type { AxiosInstance } from 'axios';
 import { storeToRefs } from 'pinia';
 import { CURSOR_VERSION, SyncCursor } from '../../../common/models/collections-data/sync-state';
 import { mergeCursor, parseCursor, serializeCursor } from '../../../common/utilities/sync-cursor';
@@ -19,7 +19,7 @@ import { ImportProgressIds } from '../../../common/services/orchestrator/increme
 import { UpsertProgressIds } from '../../../common/services/orchestrator/upsert-localazy-content';
 import { importFromLocalazyService } from './import-from-localazy-service';
 import { DirectusModuleApi } from './directus-module-api';
-import { useDirectusCollectionsStore, useDirectusRelationsStore } from '../composables/use-directus-stores';
+import type { useDirectusCollectionsStore, useDirectusRelationsStore } from '../composables/use-directus-stores';
 import { useLocalazyStore } from '../stores/localazy-store';
 import { useLocalazySyncStateStore } from '../stores/localazy-sync-state-store';
 import { useProgressTrackerStore } from '../stores/progress-tracker-store';
@@ -306,9 +306,12 @@ function buildProgressSink(): ProgressSink {
  * the FK column on each translation collection (Directus convention is
  * `languages_code`, but real installs often diverge — `lang_code`, `language`, etc.).
  * Falls back to `languages_code` when the relation can't be located.
+ *
+ * Takes the pre-resolved relations store rather than calling `useDirectusRelationsStore()`
+ * here — the latter wraps `useStores()` which fails outside Vue setup, and
+ * `buildOrchestratorAdapters` is invoked from a click handler.
  */
-function buildResolveLanguageFkField(): ResolveLanguageFkField {
-  const relationsStore = useDirectusRelationsStore();
+function buildResolveLanguageFkField(relationsStore: ReturnType<typeof useDirectusRelationsStore>): ResolveLanguageFkField {
   return (parentCollection, translationField, languagesCollection) => {
     const relations = relationsStore.getRelationsForField(parentCollection, translationField);
     const languageRelation = relations.find((r) => r.related_collection === languagesCollection);
@@ -318,22 +321,38 @@ function buildResolveLanguageFkField(): ResolveLanguageFkField {
 
 /**
  * Builds the module-side `SyncLogWriter` port. The writer talks to the
- * `localazy_sync_log` collection through `useApi()`; the adapter is constructed inside
- * the build function so it shares the same Directus session as the rest of the
- * orchestrator's wiring.
+ * `localazy_sync_log` collection through the supplied axios client (resolved by
+ * the caller from `useApi()` during Vue setup — `useApi()` itself cannot be
+ * called here because `buildOrchestratorAdapters` is invoked from a click
+ * handler, which is outside any setup scope).
  */
-function buildSyncLogWriter(): SyncLogWriter {
+function buildSyncLogWriter(api: AxiosInstance): SyncLogWriter {
   // Single targeted cast: `useApi()` returns axios' `AxiosInstance`, whose method
   // signatures (`post(url, data?, config?)` returning `Promise<AxiosResponse<any>>`)
   // can't structurally narrow into `SyncLogHttpClient`'s specific response shapes
   // through `any`. The cast is safe because the writer only calls the documented
   // axios surface and Directus' response envelope (`{ data: { data: ... } }`) matches
   // the interface's declared return shapes verbatim at runtime.
-  const api = useApi() as SyncLogHttpClient;
-  return createSyncLogWriter({ api, collectionName: LOCALAZY_COLLECTIONS.syncLog });
+  return createSyncLogWriter({ api: api as unknown as SyncLogHttpClient, collectionName: LOCALAZY_COLLECTIONS.syncLog });
 }
 
 type BuildAdaptersInput = {
+  /**
+   * Axios client resolved from `useApi()` by the caller during Vue setup. Must be
+   * supplied here because `buildOrchestratorAdapters` itself is invoked from a click
+   * handler — outside any setup scope, where `useApi()` would throw
+   * "[useApi]: The api could not be found." Pre-resolving it once during the
+   * composable's setup phase and threading it through is the supported pattern.
+   */
+  api: AxiosInstance;
+  /**
+   * Pre-resolved Directus stores. Same reason as `api` above — the wrappers in
+   * `use-directus-stores.ts` call `useStores()`, which (like `useApi()`) only works
+   * inside Vue setup. Capturing them in the calling composable and passing them in
+   * keeps the click-handler path crash-free.
+   */
+  collectionsStore: ReturnType<typeof useDirectusCollectionsStore>;
+  relationsStore: ReturnType<typeof useDirectusRelationsStore>;
   /**
    * Settings, languages, and project data are read at call time so analytics fires with
    * the same values the orchestrator ran with. The composable still owns "what to sync";
@@ -355,13 +374,14 @@ type BuildAdaptersInput = {
 };
 
 /**
- * Builds the full adapter bundle the orchestrator's `run` entry point needs. Must be
- * called inside a Vue setup scope (Pinia stores resolve through `useStores()` /
- * `defineStore` calls). The returned bundle has no Vue dependency past construction —
- * it can be passed across `await` boundaries freely.
+ * Builds the full adapter bundle the orchestrator's `run` entry point needs. Pinia
+ * stores accessed inside the build functions work outside Vue setup because Pinia
+ * resolves through the active app instance, but `useApi()` does not — the caller
+ * pre-resolves the axios client and passes it in via `input.api`. The returned bundle
+ * has no Vue dependency past construction and can be passed across `await` boundaries.
  */
 export function buildOrchestratorAdapters(input: BuildAdaptersInput): OrchestratorAdapters {
-  const directusApi = new DirectusModuleApi(useApi(), useDirectusCollectionsStore());
+  const directusApi = new DirectusModuleApi(input.api, input.collectionsStore);
   const { addDirectusError } = useErrorsStore();
   const onDirectusError: ErrorSink = (e) => addDirectusError(e);
 
@@ -371,7 +391,7 @@ export function buildOrchestratorAdapters(input: BuildAdaptersInput): Orchestrat
     localazyContentFetcher: buildLocalazyContentFetcher(),
     progress: buildProgressSink(),
     directusApi,
-    resolveLanguageFkField: buildResolveLanguageFkField(),
+    resolveLanguageFkField: buildResolveLanguageFkField(input.relationsStore),
     onDirectusError,
     reportDownloadAnalytics: () => {
       const ctx = input.getAnalyticsContext();
@@ -385,7 +405,7 @@ export function buildOrchestratorAdapters(input: BuildAdaptersInput): Orchestrat
         }),
       );
     },
-    syncLogWriter: buildSyncLogWriter(),
+    syncLogWriter: buildSyncLogWriter(input.api),
     syncLogInitiator: input.syncLogInitiator,
   };
 }
