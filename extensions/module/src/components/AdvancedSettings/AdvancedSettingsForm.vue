@@ -2,30 +2,6 @@
   <div>
     <div class="form grid">
       <div class="half">
-        <p class="type-label">Automated upload to Localazy</p>
-        <v-select v-model="localEdits.automated_upload" :items="automatedUploadOptions" />
-      </div>
-      <div class="half-right">
-        <p class="configuration-description note">
-          When enabled, content will be automatically uploaded to Localazy after its creation or update in Directus.
-        </p>
-      </div>
-
-      <div class="half">
-        <p class="type-label">Automated deprecation of Localazy source keys on deletion</p>
-        <v-select v-model="localEdits.automated_deprecation" :items="automatedDeprecationOptions" />
-      </div>
-      <div class="half-right">
-        <p class="configuration-description note">
-          When enabled, Localazy source keys will be automatically set as
-          <a href="https://localazy.com/faq/localazy/what-is-the-difference-between-hidden-and-deprecated-source-keys" target="_blank">
-            deprecated
-          </a>
-          if an entry in source language is deleted in Directus.
-        </p>
-      </div>
-
-      <div class="half">
         <p class="type-label">Source language synchronization</p>
         <v-select v-model="localEdits.import_source_language" :items="importSourceLanguageOptions" />
       </div>
@@ -139,27 +115,6 @@ const directusMissingLanguagesOptions = ref<Item[]>([
   },
 ]);
 
-const automatedUploadOptions = ref<Item[]>([
-  {
-    text: 'Allow automated upload',
-    value: true,
-  },
-  {
-    text: 'Disable automated upload',
-    value: false,
-  },
-]);
-
-const automatedDeprecationOptions = ref<Item[]>([
-  {
-    text: 'Allow automated deprecation',
-    value: true,
-  },
-  {
-    text: 'Disable automated deprecation',
-    value: false,
-  },
-]);
 </script>
 
 <style lang="scss" scoped>

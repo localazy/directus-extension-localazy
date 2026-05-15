@@ -39,7 +39,7 @@ function makeSchema() {
   };
 }
 
-const sampleSettings = { automated_deprecation: true };
+const sampleSettings = { automated_upload: true, automated_deprecation: true };
 const sampleTransferSetup = { translation_strings: true, enabled_fields: '[]' };
 const sampleLocalazyData = { access_token: 'tok' };
 const sampleProject = { id: 'p1' };
@@ -156,7 +156,7 @@ describe('translationStringsSynchronizationService.deprecateDeletedTranslationSt
   it('does nothing when automated_deprecation is disabled', async () => {
     const logger = makeLogger();
     vi.spyOn(proto, 'resolveLocalazySettings').mockResolvedValue({
-      settings: { automated_deprecation: false },
+      settings: { automated_upload: true, automated_deprecation: false },
       contentTransferSetup: sampleTransferSetup,
     });
     vi.spyOn(proto, 'resolveLocalazyData').mockResolvedValue({ localazyData: sampleLocalazyData });
@@ -171,6 +171,30 @@ describe('translationStringsSynchronizationService.deprecateDeletedTranslationSt
     });
 
     // The function returns before any project load / deprecate happens.
+    expect(loadProjectSpy).not.toHaveBeenCalled();
+    expect(deprecateSpy).not.toHaveBeenCalled();
+  });
+
+  // ADR-0001: deprecation is a sub-behavior of the "automated export" master toggle;
+  // a `automated_upload: false` setting guarantees no outbound activity, even if
+  // `automated_deprecation` remained `true` from a legacy install.
+  it('does nothing when automated_upload (the master export gate) is disabled', async () => {
+    const logger = makeLogger();
+    vi.spyOn(proto, 'resolveLocalazySettings').mockResolvedValue({
+      settings: { automated_upload: false, automated_deprecation: true },
+      contentTransferSetup: sampleTransferSetup,
+    });
+    vi.spyOn(proto, 'resolveLocalazyData').mockResolvedValue({ localazyData: sampleLocalazyData });
+    const loadProjectSpy = vi.spyOn(proto, 'loadProject');
+    const deprecateSpy = vi.spyOn(proto, 'deprecateLocalazyKeys').mockResolvedValue(undefined);
+
+    await translationStringsSynchronizationService.deprecateDeletedTranslationStrings({
+      schema: makeSchema() as never,
+      itemIds: ['id1'],
+      logger,
+      ItemsService: vi.fn(),
+    });
+
     expect(loadProjectSpy).not.toHaveBeenCalled();
     expect(deprecateSpy).not.toHaveBeenCalled();
   });
