@@ -5,7 +5,13 @@ import { DirectusApi } from '../interfaces/directus-api';
 import { CreateMissingLanguagesInDirectus } from '../enums/create-missing-languages-in-directus';
 import { Settings } from '../models/collections-data/settings';
 import { DirectusLocalazyLanguage } from '../models/directus-localazy-language';
+import { pickLanguageName } from '../utilities/language-display';
 import { DirectusLocalazyAdapter } from './directus-localazy-adapter';
+
+export type DirectusLanguageRow = {
+  code: string;
+  name: string | null;
+};
 
 type GetDirectusSourceLanguageAsLocalazyLanguage = {
   localazySourceLanguage: number;
@@ -24,6 +30,19 @@ export class SynchronizationLanguagesService {
       fields: [languageCodeField],
     });
     return result.map((item) => item[languageCodeField] as string);
+  }
+
+  async fetchDirectusLanguageRows(languageCollection: string, languageCodeField: string): Promise<DirectusLanguageRow[]> {
+    const result = await this.directusApi.fetchDirectusItems(languageCollection, {
+      fields: ['*'],
+    });
+    return result
+      .map((item) => {
+        const code = item[languageCodeField];
+        if (typeof code !== 'string' || code.length === 0) return null;
+        return { code, name: pickLanguageName(item as Record<string, unknown>) };
+      })
+      .filter((row): row is DirectusLanguageRow => row !== null);
   }
 
   async createLanguages(settings: Settings, localazyLanguages: Language[]) {

@@ -46,7 +46,11 @@
         </p>
       </div>
 
-      <LanguageMappingsEditor v-model="localEdits.language_mappings" />
+      <LanguageMappingsEditor
+        v-model="localEdits.language_mappings"
+        :language-collection="localEdits.language_collection"
+        :language-code-field="localEdits.language_code_field"
+      />
     </div>
   </div>
 </template>
