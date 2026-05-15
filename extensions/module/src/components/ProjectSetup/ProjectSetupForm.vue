@@ -64,6 +64,7 @@ import { SelectItem } from '../../models/directus/internals/select-item';
 import { Settings } from '../../../../common/models/collections-data/settings';
 import { getConfig } from '../../../../common/config/get-config';
 import { DirectusLocalazyAdapter } from '../../../../common/services/directus-localazy-adapter';
+import { formatLanguageOption, pickLanguageName } from '../../../../common/utilities/language-display';
 import LoginButton from './LoginButton.vue';
 import LogoutButton from './LogoutButton.vue';
 import { useDirectusCollectionsStoreRefs, useDirectusFieldsStore } from '../../composables/use-directus-stores';
@@ -143,9 +144,11 @@ const possibleLanguageCodeFields = computed((): SelectItem[] => {
 const languages: Ref<Item[]> = ref([]);
 const languageSelectOptions = computed(() =>
   languages.value.map((item) => {
+    const code = item[localEdits.value.language_code_field] as string;
+    const name = pickLanguageName(item as Record<string, unknown>);
     const option: SelectItem = {
-      text: item[localEdits.value.language_code_field],
-      value: item[localEdits.value.language_code_field],
+      text: formatLanguageOption(code, name),
+      value: code,
     };
     return option;
   }),

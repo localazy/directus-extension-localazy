@@ -4,7 +4,7 @@ import { useErrorsStore } from '../stores/errors-store';
 import { Settings } from '../../../common/models/collections-data/settings';
 import { useLocalazyStore } from '../stores/localazy-store';
 import { DirectusLocalazyLanguage } from '../../../common/models/directus-localazy-language';
-import { SynchronizationLanguagesService } from '../../../common/services/synchronization-languages-service';
+import { DirectusLanguageRow, SynchronizationLanguagesService } from '../../../common/services/synchronization-languages-service';
 import { DirectusModuleApi } from '../services/directus-module-api';
 import { useDirectusCollectionsStore } from './use-directus-stores';
 
@@ -17,6 +17,15 @@ export function useDirectusLanguages() {
   async function fetchDirectusLanguages(languageCollection: string, languageCodeField: string): Promise<string[]> {
     try {
       return synchronizationLanguagesService.fetchDirectusLanguages(languageCollection, languageCodeField);
+    } catch (e: unknown) {
+      addDirectusError(e);
+      return [];
+    }
+  }
+
+  async function fetchDirectusLanguageRows(languageCollection: string, languageCodeField: string): Promise<DirectusLanguageRow[]> {
+    try {
+      return synchronizationLanguagesService.fetchDirectusLanguageRows(languageCollection, languageCodeField);
     } catch (e: unknown) {
       addDirectusError(e);
       return [];
@@ -49,5 +58,6 @@ export function useDirectusLanguages() {
     resolveExportLanguages,
     resolveImportLanguages,
     fetchDirectusLanguages,
+    fetchDirectusLanguageRows,
   };
 }
