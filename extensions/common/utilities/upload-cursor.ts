@@ -1,4 +1,5 @@
 import { UploadCursor } from '../models/collections-data/sync-state';
+import { sha256 } from './sha256';
 
 /**
  * Pure helpers around the upload-sync cursor. The cursor is a per-(collection, itemId)
@@ -164,8 +165,13 @@ function canonicalizeValue(value: unknown): unknown {
 
 /**
  * Compute the 16-hex-character truncated SHA-256 hash of an arbitrary JSON-compatible
- * value. Uses Web Crypto's `crypto.subtle.digest('SHA-256', ...)`, which is available in
- * both browser (module) and Node 22 (sync-hook + test) runtimes.
+ * value. Prefers Web Crypto's `crypto.subtle.digest('SHA-256', ...)`; falls back to a
+ * pure-JS SHA-256 when `crypto.subtle` is unavailable. The fallback path matters because
+ * browsers only expose `crypto.subtle` in "secure contexts" — HTTPS, `localhost`, or
+ * `127.0.0.1`. Directus served on a plain-HTTP LAN address (e.g. `http://0.0.0.0:8055`)
+ * would otherwise crash Export with "Cannot read properties of undefined (reading
+ * 'digest')". Both paths produce identical SHA-256 bytes, so existing on-disk cursors
+ * stay valid across the switch.
  *
  * 16 hex chars = 64 bits of collision space. At expected scales (tens of thousands of
  * items per install), this is well below the birthday-paradox threshold and adequate for
@@ -175,11 +181,19 @@ function canonicalizeValue(value: unknown): unknown {
 export async function computeItemHash(value: unknown): Promise<string> {
   const canonical = canonicalizeForHash(value);
   const bytes = new TextEncoder().encode(canonical);
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  const view = new Uint8Array(digest);
+  const view = await digestSha256(bytes);
   let hex = '';
   for (let i = 0; i < 8; i += 1) {
     hex += view[i]!.toString(16).padStart(2, '0');
   }
   return hex;
+}
+
+async function digestSha256(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
+  const subtle = typeof crypto !== 'undefined' ? crypto.subtle : undefined;
+  if (subtle && typeof subtle.digest === 'function') {
+    const buf = await subtle.digest('SHA-256', bytes);
+    return new Uint8Array(buf);
+  }
+  return sha256(bytes);
 }
