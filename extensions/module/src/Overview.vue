@@ -12,7 +12,7 @@
       <errors-notice class="notice" :localazy-data="localazyData" />
 
       <connection-overview class="overview-block" :localazy-data="localazyData" :settings="settings" />
-      <connection-languages class="overview-block mt-8" :settings="settings" />
+      <connection-languages class="mt-8" :settings="settings" />
     </div>
 
     <div v-else class="hydrating">
@@ -65,8 +65,10 @@ onBeforeMount(() => {
 }
 
 .overview-block {
-  background-color: var(--background-normal);
-  padding: 1rem;
+  background-color: var(--background-normal, var(--theme--background-normal, var(--theme--background)));
+  border: 1px solid var(--border-normal, var(--theme--border-color-accent));
+  border-radius: var(--border-radius, var(--theme--border-radius));
+  padding: 20px;
 }
 
 .notice {
@@ -75,7 +77,7 @@ onBeforeMount(() => {
 }
 
 .mt-8 {
-  margin-top: 1rem;
+  margin-top: 1.25rem;
 }
 
 .hydrating {

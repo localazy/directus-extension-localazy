@@ -1,68 +1,63 @@
 <template>
   <div class="connection-overview">
-    <div class="flex items-center justify-between w-full">
-      <div class="flex flex-col">
-        <span class="font-medium">Localazy connection</span>
-        <div v-if="isConnecting" class="flex items-center">
-          <div class="rounded-full bg-warning w-4 h-4 mr-2" />
-          <span class="font-medium">Connecting to Localazy</span>
-        </div>
-
-        <div v-else-if="isConnected" class="flex items-center">
-          <div class="rounded-full bg-success w-4 h-4 mr-2" />
-          <div class="text-foreground-normal font-normal">
-            {{ localazyProject?.name }}
-          </div>
-        </div>
-
-        <div v-else class="flex items-center">
-          <div class="rounded-full bg-danger w-4 h-4 mr-2" />
-          <span class="font-medium">Not connected to Localazy</span>
+    <div class="overview-header">
+      <div class="connection-info">
+        <span class="connection-label">Localazy connection</span>
+        <div class="connection-status">
+          <span class="status-pill" :class="statusPillClass">
+            <span class="status-dot" />
+            {{ statusLabel }}
+          </span>
+          <span v-if="isConnected" class="project-name">{{ localazyProject?.name }}</span>
         </div>
       </div>
 
-      <div class="flex">
-        <v-icon
-          name="sync"
-          class="mr-2"
-          :class="{
-            'disabled-link': !hasLocalazyToken,
-            'cursor-pointer': hasLocalazyToken,
-          }"
+      <div class="header-actions">
+        <button
+          type="button"
+          class="header-action"
+          :class="{ 'header-action--disabled': !hasLocalazyToken }"
+          :disabled="!hasLocalazyToken"
           title="Reconnect to Localazy"
           @click="onReconnect"
-        />
+        >
+          <v-icon name="sync" />
+        </button>
 
         <component
           :is="isConnected ? 'a' : 'span'"
           :href="localazyProject?.url || undefined"
           target="_blank"
-          class="open-link"
-          title="Open Localazy project in a new tab."
-          :class="{
-            'disabled-link': !isConnected,
-          }"
+          class="header-action"
+          :class="{ 'header-action--disabled': !isConnected }"
+          title="Open Localazy project in a new tab"
         >
           <v-icon name="open_in_new" />
         </component>
       </div>
     </div>
 
-    <div v-if="isConnected" class="flex organization-overview">
-      <div class="flex flex-col">
-        <span class="font-medium">Directus Source language</span>
-        <span class="font-normal">{{ settings?.source_language }} ({{ directusSourceLanguage?.name }})</span>
+    <div v-if="isConnected" class="overview-body">
+      <div class="metric">
+        <span class="metric-label">Directus source language</span>
+        <span class="metric-value">
+          {{ settings?.source_language }}
+          <span class="metric-meta">({{ directusSourceLanguage?.name }})</span>
+        </span>
       </div>
 
-      <div class="flex flex-col">
-        <span class="font-medium">Localazy Source language</span>
-        <span class="font-normal">{{ localazySourceLanguage?.locale }} ({{ localazySourceLanguage?.name }})</span>
+      <div class="metric">
+        <span class="metric-label">Localazy source language</span>
+        <span class="metric-value">
+          {{ localazySourceLanguage?.locale }}
+          <span class="metric-meta">({{ localazySourceLanguage?.name }})</span>
+        </span>
       </div>
 
-      <div class="flex flex-col">
-        <span class="font-medium">Organization keys</span>
-        <span class="font-normal" :class="{ 'over-key-limit': exceededKeyLimit }">
-          {{ localazyProject?.organization.usedKeys }} / {{ localazyProject?.organization.availableKeys }}
+      <div class="metric">
+        <span class="metric-label">Organization keys</span>
+        <span class="metric-value" :class="{ 'over-key-limit': exceededKeyLimit }">
+          {{ formattedUsedKeys }} <span class="metric-meta">/ {{ formattedAvailableKeys }}</span>
         </span>
       </div>
     </div>
@@ -104,6 +99,23 @@ const directusSourceLanguage = computed(() => {
   return findLocalazyLanguageByLocale(DirectusLocalazyAdapter.transformDirectusToLocalazyLanguage(props.settings.source_language));
 });
 
+const statusLabel = computed(() => {
+  if (isConnecting.value) return 'Connecting';
+  if (isConnected.value) return 'Connected';
+  return 'Not connected';
+});
+
+const statusPillClass = computed(() => {
+  if (isConnecting.value) return 'status-pill--warning';
+  if (isConnected.value) return 'status-pill--success';
+  return 'status-pill--danger';
+});
+
+const numberFormatter = new Intl.NumberFormat('en-US');
+const formatNumber = (n: number | undefined | null): string => (typeof n === 'number' ? numberFormatter.format(n) : '—');
+const formattedUsedKeys = computed(() => formatNumber(localazyProject.value?.organization.usedKeys));
+const formattedAvailableKeys = computed(() => formatNumber(localazyProject.value?.organization.availableKeys));
+
 async function onReconnect() {
   if (hasLocalazyToken.value) {
     await hydrateLocalazyData({ force: true, localazyData: props.localazyData });
@@ -116,34 +128,180 @@ async function onReconnect() {
 
 .connection-overview {
   @include common;
-}
-
-.disabled-link {
-  opacity: 0.5;
-  color: var(--foreground-subdued);
-  fill: var(--foreground-subdued);
-}
-
-.source-language {
-  margin-bottom: 1rem;
-  @media (min-width: 960px) {
-    margin-right: 18rem;
-    margin-bottom: 0rem;
-  }
-}
-
-.organization-overview {
+  display: flex;
   flex-direction: column;
-  gap: 2rem;
+}
 
-  @media (min-width: 960px) {
-    flex-direction: row;
-    gap: 4rem;
+.overview-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.connection-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+$divider-color: var(--border-normal, var(--theme--border-color-accent));
+$radius: var(--border-radius, var(--theme--border-radius));
+$fg-normal: var(--foreground-normal, var(--theme--foreground));
+$fg-subdued: var(--foreground-subdued, var(--theme--foreground-subdued));
+$fg-accent: var(--foreground-accent, var(--theme--foreground-accent, var(--theme--foreground)));
+
+.connection-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: $fg-accent;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+}
+
+.status-pill--success {
+  background: var(--success-25, rgba(46, 184, 124, 0.12));
+  color: var(--success);
+}
+
+.status-pill--warning {
+  background: var(--warning-25, rgba(255, 167, 38, 0.15));
+  color: var(--warning);
+
+  .status-dot {
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+}
+
+.status-pill--danger {
+  background: var(--danger-25, rgba(231, 76, 60, 0.12));
+  color: var(--danger);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.project-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: $fg-normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.header-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: $radius;
+  border: none;
+  background: transparent;
+  color: $fg-normal;
+  cursor: pointer;
+  transition: background-color var(--fast) var(--transition);
+  text-decoration: none;
+
+  &:hover {
+    background-color: var(--background-subdued);
   }
 
-  margin-top: 1rem;
-  border-top: 1px solid var(--border-normal);
-  padding-top: 1rem;
+  &--disabled,
+  &--disabled:hover {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: transparent;
+    pointer-events: none;
+  }
+}
+
+.overview-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid $divider-color;
+
+  @media (min-width: 720px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--background-subdued);
+  border-radius: $radius;
+  min-width: 0;
+}
+
+.metric-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: $fg-accent;
+}
+
+.metric-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: $fg-normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-meta {
+  font-weight: 400;
+  color: $fg-subdued;
 }
 
 .over-key-limit {
