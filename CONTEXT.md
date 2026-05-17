@@ -34,6 +34,13 @@ A Localazy operation that marks a source key as no-longer-active without deletin
 **Webhook user**:
 The Directus user (Admin role required) whose identity webhook-triggered writes are attributed to. Required for automated import to function — the bundle refuses to act on webhook events until this is set. Persisted as `Settings.automated_import_user`.
 
+**Sync-log session**:
+A persisted row in `localazy_sync_log` capturing one Automated import or Automated export run end to end. Carries a session id (threaded through `appendEntry` calls), event type, status, initiator, initiator user, summary, items-processed counter, started/finished timestamps, and a JSON `entries` column of milestone records. Surfaced to admins on the Activity page. Retention: most recent 100 sessions.
+
+**Sync-log writer**:
+The module that owns persistence of a Sync-log session — creation, milestone appends (serialised per session), finalisation, and retention trim. Lives in `extensions/common/` and is composed with a transport adapter: an axios adapter on the Module side, an `ItemsService` adapter on the Sync-hook bundle side.
+_Avoid_: "log service", "audit logger"
+
 ## Relationships
 
 - **Automated export** is a property of the **Sync-hook bundle**; it cannot run when the bundle is not installed.
