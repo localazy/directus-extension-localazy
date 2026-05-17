@@ -50,7 +50,8 @@ import Navigation from './components/Navigation.vue';
 import SessionMetadata from './components/Activity/SessionMetadata.vue';
 import { useLocalazySyncLogStore } from './stores/localazy-sync-log-store';
 import { useLocalazyBoot } from './composables/use-localazy-boot';
-import type { SyncLogEntry, SyncLogLevel, SyncLogSession } from '../../common/models/collections-data/sync-log';
+import { useSyncLogEntries } from './composables/use-sync-log-entries';
+import type { SyncLogSession } from '../../common/models/collections-data/sync-log';
 
 const route = useRoute();
 const sessionId = computed(() => String(route.params.sessionId || ''));
@@ -66,31 +67,7 @@ const breadcrumb = computed(() => [
   { name: 'Activity', to: '/localazy/activity' },
 ]);
 
-const entries = computed<SyncLogEntry[]>(() => {
-  if (!session.value) return [];
-  try {
-    const parsed: unknown = JSON.parse(session.value.entries || '[]');
-    return Array.isArray(parsed) ? (parsed as SyncLogEntry[]) : [];
-  } catch {
-    return [];
-  }
-});
-
-function formatTime(ts: string): string {
-  const ms = Date.parse(ts);
-  if (!Number.isFinite(ms)) return ts;
-  return new Date(ms).toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-}
-
-function iconForLevel(level: SyncLogLevel): string {
-  if (level === 'error') return 'error_outline';
-  if (level === 'warn') return 'warning_amber';
-  return 'info';
-}
+const { entries, formatTime, iconForLevel } = useSyncLogEntries(session);
 
 onBeforeMount(async () => {
   await boot();
