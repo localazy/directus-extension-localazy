@@ -118,7 +118,6 @@ const directusMissingLanguagesOptions = ref<Item[]>([
     value: CreateMissingLanguagesInDirectus.NO,
   },
 ]);
-
 </script>
 
 <style lang="scss" scoped>
