@@ -1,4 +1,3 @@
-import { isEmpty } from 'lodash';
 import { Project } from '@localazy/api-client';
 import { Settings } from '../../../../common/models/collections-data/settings';
 import { KeyValueEntry } from '../../../../common/models/localazy-key-entry';
@@ -24,6 +23,18 @@ type CreateExportPromisesForLanguage = {
   projectId: string;
 };
 
+/**
+ * Dispatches translatable content to Localazy as a side-effect. Called exclusively by the
+ * Automated export pipeline's `dispatchToLocalazy` adapter — see
+ * `extensions/common/services/orchestrator/automated-export-pipeline.ts`.
+ *
+ * Preconditions guaranteed by the pipeline before dispatch:
+ *   - `settings.automated_upload === true`
+ *   - `localazyData.access_token` is a non-empty string
+ *   - `content.sourceLanguage` is non-empty
+ *   - `localazyProject` is a hydrated Localazy project
+ * The original defensive early-return covering these has been removed; trust the pipeline.
+ */
 export class ExportToLocalazyService {
   private createExportPromisesForLanguage(options: CreateExportPromisesForLanguage) {
     const { content, language, access_token, projectId } = options;
@@ -38,42 +49,35 @@ export class ExportToLocalazyService {
 
   async exportContentToLocalazy(data: ExportContentToLocalazy) {
     const { content, settings, localazyData, localazyProject } = data;
-    const { automated_upload } = settings;
     const { access_token } = localazyData;
-    if (!access_token || isEmpty(content.sourceLanguage) || !settings || !automated_upload) {
-      return;
-    }
 
     try {
       const { add, execute } = createAsyncQueue();
+      const directusSourceLanguageAsLocalazyLanguage = DirectusLocalazyAdapter.mapDirectusToLocalazySourceLanguage(
+        localazyProject.sourceLanguage || 0,
+        settings.source_language,
+      );
 
-      if (localazyProject) {
-        const directusSourceLanguageAsLocalazyLanguage = DirectusLocalazyAdapter.mapDirectusToLocalazySourceLanguage(
-          localazyProject.sourceLanguage || 0,
-          settings.source_language,
-        );
-
+      add(
+        this.createExportPromisesForLanguage({
+          content: content.sourceLanguage,
+          language: directusSourceLanguageAsLocalazyLanguage,
+          access_token,
+          projectId: localazyProject.id,
+        }),
+      );
+      Object.entries(content.otherLanguages).forEach(([language, languageContent]) => {
         add(
           this.createExportPromisesForLanguage({
-            content: content.sourceLanguage,
-            language: directusSourceLanguageAsLocalazyLanguage,
+            content: languageContent,
+            language,
             access_token,
             projectId: localazyProject.id,
           }),
         );
-        Object.entries(content.otherLanguages).forEach(([language, languageContent]) => {
-          add(
-            this.createExportPromisesForLanguage({
-              content: languageContent,
-              language,
-              access_token,
-              projectId: localazyProject.id,
-            }),
-          );
-        });
+      });
 
-        await execute({ delayBetween: 150 });
-      }
+      await execute({ delayBetween: 150 });
     } catch (e: unknown) {
       trackLocalazyError(e, 'export');
     }
