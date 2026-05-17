@@ -1,34 +1,65 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const serviceMocks = vi.hoisted(() => ({
-  exportTranslationString: vi.fn().mockResolvedValue(undefined),
-  deprecateDeletedTranslationStrings: vi.fn().mockResolvedValue(undefined),
-  exportCollectionContent: vi.fn().mockResolvedValue(undefined),
-  deprecateDeletedCollectionItems: vi.fn().mockResolvedValue(undefined),
+// Captures every call into the export / deprecation pipelines so we can assert that the
+// hook composes them correctly — what loadContext was passed, what fetcher closes over
+// what keys, etc. The pipelines themselves have their own unit tests in
+// extensions/common/services/orchestrator/.
+const pipelineMocks = vi.hoisted(() => ({
+  runAutomatedExportPipeline: vi.fn().mockResolvedValue({ kind: 'exported' }),
+  runAutomatedDeprecationPipeline: vi.fn().mockResolvedValue({ kind: 'deprecated', keysCount: 0 }),
+}));
+
+const adapterMocks = vi.hoisted(() => ({
+  loadContextFactory: vi.fn(),
+  collectionContentFetcherFactory: vi.fn(),
+  translationStringsFetcherFactory: vi.fn(),
+  sourceLanguageImportContentFetcherFactory: vi.fn(),
+  dispatchToLocalazy: vi.fn(),
+}));
+
+const reporterMocks = vi.hoisted(() => ({
+  reportAutomatedExportOutcome: vi.fn(),
+  reportAutomatedDeprecationOutcome: vi.fn(),
 }));
 
 vi.mock('@directus/extensions-sdk', () => ({
-  // defineHook is a passthrough at runtime; we capture the registration callback
-  // and invoke it with a mocked SDK context in beforeEach below.
   defineHook: (callback: unknown) => callback,
 }));
 
-vi.mock('./services/content-synchronization/translation-strings-synchronization-service', () => ({
-  translationStringsSynchronizationService: {
-    exportTranslationString: serviceMocks.exportTranslationString,
-    deprecateDeletedTranslationStrings: serviceMocks.deprecateDeletedTranslationStrings,
+vi.mock('../../../common/services/orchestrator/automated-export-pipeline', () => ({
+  runAutomatedExportPipeline: pipelineMocks.runAutomatedExportPipeline,
+}));
+
+vi.mock('../../../common/services/orchestrator/automated-deprecation-pipeline', () => ({
+  runAutomatedDeprecationPipeline: pipelineMocks.runAutomatedDeprecationPipeline,
+}));
+
+vi.mock('./services/content-synchronization/pipeline-adapters', () => ({
+  makeBundleLocalazyContextLoader: adapterMocks.loadContextFactory.mockReturnValue('loadContextSentinel'),
+  makeCollectionContentFetcher: adapterMocks.collectionContentFetcherFactory.mockReturnValue('collectionContentFetcherSentinel'),
+  makeTranslationStringsFetcher: adapterMocks.translationStringsFetcherFactory.mockReturnValue('translationStringsFetcherSentinel'),
+  makeSourceLanguageImportContentFetcher:
+    adapterMocks.sourceLanguageImportContentFetcherFactory.mockReturnValue('sourceLanguageFetcherSentinel'),
+  dispatchToLocalazy: adapterMocks.dispatchToLocalazy,
+}));
+
+vi.mock('./services/content-synchronization/deprecation-key-projectors', () => ({
+  projectCollectionDeprecationKeys: vi.fn((collection: string) => ({ tag: 'collection-projector', collection })),
+  projectTranslationStringsDeprecationKeys: { tag: 'translation-strings-projector' },
+}));
+
+vi.mock('./services/content-synchronization/outcome-reporters', () => ({
+  reportAutomatedExportOutcome: reporterMocks.reportAutomatedExportOutcome,
+  reportAutomatedDeprecationOutcome: reporterMocks.reportAutomatedDeprecationOutcome,
+}));
+
+vi.mock('./services/directus-service', () => ({
+  // Constructor produces a sentinel object the assertions can match by structural shape.
+  DirectusApiService: class {
+    tag = 'directus-api-service-sentinel';
   },
 }));
 
-vi.mock('./services/content-synchronization/collection-content-synchronization-service', () => ({
-  collectionContentSynchronizationService: {
-    exportCollectionContent: serviceMocks.exportCollectionContent,
-    deprecateDeletedCollectionItems: serviceMocks.deprecateDeletedCollectionItems,
-  },
-}));
-
-// Import after vi.mock declarations (vi.mock is hoisted; the order in source doesn't matter
-// but keeping the dynamic import after the mocks for readability).
 import hookCallback from './index';
 
 type HandlerMeta = Record<string, unknown>;
@@ -39,10 +70,17 @@ describe('sync-hook entry point', () => {
   const fakeSchema = { collections: {} };
   const fakeItemsService = vi.fn();
   const fakeFieldsService = vi.fn();
-  const fakeLogger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+  const fakeLogger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // vi.clearAllMocks resets the chained mockReturnValue too — re-arm the factories.
+    adapterMocks.loadContextFactory.mockReturnValue('loadContextSentinel');
+    adapterMocks.collectionContentFetcherFactory.mockReturnValue('collectionContentFetcherSentinel');
+    adapterMocks.translationStringsFetcherFactory.mockReturnValue('translationStringsFetcherSentinel');
+    adapterMocks.sourceLanguageImportContentFetcherFactory.mockReturnValue('sourceLanguageFetcherSentinel');
+    pipelineMocks.runAutomatedExportPipeline.mockResolvedValue({ kind: 'exported' });
+    pipelineMocks.runAutomatedDeprecationPipeline.mockResolvedValue({ kind: 'deprecated', keysCount: 0 });
     registrations = new Map();
 
     const action = (event: string, handler: Handler) => {
@@ -53,9 +91,6 @@ describe('sync-hook entry point', () => {
       services: { ItemsService: fakeItemsService, FieldsService: fakeFieldsService },
       logger: fakeLogger,
     };
-
-    // Run the hook's registration callback. Cast to a callable shape since defineHook
-    // is typed as returning a complex SDK type but our mock makes it a passthrough.
     (hookCallback as unknown as (r: typeof registerContext, c: typeof apiContext) => void)(registerContext, apiContext);
   });
 
@@ -80,84 +115,111 @@ describe('sync-hook entry point', () => {
     expect(registrations.size).toBe(9);
   });
 
-  describe('settings + translation create/update events call exportTranslationString', () => {
+  describe('translation-strings export events', () => {
     for (const event of ['settings.create', 'settings.update', 'translations.create', 'translations.update']) {
-      it(`${event} awaits the export call`, async () => {
-        const handler = registrations.get(event);
-        expect(handler).toBeDefined();
-        await handler!({ keys: ['k1'] }, { schema: fakeSchema });
-        expect(serviceMocks.exportTranslationString).toHaveBeenCalledExactlyOnceWith({
-          schema: fakeSchema,
+      it(`${event} composes the export pipeline with the translation-strings fetcher`, async () => {
+        await registrations.get(event)!({ keys: ['k1'] }, { schema: fakeSchema });
+
+        expect(adapterMocks.loadContextFactory).toHaveBeenCalledWith({ ItemsService: fakeItemsService, schema: fakeSchema });
+        expect(adapterMocks.translationStringsFetcherFactory).toHaveBeenCalledWith({ ItemsService: fakeItemsService, schema: fakeSchema });
+        expect(pipelineMocks.runAutomatedExportPipeline).toHaveBeenCalledExactlyOnceWith({
+          loadContext: 'loadContextSentinel',
+          directusApi: { tag: 'directus-api-service-sentinel' },
+          fetchContent: 'translationStringsFetcherSentinel',
+          dispatchContent: adapterMocks.dispatchToLocalazy,
+        });
+        expect(reporterMocks.reportAutomatedExportOutcome).toHaveBeenCalledExactlyOnceWith({
+          outcome: { kind: 'exported' },
           logger: fakeLogger,
-          ItemsService: fakeItemsService,
+          label: 'translation strings',
+          trackingLabel: 'exportTranslationString',
         });
       });
     }
   });
 
-  describe('settings.delete + translations.delete call deprecateDeletedTranslationStrings', () => {
+  describe('translation-strings deletion events', () => {
     for (const event of ['settings.delete', 'translations.delete']) {
-      it(`${event} awaits the deprecate call`, async () => {
-        const handler = registrations.get(event);
-        expect(handler).toBeDefined();
-        await handler!({ keys: ['k1', 'k2'] }, { schema: fakeSchema });
-        expect(serviceMocks.deprecateDeletedTranslationStrings).toHaveBeenCalledExactlyOnceWith({
-          schema: fakeSchema,
-          logger: fakeLogger,
+      it(`${event} composes the deprecation pipeline with the translation-strings projector`, async () => {
+        await registrations.get(event)!({ keys: ['k1', 'k2'] }, { schema: fakeSchema });
+
+        expect(pipelineMocks.runAutomatedDeprecationPipeline).toHaveBeenCalledExactlyOnceWith({
           itemIds: ['k1', 'k2'],
-          ItemsService: fakeItemsService,
+          loadContext: 'loadContextSentinel',
+          fetchSourceLanguageImportContent: 'sourceLanguageFetcherSentinel',
+          projectDeprecationKeys: { tag: 'translation-strings-projector' },
+        });
+        expect(reporterMocks.reportAutomatedDeprecationOutcome).toHaveBeenCalledExactlyOnceWith({
+          outcome: { kind: 'deprecated', keysCount: 0 },
+          logger: fakeLogger,
+          label: 'translation strings',
+          trackingLabel: 'deprecateDeletedTranslationStrings',
         });
       });
     }
   });
 
-  describe('items.create + items.update normalise key payload and call exportCollectionContent', () => {
-    it('items.update passes its keys array straight through', async () => {
-      const handler = registrations.get('items.update');
-      await handler!({ keys: ['a', 'b'], collection: 'articles' }, { schema: fakeSchema });
-      expect(serviceMocks.exportCollectionContent).toHaveBeenCalledExactlyOnceWith({
-        schema: fakeSchema,
+  describe('collection content export events', () => {
+    it('items.update passes its keys array straight through to the collection-content fetcher', async () => {
+      await registrations.get('items.update')!({ keys: ['a', 'b'], collection: 'articles' }, { schema: fakeSchema });
+
+      expect(adapterMocks.collectionContentFetcherFactory).toHaveBeenCalledExactlyOnceWith({
         ItemsService: fakeItemsService,
         FieldsService: fakeFieldsService,
-        logger: fakeLogger,
+        schema: fakeSchema,
         keys: ['a', 'b'],
         collection: 'articles',
+      });
+      expect(pipelineMocks.runAutomatedExportPipeline).toHaveBeenCalledExactlyOnceWith({
+        loadContext: 'loadContextSentinel',
+        directusApi: { tag: 'directus-api-service-sentinel' },
+        fetchContent: 'collectionContentFetcherSentinel',
+        dispatchContent: adapterMocks.dispatchToLocalazy,
+      });
+      expect(reporterMocks.reportAutomatedExportOutcome).toHaveBeenCalledExactlyOnceWith({
+        outcome: { kind: 'exported' },
+        logger: fakeLogger,
+        label: 'articles content for keys a, b',
+        trackingLabel: 'exportCollectionContent',
       });
     });
 
     it('items.create wraps its single key as a one-element array', async () => {
-      const handler = registrations.get('items.create');
-      await handler!({ key: 'a', collection: 'articles' }, { schema: fakeSchema });
-      expect(serviceMocks.exportCollectionContent).toHaveBeenCalledExactlyOnceWith({
-        schema: fakeSchema,
-        ItemsService: fakeItemsService,
-        FieldsService: fakeFieldsService,
-        logger: fakeLogger,
-        keys: ['a'],
-        collection: 'articles',
-      });
+      await registrations.get('items.create')!({ key: 'a', collection: 'articles' }, { schema: fakeSchema });
+
+      expect(adapterMocks.collectionContentFetcherFactory).toHaveBeenCalledWith(
+        expect.objectContaining({ keys: ['a'], collection: 'articles' }),
+      );
+      expect(reporterMocks.reportAutomatedExportOutcome).toHaveBeenCalledWith(
+        expect.objectContaining({ label: 'articles content for keys a' }),
+      );
     });
   });
 
-  it('items.delete calls deprecateDeletedCollectionItems', async () => {
-    const handler = registrations.get('items.delete');
-    await handler!({ keys: ['x'], collection: 'articles' }, { schema: fakeSchema });
-    expect(serviceMocks.deprecateDeletedCollectionItems).toHaveBeenCalledExactlyOnceWith({
-      schema: fakeSchema,
-      collection: 'articles',
-      logger: fakeLogger,
+  it('items.delete composes the deprecation pipeline with the collection-keyed projector', async () => {
+    await registrations.get('items.delete')!({ keys: ['x'], collection: 'articles' }, { schema: fakeSchema });
+
+    expect(pipelineMocks.runAutomatedDeprecationPipeline).toHaveBeenCalledExactlyOnceWith({
       itemIds: ['x'],
-      ItemsService: fakeItemsService,
+      loadContext: 'loadContextSentinel',
+      fetchSourceLanguageImportContent: 'sourceLanguageFetcherSentinel',
+      projectDeprecationKeys: { tag: 'collection-projector', collection: 'articles' },
+    });
+    expect(reporterMocks.reportAutomatedDeprecationOutcome).toHaveBeenCalledExactlyOnceWith({
+      outcome: { kind: 'deprecated', keysCount: 0 },
+      logger: fakeLogger,
+      label: 'collection articles',
+      trackingLabel: 'deprecateDeletedCollectionItems',
     });
   });
 
-  it('handlers return early without invoking the service when schema is missing', async () => {
+  it('handlers return early without invoking the pipelines when schema is missing', async () => {
     for (const [, handler] of registrations) {
       await handler({ keys: [] }, { schema: undefined });
     }
-    expect(serviceMocks.exportTranslationString).not.toHaveBeenCalled();
-    expect(serviceMocks.deprecateDeletedTranslationStrings).not.toHaveBeenCalled();
-    expect(serviceMocks.exportCollectionContent).not.toHaveBeenCalled();
-    expect(serviceMocks.deprecateDeletedCollectionItems).not.toHaveBeenCalled();
+    expect(pipelineMocks.runAutomatedExportPipeline).not.toHaveBeenCalled();
+    expect(pipelineMocks.runAutomatedDeprecationPipeline).not.toHaveBeenCalled();
+    expect(reporterMocks.reportAutomatedExportOutcome).not.toHaveBeenCalled();
+    expect(reporterMocks.reportAutomatedDeprecationOutcome).not.toHaveBeenCalled();
   });
 });

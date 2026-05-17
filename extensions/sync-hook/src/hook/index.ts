@@ -1,6 +1,19 @@
 import { defineHook } from '@directus/extensions-sdk';
-import { translationStringsSynchronizationService } from './services/content-synchronization/translation-strings-synchronization-service';
-import { collectionContentSynchronizationService } from './services/content-synchronization/collection-content-synchronization-service';
+import { runAutomatedExportPipeline } from '../../../common/services/orchestrator/automated-export-pipeline';
+import { runAutomatedDeprecationPipeline } from '../../../common/services/orchestrator/automated-deprecation-pipeline';
+import {
+  dispatchToLocalazy,
+  makeBundleLocalazyContextLoader,
+  makeCollectionContentFetcher,
+  makeSourceLanguageImportContentFetcher,
+  makeTranslationStringsFetcher,
+} from './services/content-synchronization/pipeline-adapters';
+import {
+  projectCollectionDeprecationKeys,
+  projectTranslationStringsDeprecationKeys,
+} from './services/content-synchronization/deprecation-key-projectors';
+import { reportAutomatedDeprecationOutcome, reportAutomatedExportOutcome } from './services/content-synchronization/outcome-reporters';
+import { DirectusApiService } from './services/directus-service';
 
 const EXPORT_TRANSLATION_STRINGS_EVENTS = ['settings.create', 'settings.update', 'translations.create', 'translations.update'] as const;
 
@@ -15,11 +28,13 @@ export default defineHook(({ action }, { services, logger }) => {
   for (const event of EXPORT_TRANSLATION_STRINGS_EVENTS) {
     action(event, async (_, { schema }) => {
       if (!schema) return;
-      await translationStringsSynchronizationService.exportTranslationString({
-        schema,
-        logger,
-        ItemsService,
+      const outcome = await runAutomatedExportPipeline({
+        loadContext: makeBundleLocalazyContextLoader({ ItemsService, schema }),
+        directusApi: new DirectusApiService(ItemsService, schema),
+        fetchContent: makeTranslationStringsFetcher({ ItemsService, schema }),
+        dispatchContent: dispatchToLocalazy,
       });
+      reportAutomatedExportOutcome({ outcome, logger, label: 'translation strings', trackingLabel: 'exportTranslationString' });
     });
   }
 
@@ -27,11 +42,17 @@ export default defineHook(({ action }, { services, logger }) => {
   for (const event of DEPRECATE_TRANSLATION_STRINGS_EVENTS) {
     action(event, async ({ keys }, { schema }) => {
       if (!schema) return;
-      await translationStringsSynchronizationService.deprecateDeletedTranslationStrings({
-        schema,
-        logger,
+      const outcome = await runAutomatedDeprecationPipeline({
         itemIds: keys,
-        ItemsService,
+        loadContext: makeBundleLocalazyContextLoader({ ItemsService, schema }),
+        fetchSourceLanguageImportContent: makeSourceLanguageImportContentFetcher(),
+        projectDeprecationKeys: projectTranslationStringsDeprecationKeys,
+      });
+      reportAutomatedDeprecationOutcome({
+        outcome,
+        logger,
+        label: 'translation strings',
+        trackingLabel: 'deprecateDeletedTranslationStrings',
       });
     });
   }
@@ -41,14 +62,18 @@ export default defineHook(({ action }, { services, logger }) => {
   for (const event of EXPORT_COLLECTION_CONTENT_EVENTS) {
     action(event, async (payload, { schema }) => {
       if (!schema) return;
-      const keys = 'keys' in payload ? payload.keys : [payload.key];
-      await collectionContentSynchronizationService.exportCollectionContent({
-        schema,
-        ItemsService,
-        FieldsService,
+      const keys: string[] = 'keys' in payload ? payload.keys : [payload.key];
+      const outcome = await runAutomatedExportPipeline({
+        loadContext: makeBundleLocalazyContextLoader({ ItemsService, schema }),
+        directusApi: new DirectusApiService(ItemsService, schema),
+        fetchContent: makeCollectionContentFetcher({ ItemsService, FieldsService, schema, keys, collection: payload.collection }),
+        dispatchContent: dispatchToLocalazy,
+      });
+      reportAutomatedExportOutcome({
+        outcome,
         logger,
-        keys,
-        collection: payload.collection,
+        label: `${payload.collection} content for keys ${keys.join(', ')}`,
+        trackingLabel: 'exportCollectionContent',
       });
     });
   }
@@ -56,12 +81,17 @@ export default defineHook(({ action }, { services, logger }) => {
   // Items delete: deprecate the matching Localazy keys.
   action('items.delete', async ({ keys, collection }, { schema }) => {
     if (!schema) return;
-    await collectionContentSynchronizationService.deprecateDeletedCollectionItems({
-      schema,
-      collection,
-      logger,
+    const outcome = await runAutomatedDeprecationPipeline({
       itemIds: keys,
-      ItemsService,
+      loadContext: makeBundleLocalazyContextLoader({ ItemsService, schema }),
+      fetchSourceLanguageImportContent: makeSourceLanguageImportContentFetcher(),
+      projectDeprecationKeys: projectCollectionDeprecationKeys(collection),
+    });
+    reportAutomatedDeprecationOutcome({
+      outcome,
+      logger,
+      label: `collection ${collection}`,
+      trackingLabel: 'deprecateDeletedCollectionItems',
     });
   });
 });
