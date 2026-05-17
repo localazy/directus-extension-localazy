@@ -1,0 +1,319 @@
+import { merge } from 'lodash';
+import { Project } from '@localazy/api-client';
+import { Settings } from '../../../common/models/collections-data/settings';
+import { EnabledField } from '../../../common/models/collections-data/content-transfer-setup';
+import { TranslatableContent } from '../../../common/models/translatable-content';
+import { UploadCursor } from '../../../common/models/collections-data/sync-state';
+import { cursorMatchesProject } from '../../../common/utilities/sync-cursor';
+import { createEmptyUploadCursor, filterItemsByUploadCursor, recordUploadEntry } from '../../../common/utilities/upload-cursor';
+import { ProgressSink, SyncLogWriter } from '../../../common/services/orchestrator/ports';
+import { UploadTrackedItem } from '../composables/use-export-to-localazy';
+import { UploadedTriple } from '../models/upload-write-result';
+import { summarizeUploadContent } from '../utils/summarize-upload-content';
+
+export type SyncMode = 'incremental' | 'full';
+
+/**
+ * Terminal-status union for an export run. Narrower than the SyncLog row's free-string
+ * column on purpose: the export pipeline only produces these three values today and the
+ * Activity page's `<status-label>` only knows how to colour them. Status precedence: an
+ * explicit `skipped` from the empty short-circuit wins; otherwise an unhandled throw
+ * flips to `failed`; otherwise the default `completed` stands.
+ */
+export type ExportStatus = 'completed' | 'failed' | 'skipped';
+
+/**
+ * Stable progress-message ids the orchestrator emits during a run. The module's
+ * `ProgressSink` adapter maps these to `ProgressTrackerId` enum values so the modal's
+ * de-dupe-by-id semantics carry over.
+ *
+ * The `UPLOAD_MODE_HEADER` ("Full upload — ..." / "Incremental upload") and the
+ * `PREPARING_EXPORT` ("Preparing items for upload...") lines are intentionally NOT emitted
+ * by the orchestrator — they happen before the orchestrator runs, while the caller is
+ * setting up. The caller (composable today, future server-side trigger) is responsible
+ * for emitting them. This mirrors the import orchestrator's contract.
+ */
+export const ExportProgressIds = {
+  UPLOAD_CHANGES_SUMMARY: 'upload-changes-summary' as const,
+  UPLOAD_UP_TO_DATE: 'upload-up-to-date' as const,
+  UPLOAD_FINISHED: 'upload-finished' as const,
+};
+
+/**
+ * Cursor I/O port for the upload pipeline. Mirrors `CursorStore` in `common/orchestrator/ports`
+ * (the download cursor's port) — same load/persist shape, same merge-on-persist contract.
+ * `persist` is expected to re-read the latest on-disk cursor, take cell-wise precedence
+ * for the in-memory cursor (since the in-memory hash reflects what was *just* pushed),
+ * and write the result. Errors are swallowed inside the adapter — a flush failure shouldn't
+ * take down the sync; the next flush retries; the final flush in `finally` is the backstop.
+ */
+export interface UploadCursorStore {
+  /** Returns the latest on-disk upload cursor and the project id it was written against. */
+  load(): Promise<{ cursor: UploadCursor; projectId: string }>;
+  /** Persists the in-memory cursor. Implementation handles merge-on-persist. */
+  persist(cursor: UploadCursor): Promise<void>;
+}
+
+/**
+ * Coalesced fetch port. One method returns everything the orchestrator needs to assemble
+ * the export payload: per-collection content with hashes, and translation-strings content.
+ * Language resolution happens inside the adapter — the orchestrator never sees the
+ * resolved language list directly because nothing downstream of the fetch needs it.
+ *
+ * Hiding three Vue-bound composables (`useDirectusLanguages`, `useTranslationStringsContent`,
+ * `useTranslatableCollections`) behind one port keeps the orchestrator free of Vue
+ * dependencies and the parallel `Promise.all` an implementation detail.
+ */
+export interface ExportContentFetcher {
+  fetchExportPayload(input: { settings: Settings; enabledFields: EnabledField[]; synchronizeTranslationStrings: boolean }): Promise<{
+    translationStrings: TranslatableContent;
+    perCollectionWithHashes: Array<{
+      collection: string;
+      items: Array<{ id: string | number; content: TranslatableContent; hash: string }>;
+    }>;
+  }>;
+}
+
+/**
+ * The push port. Encapsulates the chunk/throttle/upload pipeline that today lives in
+ * `useExportToLocalazy`. The orchestrator owns the `onWritten` callback that records
+ * successful uploads into the in-memory cursor; the executor is expected to fire it
+ * after every chunk an item contributed to resolves successfully.
+ */
+export interface ExportExecutor {
+  exportContentToLocalazy(input: {
+    content: TranslatableContent;
+    settings: Settings;
+    trackedItems: Map<string, UploadTrackedItem[]>;
+    onWritten: (uploads: UploadedTriple[]) => void;
+  }): Promise<void>;
+}
+
+export type ExportOrchestratorAdapters = {
+  uploadCursorStore: UploadCursorStore;
+  contentFetcher: ExportContentFetcher;
+  exportExecutor: ExportExecutor;
+  progress: ProgressSink;
+  /**
+   * Optional persistent log writer. When supplied, the orchestrator opens a session right
+   * before the body runs and finalises it in `finally` — including the failure path,
+   * where the session is closed with `status: 'failed'` before the error propagates.
+   * Required to be paired with `syncLogInitiator`.
+   */
+  syncLogWriter?: SyncLogWriter;
+  syncLogInitiator?: { initiator: string; initiatorUser: string | null };
+};
+
+export type IncrementalExportParams = {
+  mode: SyncMode;
+  settings: Settings;
+  enabledFields: EnabledField[];
+  synchronizeTranslationStrings: boolean;
+  localazyProject: Project;
+};
+
+export type IncrementalExportResult = {
+  status: ExportStatus;
+  itemsProcessed: number;
+  durationMs: number;
+  /** Human-readable terminal summary string; mirrors what the progress modal showed. */
+  summary: string;
+};
+
+/** Mirrors the persisted column's free-string contract for the export side. */
+function eventTypeForMode(mode: SyncMode): string {
+  return mode === 'full' ? 'upload-full' : 'upload-incremental';
+}
+
+/**
+ * Drives a user-triggered export run end-to-end:
+ *   1. Opens an (optional) Sync-log session.
+ *   2. Loads + auto-invalidates the on-disk upload cursor against the current project.
+ *   3. Fetches translation strings + per-collection content with hashes.
+ *   4. Filters items via the cursor (incremental) or treats the cursor as empty (full).
+ *   5. Short-circuits if there's nothing changed and no translation strings to refresh.
+ *   6. Pushes via the executor with a throttled in-memory cursor flush every 50 items
+ *      (or 10% of total work, whichever's larger).
+ *   7. Final cursor flush in `finally` so the last batch lands even if the body throws.
+ *   8. Finalises the Sync-log session with the terminal status.
+ *
+ * Throws on unhandled errors after persisting the in-memory cursor and finalising the
+ * log session — the caller's `catch` sees the original error.
+ *
+ * No advisory lock today — export is user-click-only. If two users click Export
+ * concurrently, both runs proceed; the cursor's merge-on-persist makes that benign.
+ *
+ * No per-step milestone logging on the Sync-log session today (only start + finish).
+ * The download side emits per-collection counts via `appendEntry`; adding the same here
+ * is a separate enhancement and would change observable behaviour on the Activity page.
+ */
+export async function runIncrementalExport(
+  adapters: ExportOrchestratorAdapters,
+  params: IncrementalExportParams,
+): Promise<IncrementalExportResult> {
+  const { uploadCursorStore, contentFetcher, exportExecutor, progress, syncLogWriter, syncLogInitiator } = adapters;
+  const { mode, settings, enabledFields, synchronizeTranslationStrings, localazyProject } = params;
+
+  const startedAt = Date.now();
+
+  // Best-effort session start. A failure here falls back to no logging for this run —
+  // the export itself still proceeds. The `finalise` step below is gated on `sessionId !== null`.
+  let sessionId: string | null = null;
+  if (syncLogWriter && syncLogInitiator) {
+    try {
+      sessionId = await syncLogWriter.startSession({
+        eventType: eventTypeForMode(mode),
+        initiator: syncLogInitiator.initiator,
+        initiatorUser: syncLogInitiator.initiatorUser,
+      });
+    } catch {
+      // Swallow — the Activity page just won't show this run.
+    }
+  }
+
+  // Mutated inside the body and the various exit paths; declared here so `finally` reads
+  // them when finalising the Sync-log session.
+  let writtenSinceStart = 0;
+  let logStatus: ExportStatus = 'completed';
+  let logSummary = '';
+
+  try {
+    // Load + auto-invalidate the on-disk upload cursor.
+    //   - Incremental: use the on-disk cursor unless the project id changed (fresh
+    //     project = fresh cursor).
+    //   - Full: start empty. We don't wipe the persisted cursor here — merge-on-persist
+    //     preserves untouched cells.
+    const { cursor: storedCursor, projectId: storedProjectId } = await uploadCursorStore.load();
+    const baseUploadCursor: UploadCursor =
+      mode === 'full' || !cursorMatchesProject(storedProjectId, localazyProject.id || '') ? createEmptyUploadCursor() : storedCursor;
+    // Tracks only what we successfully pushed in this run. Merged with on-disk on flush.
+    const inMemoryUploadCursor: UploadCursor = createEmptyUploadCursor();
+
+    const { translationStrings, perCollectionWithHashes } = await contentFetcher.fetchExportPayload({
+      settings,
+      enabledFields,
+      synchronizeTranslationStrings,
+    });
+
+    // Filter each collection's items against the upload cursor. Translation strings bypass
+    // cursor logic entirely — they always full re-push.
+    const trackedItems = new Map<string, UploadTrackedItem[]>();
+    const collectionsContent: TranslatableContent = { sourceLanguage: {}, otherLanguages: {} };
+
+    perCollectionWithHashes.forEach(({ collection, items }) => {
+      const filteredItems = filterItemsByUploadCursor(collection, items, baseUploadCursor);
+      if (filteredItems.length === 0) return;
+      trackedItems.set(
+        collection,
+        filteredItems.map((it) => ({ id: it.id, hash: it.hash })),
+      );
+      filteredItems.forEach((it) => {
+        merge(collectionsContent, it.content);
+      });
+    });
+
+    const mergedContent: TranslatableContent = merge(collectionsContent, translationStrings);
+    const summary = summarizeUploadContent(mergedContent);
+
+    let totalTrackedItems = 0;
+    trackedItems.forEach((items) => {
+      totalTrackedItems += items.length;
+    });
+
+    // Short-circuit when there's nothing to push AND no translation strings to refresh.
+    if (totalTrackedItems === 0 && summary.sourceLangEntries === 0 && summary.translationEntries === 0) {
+      progress({
+        id: ExportProgressIds.UPLOAD_UP_TO_DATE,
+        message: 'Already up to date — no items have changed since the last upload',
+      });
+      // Touch last_sync_at via merge-on-persist; on-disk cursor is preserved.
+      await uploadCursorStore.persist(inMemoryUploadCursor);
+      logStatus = 'skipped';
+      logSummary = 'Already up to date — no items have changed since the last upload';
+      return {
+        status: 'skipped',
+        itemsProcessed: 0,
+        durationMs: Date.now() - startedAt,
+        summary: logSummary,
+      };
+    }
+
+    progress({
+      id: ExportProgressIds.UPLOAD_CHANGES_SUMMARY,
+      message: `Found ${summary.items} changed ${summary.items === 1 ? 'item' : 'items'} across ${summary.collections} ${summary.collections === 1 ? 'collection' : 'collections'} — pushing ${summary.sourceLangEntries} source-lang + ${summary.translationEntries} translation entries`,
+    });
+
+    // Throttled flush: persist every `flushEvery` items completed (capped at 10% of total
+    // work, minimum 50). Final flush below is unconditional.
+    const flushEvery = Math.max(50, Math.ceil(totalTrackedItems / 10));
+    let sinceLastFlush = 0;
+
+    const onWritten = (uploads: UploadedTriple[]) => {
+      uploads.forEach((u) => {
+        recordUploadEntry(inMemoryUploadCursor, u.collection, u.itemId, u.hash);
+      });
+      sinceLastFlush += uploads.length;
+      writtenSinceStart += uploads.length;
+      if (sinceLastFlush >= flushEvery) {
+        sinceLastFlush = 0;
+        // Fire-and-forget: the next persist re-reads disk anyway, and we don't want
+        // upload progress to stall on a slow Directus PATCH.
+        void uploadCursorStore.persist(inMemoryUploadCursor);
+      }
+    };
+
+    // Final flush — guarantees the last batch lands even if it didn't cross the throttle
+    // threshold. The `finally` makes the contract literal.
+    try {
+      await exportExecutor.exportContentToLocalazy({
+        content: mergedContent,
+        settings,
+        trackedItems,
+        onWritten,
+      });
+    } finally {
+      await uploadCursorStore.persist(inMemoryUploadCursor);
+    }
+
+    const elapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
+    // `writtenSinceStart` counts only collection-content items confirmed via the cursor —
+    // translation strings always full re-push and aren't tracked. When only translation
+    // strings flowed through, the counter stays at 0 even though work happened; the
+    // generic "Upload completed" line reflects that case honestly.
+    const finalMessage =
+      writtenSinceStart > 0
+        ? `Uploaded ${writtenSinceStart} ${writtenSinceStart === 1 ? 'item' : 'items'} in ${elapsedSec}s.`
+        : `Upload completed in ${elapsedSec}s.`;
+    progress({
+      id: ExportProgressIds.UPLOAD_FINISHED,
+      message: finalMessage,
+    });
+    logSummary = finalMessage;
+
+    return {
+      status: 'completed',
+      itemsProcessed: writtenSinceStart,
+      durationMs: Date.now() - startedAt,
+      summary: finalMessage,
+    };
+  } catch (err) {
+    logStatus = 'failed';
+    logSummary = `Upload failed: ${err instanceof Error ? err.message : String(err)}`;
+    throw err;
+  } finally {
+    // Finalise the sync-log row even on throw. Swallow finalisation errors — a
+    // left-in-progress row is fine for the Activity page; the next run's trim cleans it
+    // up. The user-facing outcome is already on the progress modal, not the log row.
+    if (syncLogWriter && sessionId) {
+      try {
+        await syncLogWriter.finish(sessionId, {
+          status: logStatus,
+          summary: logSummary,
+          itemsProcessed: writtenSinceStart,
+        });
+      } catch {
+        // Swallow.
+      }
+    }
+  }
+}
