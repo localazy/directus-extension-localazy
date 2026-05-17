@@ -6,7 +6,7 @@ Outbound sync (Directus → Localazy) was historically governed by two independe
 
 ## Decision
 
-1. **Page purpose.** The **Automation** page is the single home for *automation master toggles* — the on/off switches that decide whether a sync direction runs at all. The **Additional Settings** page holds *behaviour-shaping knobs* — settings that decide *how* sync behaves once it runs (skip empty strings, source-language direction, language mappings, etc.). New automation-enable controls go on the Automation page; new behaviour controls go on Additional Settings.
+1. **Page purpose.** The **Automation** page is the single home for _automation master toggles_ — the on/off switches that decide whether a sync direction runs at all. The **Additional Settings** page holds _behaviour-shaping knobs_ — settings that decide _how_ sync behaves once it runs (skip empty strings, source-language direction, language mappings, etc.). New automation-enable controls go on the Automation page; new behaviour controls go on Additional Settings.
 
 2. **Master gates everything.** The "Automated export" master toggle is persisted as `Settings.automated_upload` and surfaces deprecation as a sub-setting. The runtime gating in `collection-content-synchronization-service.ts` and `translation-strings-synchronization-service.ts` was tightened so deprecation also requires `automated_upload === true` — meaning master OFF guarantees zero outbound activity, including for legacy installs that had the niche `upload=false, deprecate=true` combination.
 

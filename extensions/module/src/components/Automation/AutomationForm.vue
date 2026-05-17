@@ -3,7 +3,9 @@
     <div class="form grid">
       <header class="section-header">
         <h2 class="section-title">Export</h2>
-        <p class="note section-description">From Directus to Localazy &mdash; triggered by changes to translatable content inside Directus.</p>
+        <p class="note section-description">
+          From Directus to Localazy &mdash; triggered by changes to translatable content inside Directus.
+        </p>
       </header>
 
       <div class="half">
@@ -41,7 +43,9 @@
 
       <header class="section-header section-header-divider">
         <h2 class="section-title">Import</h2>
-        <p class="note section-description">From Localazy to Directus &mdash; triggered by Localazy's <code>project_published</code> webhook.</p>
+        <p class="note section-description">
+          From Localazy to Directus &mdash; triggered by Localazy's <code>project_published</code> webhook.
+        </p>
       </header>
 
       <div class="half">

@@ -129,11 +129,12 @@ function onSortPreferencesChange(next: SortPreferences) {
   }, 600);
 }
 
-const { activeTab, statusFilter, dateFrom, dateTo, page, totalPages, currentSort, setSort, filteredSessions, paginatedSessions } = useActivityLog({
-  sessions,
-  initialSortPreferences,
-  onSortPreferencesChange,
-});
+const { activeTab, statusFilter, dateFrom, dateTo, page, totalPages, currentSort, setSort, filteredSessions, paginatedSessions } =
+  useActivityLog({
+    sessions,
+    initialSortPreferences,
+    onSortPreferencesChange,
+  });
 
 // `<v-select :items>` shape: `{ text, value }`. The statuses mirror StatusLabel.vue's
 // known set; an unknown status read from disk still passes through the filter (the
