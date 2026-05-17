@@ -21,8 +21,8 @@ import { ContentFromLocalazyService } from '../../../common/services/content-fro
 import { uniqWith } from 'lodash';
 import { useGetCollectionFromSchema } from '../hook/composables/use-get-collection-from-schema';
 import type { DirectusLogger, ItemsServiceCtor } from '../hook/types/directus-services';
-import { SyncLogEntry, SyncLogSession } from '../../../common/models/collections-data/sync-log';
-import { appendEntryToJson, idsToTrim } from '../../../common/utilities/sync-log-helpers';
+import { SyncLogSession } from '../../../common/models/collections-data/sync-log';
+import { createSyncLogWriter, SyncLogFailureCallback, SyncLogStorage } from '../../../common/services/orchestrator/sync-log-writer';
 import { FAILURE_NOTIFICATION_WINDOW_MS, shouldSuppressFailureNotification } from './notification-dedupe';
 
 /**
@@ -50,14 +50,6 @@ const LOCALAZY_COLLECTIONS = {
   syncState: 'localazy_sync_state',
   syncLog: 'localazy_sync_log',
 } as const;
-
-/**
- * Statuses that count as "user-actionable failure" for the bell-icon notification path.
- * `'aborted'` is rare (the orchestrator only emits it when a fetch step fails before the
- * write phase), but it's still a failure mode the operator needs to see. `'skipped'` is
- * deliberately NOT included — that's a healthy "nothing to do" outcome.
- */
-const FAILURE_STATUSES: ReadonlySet<string> = new Set(['failed', 'partial', 'aborted']);
 
 /**
  * Construct an `ItemsService` for a given collection using the supplied accountability.
@@ -420,113 +412,57 @@ type NotifyOnFailureConfig = {
 };
 
 /**
- * Server-side `SyncLogWriter`. Same per-session promise chain as the module-side adapter
- * so concurrent `appendEntry` fire-and-forgets don't interleave their read-modify-write
- * cycles. Writes through `ItemsService` instead of `useApi()`.
- *
- * Retention trim deletes everything past `SYNC_LOG_RETENTION` rows ordered by
- * `started_at desc`. Directus' `ItemsService.deleteMany(ids)` accepts an array of ids
- * which maps to the SQL `DELETE … WHERE id IN (…)` bulk delete.
- *
- * When `notifyOnFailure` is supplied, `finish()` additionally writes a
- * `directus_notifications` row addressed to the recipient whenever the terminal status
- * is one of the failure variants AND no recent prior webhook failure has notified
- * inside the dedupe window. The notification write is best-effort — failures are logged
- * but never propagate; the sync's outcome is already persisted in `localazy_sync_log`.
+ * Server-side `SyncLogStorage` adapter — translates the deep writer's column-aware
+ * storage operations into `ItemsService` calls against `localazy_sync_log` with admin
+ * accountability and `emitEvents: false` on writes (so the upload hook doesn't recurse
+ * through write-backs). Orchestration (chain, swallow, trim, failure callback) lives in
+ * `common/services/orchestrator/sync-log-writer.ts`.
+ */
+function createServerSyncLogStorage(ItemsService: ItemsServiceCtor, schema: SchemaOverview): SyncLogStorage {
+  function service() {
+    return makeItemsService<Partial<SyncLogSession>>(ItemsService, LOCALAZY_COLLECTIONS.syncLog, schema, null);
+  }
+  return {
+    async createSession(row) {
+      await service().createOne(row, { emitEvents: false } as MutationOptions);
+    },
+    async readEntries(id) {
+      const row = await service().readOne(id);
+      return row?.entries ?? '[]';
+    },
+    async writeEntries(id, entriesJson) {
+      await service().updateOne(id, { entries: entriesJson }, { emitEvents: false } as MutationOptions);
+    },
+    async writeFinish(id, fields) {
+      await service().updateOne(id, fields, { emitEvents: false } as MutationOptions);
+    },
+    async listIdsByStartedAtDesc() {
+      const rows = await service().readByQuery({ limit: -1, sort: ['-started_at'], fields: ['id'] });
+      return rows.map((r) => r.id).filter((id): id is string => typeof id === 'string');
+    },
+    async deleteByIds(ids) {
+      await service().deleteMany(ids, { emitEvents: false } as MutationOptions);
+    },
+  };
+}
+
+/**
+ * Server-side Sync-log writer. Composes the `ItemsService`-backed storage adapter with
+ * the deep writer from `common/`, and — when `notifyOnFailure` is supplied — wires the
+ * failure callback that emits a `directus_notifications` row (subject to the dedupe
+ * window) addressed to the configured Webhook user. The callback owns its own try/catch
+ * and logging so a missing notifications collection, permissions error, or other
+ * write-time failure can't propagate up into the orchestrator's `finally` and mask the
+ * primary outcome — and the deep writer additionally swallows callback errors as a
+ * second-line safety.
  */
 function buildSyncLogWriter(
   ItemsService: ItemsServiceCtor,
   schema: SchemaOverview,
   notifyOnFailure: NotifyOnFailureConfig | null,
 ): SyncLogWriter {
-  const appendChains = new Map<string, Promise<void>>();
-
-  async function readEntries(sessionId: string): Promise<string> {
-    const service = makeItemsService<Partial<SyncLogSession>>(ItemsService, LOCALAZY_COLLECTIONS.syncLog, schema, null);
-    const row = await service.readOne(sessionId);
-    return row?.entries ?? '[]';
-  }
-
-  async function doAppend(sessionId: string, entry: SyncLogEntry) {
-    try {
-      const current = await readEntries(sessionId);
-      const next = appendEntryToJson(current, entry);
-      const service = makeItemsService<Partial<SyncLogSession>>(ItemsService, LOCALAZY_COLLECTIONS.syncLog, schema, null);
-      await service.updateOne(sessionId, { entries: next }, { emitEvents: false } as MutationOptions);
-    } catch {
-      // Swallow at this level — a single failed append must not take down the sync.
-    }
-  }
-
-  async function trimToRetention() {
-    try {
-      const service = makeItemsService<Partial<SyncLogSession>>(ItemsService, LOCALAZY_COLLECTIONS.syncLog, schema, null);
-      const rows = await service.readByQuery({ limit: -1, sort: ['-started_at'], fields: ['id'] });
-      const ids = rows.map((r) => r.id).filter((id): id is string => typeof id === 'string');
-      const toTrim = idsToTrim(ids);
-      if (toTrim.length === 0) return;
-      await service.deleteMany(toTrim, { emitEvents: false } as MutationOptions);
-    } catch {
-      // Trim is best-effort — failing once just lets the table grow a little past
-      // `SYNC_LOG_RETENTION`; the next finish will retry.
-    }
-  }
-
-  return {
-    async startSession(params) {
-      const id = randomUUID();
-      const service = makeItemsService<Partial<SyncLogSession>>(ItemsService, LOCALAZY_COLLECTIONS.syncLog, schema, null);
-      await service.createOne(
-        {
-          id,
-          event_type: params.eventType,
-          status: 'in_progress',
-          started_at: new Date().toISOString(),
-          finished_at: null,
-          initiator: params.initiator,
-          initiator_user: params.initiatorUser,
-          summary: '',
-          items_processed: 0,
-          entries: '[]',
-        },
-        { emitEvents: false } as MutationOptions,
-      );
-      return id;
-    },
-
-    async appendEntry(sessionId, entry) {
-      const prior = appendChains.get(sessionId) ?? Promise.resolve();
-      const next = prior.catch(() => undefined).then(() => doAppend(sessionId, entry));
-      appendChains.set(sessionId, next);
-      void next.finally(() => {
-        if (appendChains.get(sessionId) === next) appendChains.delete(sessionId);
-      });
-      return next;
-    },
-
-    async finish(sessionId, params) {
-      try {
-        const service = makeItemsService<Partial<SyncLogSession>>(ItemsService, LOCALAZY_COLLECTIONS.syncLog, schema, null);
-        await service.updateOne(
-          sessionId,
-          {
-            status: params.status,
-            finished_at: new Date().toISOString(),
-            summary: params.summary,
-            items_processed: params.itemsProcessed,
-          },
-          { emitEvents: false } as MutationOptions,
-        );
-      } catch {
-        // Even finalisation is best-effort.
-      }
-      await trimToRetention();
-
-      // Fire-and-forget bell-icon notification on failure. Wrapped in a single
-      // try/catch so a missing notifications collection, a permissions error, or any
-      // other write-time failure can't propagate up into the orchestrator's `finally`
-      // and mask the primary outcome.
-      if (notifyOnFailure && FAILURE_STATUSES.has(params.status)) {
+  const onFailure: SyncLogFailureCallback | undefined = notifyOnFailure
+    ? async (sessionId, params) => {
         try {
           await emitFailureNotification({
             ItemsService,
@@ -540,8 +476,13 @@ function buildSyncLogWriter(
           notifyOnFailure.logger.warn({ err, sessionId }, 'Localazy webhook: failure notification emit threw');
         }
       }
-    },
-  };
+    : undefined;
+
+  return createSyncLogWriter({
+    storage: createServerSyncLogStorage(ItemsService, schema),
+    generateId: randomUUID,
+    onFailure,
+  });
 }
 
 /**

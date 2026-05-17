@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { createSyncLogWriter, SyncLogHttpClient } from './sync-log-writer';
-import type { SyncLogEntry } from '../../../common/models/collections-data/sync-log';
+import { createBrowserSyncLogStorage, createSyncLogWriter, SyncLogHttpClient } from './sync-log-writer';
+import type { SyncLogEntry, SyncLogSession } from '../../../common/models/collections-data/sync-log';
 
 /* -------------------------------------------------------------------------- */
-/*  Adapter integration                                                       */
+/*  Storage-adapter focus                                                     */
 /* -------------------------------------------------------------------------- */
-/*  (The pure `appendEntryToJson` / `idsToTrim` helpers used to live here.    */
-/*  They've been lifted into `extensions/common/utilities/sync-log-helpers`   */
-/*  and are covered by `sync-log-helpers.test.ts` alongside the source.)      */
+/*  The deep writer's orchestration (per-session append chain, retention      */
+/*  trim, swallow contract, onFailure semantics) is covered in                */
+/*  extensions/common/services/orchestrator/sync-log-writer.test.ts. These    */
+/*  tests focus on the browser storage adapter: that each SyncLogStorage      */
+/*  method maps to the correct axios call shape, plus one end-to-end probe    */
+/*  through the convenience `createSyncLogWriter` wrapper.                    */
 /* -------------------------------------------------------------------------- */
 
 type CallLog = {
@@ -17,11 +20,6 @@ type CallLog = {
   deletes: Array<{ url: string; data: unknown }>;
 };
 
-/**
- * Hand-rolled `SyncLogHttpClient` fake that records calls and returns canned
- * responses. Keeps a tiny in-memory "table" so the adapter's read-modify-write on
- * `entries` is observable end-to-end.
- */
 function makeFakeApi(seedRows: Array<{ id: string; entries: string; started_at: string }> = []): {
   api: SyncLogHttpClient;
   calls: CallLog;
@@ -34,13 +32,12 @@ function makeFakeApi(seedRows: Array<{ id: string; entries: string; started_at: 
   const api: SyncLogHttpClient = {
     async post(url, data) {
       calls.posts.push({ url, data });
-      const row = data as { id: string };
-      rows.set(row.id, { id: row.id, entries: '[]', started_at: new Date().toISOString() });
+      const row = data as { id: string; entries?: string; started_at?: string };
+      rows.set(row.id, { id: row.id, entries: row.entries ?? '[]', started_at: row.started_at ?? new Date().toISOString() });
       return { data: { data: { id: row.id } } };
     },
     async patch(url, data) {
       calls.patches.push({ url, data });
-      // Mirror Directus: PATCH /items/{collection}/{id} → updates that single row.
       const match = /\/items\/[^/]+\/(.+)$/.exec(url);
       const id = match?.[1];
       if (id && rows.has(id)) {
@@ -53,14 +50,11 @@ function makeFakeApi(seedRows: Array<{ id: string; entries: string; started_at: 
     },
     async get(url, config) {
       calls.gets.push({ url, params: config?.params });
-      // GET single row → mirror Directus: `data: { data: row }` (object, not array).
       const matchSingle = /\/items\/[^/]+\/(.+)$/.exec(url);
       if (matchSingle) {
         const id = matchSingle[1]!;
-        const row = rows.get(id);
-        return { data: { data: row ?? null } };
+        return { data: { data: rows.get(id) ?? null } };
       }
-      // GET list — sorted descending by started_at.
       const sorted = Array.from(rows.values()).sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at));
       return { data: { data: sorted.map((r) => ({ id: r.id, entries: r.entries })) } };
     },
@@ -75,157 +69,111 @@ function makeFakeApi(seedRows: Array<{ id: string; entries: string; started_at: 
   return { api, calls, rows };
 }
 
-describe('createSyncLogWriter', () => {
-  it('startSession POSTs an in_progress row with the supplied metadata and returns the id', async () => {
-    let counter = 0;
-    const generateId = () => `session-${++counter}`;
+describe('createBrowserSyncLogStorage', () => {
+  it('createSession POSTs the full row payload to /items/{collection}', async () => {
     const { api, calls } = makeFakeApi();
-    const writer = createSyncLogWriter({ api, collectionName: 'localazy_sync_log', generateId });
+    const storage = createBrowserSyncLogStorage(api, 'localazy_sync_log');
+    const row: SyncLogSession = {
+      id: 'sess-1',
+      event_type: 'download-incremental',
+      status: 'in_progress',
+      started_at: '2026-05-12T00:00:00Z',
+      finished_at: null,
+      initiator: 'user-1',
+      initiator_user: 'user-1',
+      summary: '',
+      items_processed: 0,
+      entries: '[]',
+    };
 
-    const id = await writer.startSession({
-      eventType: 'download-incremental',
-      initiator: 'user-id-7',
-      initiatorUser: 'user-id-7',
-    });
+    await storage.createSession(row);
 
-    expect(id).toBe('session-1');
     expect(calls.posts).toHaveLength(1);
-    const posted = calls.posts[0]!.data as Record<string, unknown>;
-    expect(posted.id).toBe('session-1');
-    expect(posted.event_type).toBe('download-incremental');
-    expect(posted.status).toBe('in_progress');
-    expect(posted.initiator).toBe('user-id-7');
-    expect(posted.initiator_user).toBe('user-id-7');
-    expect(posted.entries).toBe('[]');
+    expect(calls.posts[0]!.url).toBe('/items/localazy_sync_log');
+    expect(calls.posts[0]!.data).toEqual(row);
   });
 
-  it('appendEntry reads, parses, pushes, and PATCHes the entries array', async () => {
+  it('readEntries returns the entries column from the row response', async () => {
+    const { api } = makeFakeApi([{ id: 'sess-1', entries: '[{"message":"x"}]', started_at: '2026-05-12T00:00:00Z' }]);
+    const storage = createBrowserSyncLogStorage(api, 'localazy_sync_log');
+    const entries = await storage.readEntries('sess-1');
+    expect(entries).toBe('[{"message":"x"}]');
+  });
+
+  it('readEntries defaults to "[]" when the row has no entries column', async () => {
+    const { api } = makeFakeApi();
+    // GET on a missing row returns null; the adapter must convert that to '[]'.
+    const storage = createBrowserSyncLogStorage(api, 'localazy_sync_log');
+    expect(await storage.readEntries('missing')).toBe('[]');
+  });
+
+  it('writeEntries PATCHes only the entries column', async () => {
+    const { api, calls } = makeFakeApi();
+    const storage = createBrowserSyncLogStorage(api, 'localazy_sync_log');
+    await storage.writeEntries('sess-1', '[{"message":"y"}]');
+    expect(calls.patches).toHaveLength(1);
+    expect(calls.patches[0]!.url).toBe('/items/localazy_sync_log/sess-1');
+    expect(calls.patches[0]!.data).toEqual({ entries: '[{"message":"y"}]' });
+  });
+
+  it('writeFinish PATCHes the terminal fields verbatim', async () => {
+    const { api, calls } = makeFakeApi();
+    const storage = createBrowserSyncLogStorage(api, 'localazy_sync_log');
+    await storage.writeFinish('sess-1', {
+      status: 'completed',
+      finished_at: '2026-05-12T00:01:00Z',
+      summary: 'all good',
+      items_processed: 7,
+    });
+    expect(calls.patches).toHaveLength(1);
+    expect(calls.patches[0]!.url).toBe('/items/localazy_sync_log/sess-1');
+    expect(calls.patches[0]!.data).toEqual({
+      status: 'completed',
+      finished_at: '2026-05-12T00:01:00Z',
+      summary: 'all good',
+      items_processed: 7,
+    });
+  });
+
+  it('listIdsByStartedAtDesc GETs with limit=-1, sort=-started_at, fields=[id]', async () => {
+    const { api, calls } = makeFakeApi([
+      { id: 'older', entries: '[]', started_at: '2026-01-01T00:00:00Z' },
+      { id: 'newer', entries: '[]', started_at: '2026-02-01T00:00:00Z' },
+    ]);
+    const storage = createBrowserSyncLogStorage(api, 'localazy_sync_log');
+    const ids = await storage.listIdsByStartedAtDesc();
+    expect(ids).toEqual(['newer', 'older']);
+    expect(calls.gets).toHaveLength(1);
+    expect(calls.gets[0]!.url).toBe('/items/localazy_sync_log');
+    expect(calls.gets[0]!.params).toEqual({ limit: -1, sort: '-started_at', fields: ['id'] });
+  });
+
+  it('deleteByIds DELETEs with the id list in the request body', async () => {
+    const { api, calls } = makeFakeApi();
+    const storage = createBrowserSyncLogStorage(api, 'localazy_sync_log');
+    await storage.deleteByIds(['a', 'b', 'c']);
+    expect(calls.deletes).toHaveLength(1);
+    expect(calls.deletes[0]!.url).toBe('/items/localazy_sync_log');
+    expect(calls.deletes[0]!.data).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('createSyncLogWriter (module convenience wrapper)', () => {
+  it('threads a session through start → append → finish via the deep writer', async () => {
     let counter = 0;
     const { api, rows } = makeFakeApi();
-    const writer = createSyncLogWriter({ api, collectionName: 'localazy_sync_log', generateId: () => `s-${++counter}` });
+    const writer = createSyncLogWriter({
+      api,
+      collectionName: 'localazy_sync_log',
+      generateId: () => `s-${++counter}`,
+    });
 
     const id = await writer.startSession({ eventType: 'download-incremental', initiator: 'u', initiatorUser: 'u' });
-    await writer.appendEntry(id, { timestamp: '2026-05-12T12:00:00Z', level: 'info', message: 'one' });
-    await writer.appendEntry(id, { timestamp: '2026-05-12T12:00:01Z', level: 'info', message: 'two' });
+    expect(id).toBe('s-1');
+    await writer.appendEntry(id, { timestamp: 't', level: 'info', message: 'one' });
+    await writer.finish(id, { status: 'completed', summary: 'done', itemsProcessed: 1 });
 
     const stored = JSON.parse(rows.get(id)!.entries) as SyncLogEntry[];
-    expect(stored).toHaveLength(2);
-    expect(stored[0]!.message).toBe('one');
-    expect(stored[1]!.message).toBe('two');
-  });
-
-  it('finish PATCHes the terminal fields and triggers a retention trim', async () => {
-    let counter = 0;
-    // Seed 105 rows so the trim has something to do — but the writer's GET is sorted
-    // by started_at desc, so seed each with a distinct timestamp.
-    const seeded: Array<{ id: string; entries: string; started_at: string }> = [];
-    for (let i = 0; i < 105; i += 1) {
-      seeded.push({
-        id: `seed-${i.toString().padStart(3, '0')}`,
-        entries: '[]',
-        started_at: new Date(2026, 0, 1, 0, 0, i).toISOString(), // newer i → later timestamp
-      });
-    }
-    const { api, calls, rows } = makeFakeApi(seeded);
-    const writer = createSyncLogWriter({ api, collectionName: 'localazy_sync_log', generateId: () => `new-${++counter}` });
-
-    // Add one more row (the current run) — the trim should remove the 6 oldest so the
-    // table lands at 100 rows after finish.
-    await writer.startSession({ eventType: 'download-full', initiator: 'u', initiatorUser: 'u' });
-    await writer.finish('new-1', { status: 'completed', summary: 'done', itemsProcessed: 42 });
-
-    // The trim DELETE removed the 6 oldest started_at rows (seed-000..seed-005).
-    expect(calls.deletes).toHaveLength(1);
-    const deletedIds = calls.deletes[0]!.data as string[];
-    expect(deletedIds).toHaveLength(6);
-    deletedIds.forEach((id) => expect(rows.has(id)).toBe(false));
-    // The PATCH for the terminal fields landed.
-    const finishPatch = calls.patches.find((c) => c.url.endsWith('/new-1'));
-    expect(finishPatch).toBeTruthy();
-    const patch = finishPatch!.data as Record<string, unknown>;
-    expect(patch.status).toBe('completed');
-    expect(patch.summary).toBe('done');
-    expect(patch.items_processed).toBe(42);
-  });
-
-  it('appendEntry swallows PATCH errors so a single slow write does not break the chain', async () => {
-    const { api } = makeFakeApi();
-    let failNext = true;
-    const originalPatch = api.patch.bind(api);
-    api.patch = async (url, data) => {
-      if (failNext) {
-        failNext = false;
-        throw new Error('simulated transient failure');
-      }
-      return originalPatch(url, data);
-    };
-    const writer = createSyncLogWriter({ api, collectionName: 'localazy_sync_log', generateId: () => 'sx' });
-    await writer.startSession({ eventType: 'download-incremental', initiator: 'u', initiatorUser: 'u' });
-    // Should not throw — the writer swallows the failure.
-    await expect(writer.appendEntry('sx', { timestamp: 'now', level: 'info', message: 'lost' })).resolves.toBeUndefined();
-    // The next append still works.
-    await expect(writer.appendEntry('sx', { timestamp: 'later', level: 'info', message: 'kept' })).resolves.toBeUndefined();
-  });
-
-  it('serializes concurrent appendEntry calls on the same session (no lost entries)', async () => {
-    // Simulate a slow GET so two appends can overlap. Without serialization the second
-    // PATCH would clobber the first's append because both reads see the same `stored`
-    // before either PATCH lands.
-    let stored = '[]';
-    let getCallCount = 0;
-    const api: Partial<SyncLogHttpClient> = {
-      async post() {
-        return { data: { data: { id: 'sess-1' } } };
-      },
-      async get() {
-        getCallCount += 1;
-        // Delay the first GET so the second appendEntry overlaps it.
-        if (getCallCount === 1) await new Promise((r) => setTimeout(r, 10));
-        return { data: { data: { entries: stored } } };
-      },
-      async patch(_url, body) {
-        const patch = body as { entries?: string };
-        if (typeof patch.entries === 'string') stored = patch.entries;
-        return { data: { data: {} } };
-      },
-      async delete() {
-        return { data: {} };
-      },
-    };
-    const writer = createSyncLogWriter({ api: api as SyncLogHttpClient, collectionName: 'localazy_sync_log' });
-    const id = await writer.startSession({ eventType: 'download-incremental', initiator: 'u-1', initiatorUser: 'u-1' });
-    // Two concurrent appends. The first is fire-and-forget; the second is awaited.
-    void writer.appendEntry(id, { timestamp: '2026-05-13T00:00:00Z', level: 'info', message: 'first' });
-    await writer.appendEntry(id, { timestamp: '2026-05-13T00:00:01Z', level: 'info', message: 'second' });
-    // Wait for any tail microtasks from the fire-and-forget cleanup chain.
-    await new Promise((r) => setTimeout(r, 30));
-    const parsed = JSON.parse(stored) as SyncLogEntry[];
-    expect(parsed).toHaveLength(2);
-    expect(parsed.map((e) => e.message)).toEqual(['first', 'second']);
-  });
-
-  it('finish trim failure does not propagate', async () => {
-    const { api } = makeFakeApi();
-    api.delete = async () => {
-      throw new Error('trim failed');
-    };
-    const writer = createSyncLogWriter({ api, collectionName: 'localazy_sync_log', generateId: () => 'sy' });
-    await writer.startSession({ eventType: 'download-incremental', initiator: 'u', initiatorUser: 'u' });
-    // Force the list to be > 100 by mocking get so trim is attempted.
-    let getCount = 0;
-    const originalGet = api.get.bind(api);
-    api.get = async (url, cfg) => {
-      getCount += 1;
-      if (getCount > 1) {
-        // List call inside trim — return 105 ids.
-        return {
-          data: {
-            data: Array.from({ length: 105 }, (_, i) => ({ id: `id-${i}` })),
-          },
-        };
-      }
-      return originalGet(url, cfg);
-    };
-    await expect(writer.finish('sy', { status: 'completed', summary: 'ok', itemsProcessed: 1 })).resolves.toBeUndefined();
+    expect(stored.map((e) => e.message)).toEqual(['one']);
   });
 });
