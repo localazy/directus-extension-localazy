@@ -172,9 +172,14 @@ export async function runIncrementalExport(
   }
 
   // Mutated inside the body and the various exit paths; declared here so `finally` reads
-  // them when finalising the Sync-log session.
+  // them when finalising the Sync-log session. Every reachable path assigns `logStatus`
+  // and `logSummary` before the `finally` runs, so the initial values are placeholders
+  // the linter would otherwise flag — `completed` matches the happy path, the empty
+  // summary is overwritten on every exit (skipped, failed, or completed paths all
+  // re-assign it before the return / throw).
   let writtenSinceStart = 0;
   let logStatus: ExportStatus = 'completed';
+  // eslint-disable-next-line no-useless-assignment
   let logSummary = '';
 
   try {
