@@ -48,6 +48,10 @@ const nonEmptyContent: TranslatableContent = {
   sourceLanguage: { en: { hello: 'Hello' } },
   otherLanguages: {},
 };
+const threeKeyContent: TranslatableContent = {
+  sourceLanguage: { hello: 'Hello', goodbye: 'Bye', greeting: 'Hi' },
+  otherLanguages: {},
+};
 
 // The DirectusApi instance only matters as far as SynchronizationLanguagesService is
 // constructed with it — the constructor is mocked above, so any object works.
@@ -166,7 +170,10 @@ describe('runAutomatedExportPipeline', () => {
       dispatchContent,
     });
 
-    expect(outcome).toEqual({ kind: 'exported' });
+    // `itemsProcessed: 1` reflects the single source-language top-level key in
+    // `nonEmptyContent`. The burst coordinator (PR 64+) rolls this into the row's
+    // `items_processed` column.
+    expect(outcome).toEqual({ kind: 'exported', itemsProcessed: 1 });
     expect(fetchContent).toHaveBeenCalledOnce();
     expect(fetchContent).toHaveBeenCalledWith({
       context: makeContext(),
@@ -178,6 +185,20 @@ describe('runAutomatedExportPipeline', () => {
       context: makeContext(),
       localazyProject: okProject,
     });
+  });
+
+  it("reports 'exported' with itemsProcessed equal to the source-language key count", async () => {
+    helperMocks.loadLocalazyProject.mockResolvedValue(okProject);
+    helperMocks.resolveExportLanguages.mockResolvedValue(['en']);
+
+    const outcome = await runAutomatedExportPipeline({
+      loadContext: async () => makeContext(),
+      directusApi: fakeDirectusApi,
+      fetchContent: makeFetcher(threeKeyContent),
+      dispatchContent: makeDispatcher(),
+    });
+
+    expect(outcome).toEqual({ kind: 'exported', itemsProcessed: 3 });
   });
 
   it("returns 'failed' with the original error when loadLocalazyProject throws", async () => {
