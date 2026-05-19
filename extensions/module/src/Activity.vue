@@ -86,9 +86,9 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeMount, ref } from 'vue';
+import { computed, onBeforeMount, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import Navigation from './components/Navigation.vue';
 import SessionsTable from './components/Activity/SessionsTable.vue';
 import { useLocalazyBoot } from './composables/use-localazy-boot';
@@ -104,6 +104,7 @@ import {
 } from './composables/use-activity-log';
 
 const router = useRouter();
+const route = useRoute();
 
 // Boot: ensures the installer's heal step runs so the `localazy_sync_log` collection
 // (added in PR D) lands on already-installed instances. The list store reload is
@@ -148,6 +149,21 @@ const {
   sessions,
   initialSortPreferences,
   onSortPreferencesChange,
+});
+
+// Persist the active tab in the URL hash so a reload (or a copied link) lands on
+// the same tab. Restore on first mount; mirror future changes via `router.replace`
+// so tab switches don't pollute the browser history.
+const VALID_TAB_HASHES: readonly ActivityTab[] = ['upload', 'download'];
+function tabFromHash(hash: string): ActivityTab | null {
+  const value = hash.replace(/^#/, '');
+  return (VALID_TAB_HASHES as readonly string[]).includes(value) ? (value as ActivityTab) : null;
+}
+const initialTabFromHash = tabFromHash(route.hash);
+if (initialTabFromHash) activeTab.value = initialTabFromHash;
+watch(activeTab, (next) => {
+  if (route.hash === `#${next}`) return;
+  void router.replace({ hash: `#${next}` });
 });
 
 // `<v-select :items>` shape: `{ text, value }`. The statuses mirror StatusLabel.vue's

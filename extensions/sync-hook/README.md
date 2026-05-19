@@ -16,7 +16,7 @@
 
 ## ⚠️ Installation requirements
 
-This extension is a **non-sandboxed Directus bundle** (a hook child plus a small endpoint child for health checks) — it uses Directus' `ItemsService` and `FieldsService` directly to read and modify your translatable content. Non-sandboxed extensions are not installed via the Marketplace by default.
+This extension is a **non-sandboxed Directus bundle** (a hook child plus a small endpoint child the module pings to detect whether the bundle is installed) — it uses Directus' `ItemsService` and `FieldsService` directly to read and modify your translatable content. Non-sandboxed extensions are not installed via the Marketplace by default.
 
 **Before installing, set this in your Directus configuration:**
 

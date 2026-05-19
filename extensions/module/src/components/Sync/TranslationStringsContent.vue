@@ -3,8 +3,8 @@
     <v-checkbox v-model="shouldSynchronize" class="collection-item collection-item-clickable">
       <span>
         <v-icon color="var(--theme--primary)" class="collection-icon" name="translate" />
-        <span class="collection-name"
-          >Translation Strings
+        <span class="collection-name">
+          <highlighted-label :label="LABEL" :normalized-query="normalizedQuery" />
           <a
             href="https://docs.directus.io/user-guide/content-module/translation-strings.html"
             target="_blank"
@@ -21,9 +21,19 @@
 </template>
 
 <script lang="ts" setup>
+import HighlightedLabel from './HighlightedLabel.vue';
+
 // Previously this component had a hand-rolled v-model that re-emitted the OLD prop
 // value, so the toggle silently no-op'd. defineModel binds correctly to v-checkbox.
 const shouldSynchronize = defineModel<boolean>('shouldSynchronize', { required: true });
+
+defineProps({
+  normalizedQuery: { type: String, required: true },
+});
+
+// Surfaced label used both for highlighting and for the page-level visibility
+// gate in Sync.vue (matched against the active lens) — keep the two in sync.
+const LABEL = 'Translation Strings';
 </script>
 
 <style lang="scss" scoped>
