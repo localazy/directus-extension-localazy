@@ -213,6 +213,10 @@ describe('formatInitiator', () => {
     expect(formatInitiator('webhook')).toBe('Triggered by webhook');
   });
 
+  it('returns the automated label for the literal "hook" initiator (burst sessions)', () => {
+    expect(formatInitiator('hook')).toBe('Triggered automatically');
+  });
+
   it('returns the resolved user name when the lookup succeeds', () => {
     const lookup = (id: string) => (id === 'user-1' ? 'Alice' : null);
     expect(formatInitiator('user-1', lookup)).toBe('Triggered by Alice');

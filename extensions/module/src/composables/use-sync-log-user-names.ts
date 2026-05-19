@@ -72,11 +72,16 @@ export function useSyncLogUserNames(sessions: Ref<SyncLogSession[]>) {
     sessions,
     async (rows) => {
       const idsToFetch = new Set<string>();
+      // Reserved `initiator` markers — these are session-level annotations that the
+      // formatter handles directly (`'webhook'` → "Triggered by webhook", `'hook'` →
+      // "Triggered automatically"), not Directus user ids. Excluded from the fetch so we
+      // don't enqueue `/users?id=hook` requests that would always fail.
+      const NON_USER_INITIATORS = new Set(['webhook', 'hook']);
       for (const row of rows) {
         // Prefer the m2o column. Fall back to the free `initiator` string when it
-        // doesn't carry the `'webhook'` marker — older rows may have been written
-        // before `initiator_user` was always populated alongside.
-        const candidate = row.initiator_user ?? (row.initiator !== 'webhook' ? row.initiator : null);
+        // isn't one of the reserved markers — older rows may have been written before
+        // `initiator_user` was always populated alongside.
+        const candidate = row.initiator_user ?? (NON_USER_INITIATORS.has(row.initiator) ? null : row.initiator);
         if (candidate && !(candidate in namesById.value)) {
           idsToFetch.add(candidate);
         }

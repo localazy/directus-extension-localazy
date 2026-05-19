@@ -64,10 +64,13 @@ export function formatEventType(eventType: string): string {
 /**
  * `initiator` → human-readable label. Callers should populate `initiator` (the
  * orchestrator does so for every row it writes); an empty value falls through to the
- * generic "Triggered by user" label rather than crashing. Three input shapes:
+ * generic "Triggered by user" label rather than crashing. Four input shapes:
  *
  * - The literal `'webhook'` → `"Triggered by webhook"`. Both the webhook handler's
  *   early-reject rows and the orchestrator's webhook-driven runs persist this value.
+ * - The literal `'hook'` → `"Triggered automatically"`. The burst coordinator writes
+ *   this for Automated export bursts; per-entry user attribution lives inside the
+ *   entries blob, not at the session level.
  * - A Directus user id WITH a successful `lookupUserName` resolve → `"Triggered by <name>"`.
  *   Only the currently-logged-in user's name is reachable synchronously; other ids fall
  *   through to the generic label.
@@ -78,6 +81,7 @@ export function formatEventType(eventType: string): string {
  */
 export function formatInitiator(initiator: string, lookupUserName?: (userId: string) => string | null): string {
   if (initiator === 'webhook') return 'Triggered by webhook';
+  if (initiator === 'hook') return 'Triggered automatically';
   const resolved = lookupUserName?.(initiator);
   if (resolved) return `Triggered by ${resolved}`;
   return 'Triggered by user';

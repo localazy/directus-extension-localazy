@@ -92,8 +92,6 @@ export type AutomatedExportBurstCoordinatorDeps = {
  */
 type BurstState = {
   sessionId: string;
-  /** Captured from the first event in the burst. Schema rotation mid-burst isn't supported (no production path triggers it). */
-  schema: SchemaOverview;
   /** Counters rolled into the terminal status + summary on `finalise`. */
   accumulator: {
     good: number; // info-level entries (exported / deprecated with keysCount > 0)
@@ -177,22 +175,28 @@ function formatExportEntryMessage(kind: AutomatedExportOutcome['kind'], collecti
   }
 }
 
-function formatDeprecationEntryMessage(kind: AutomatedDeprecationOutcome['kind'], collection: string, keys: string[]): string {
-  const keysLabel = keys.length > 0 ? ` for ${keys.length} ${keys.length === 1 ? 'item' : 'items'} (${keys.join(', ')})` : '';
-  const target = `${collection}${keysLabel}`;
-  switch (kind) {
+/**
+ * The `outcome` carries `keysCount` (Localazy keys deprecated) for the `'deprecated'`
+ * variant; that's the operationally meaningful figure, not the count of Directus items
+ * deleted. A single item deletion can deprecate multiple Localazy keys (one per
+ * translatable field), so surfacing the deletion count here would underreport. Item ids
+ * still live in `data.keys` on the entry for debugging.
+ */
+function formatDeprecationEntryMessage(outcome: AutomatedDeprecationOutcome, collection: string, keys: string[]): string {
+  const itemSuffix = keys.length > 0 ? ` (triggered by deletion of ${keys.length} ${keys.length === 1 ? 'item' : 'items'})` : '';
+  switch (outcome.kind) {
     case 'deprecated':
-      return `Deprecated keys for ${target}`;
+      return `Deprecated ${outcome.keysCount} ${outcome.keysCount === 1 ? 'key' : 'keys'} in ${collection}${itemSuffix}`;
     case 'failed':
-      return `Failed to deprecate ${target}`;
+      return `Failed to deprecate keys in ${collection}${itemSuffix}`;
     case 'no-project':
-      return `Could not load Localazy project while deprecating ${target}`;
+      return `Could not load Localazy project while deprecating keys in ${collection}${itemSuffix}`;
     case 'payment-disabled':
-      return `Sync operations disabled due to payment status while deprecating ${target}`;
+      return `Sync operations disabled due to payment status while deprecating keys in ${collection}${itemSuffix}`;
     case 'could-not-fetch-import-content':
-      return `Could not fetch import content while deprecating ${target}`;
+      return `Could not fetch import content while deprecating keys in ${collection}${itemSuffix}`;
     default:
-      return `Deprecated keys for ${target}`;
+      return `Deprecated keys in ${collection}${itemSuffix}`;
   }
 }
 
@@ -381,7 +385,6 @@ export function createAutomatedExportBurstCoordinator(deps: AutomatedExportBurst
         }
         currentBurst = {
           sessionId,
-          schema: args.schema,
           accumulator: { good: 0, bad: 0, exportedItems: 0, deprecatedKeys: 0 },
           timer: null,
           seq: ++nextSeq,
@@ -445,7 +448,7 @@ export function createAutomatedExportBurstCoordinator(deps: AutomatedExportBurst
     async recordDeprecationOutcome(input) {
       const classification = classifyDeprecationOutcome(input.outcome);
       if (!classification) return;
-      const message = formatDeprecationEntryMessage(input.outcome.kind, input.collection, input.keys);
+      const message = formatDeprecationEntryMessage(input.outcome, input.collection, input.keys);
       await appendEntryToBurst({
         schema: input.schema,
         level: classification.level,
