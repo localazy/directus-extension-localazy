@@ -525,9 +525,13 @@ describe('createAutomatedExportBurstCoordinator', () => {
       expect(entries[0].data.user).toBe('u1');
       expect(entries[0].data.event).toBe('items.update');
       expect(entries[0].data.outcome).toBe('exported');
-      expect(entries[1].message).toBe('Deprecated keys for articles for 2 items (d1, d2)');
+      // Deprecation messages count Localazy keys (operationally meaningful), not the
+      // Directus item deletions that triggered them. Item ids stay in `data.keys` for
+      // debugging.
+      expect(entries[1].message).toBe('Deprecated 2 keys in articles (triggered by deletion of 2 items)');
       expect(entries[1].data.user).toBe('u2');
       expect(entries[1].data.outcome).toBe('deprecated');
+      expect(entries[1].data.keys).toEqual(['d1', 'd2']);
     });
   });
 });
