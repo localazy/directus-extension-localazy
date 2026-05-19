@@ -60,12 +60,12 @@ defineProps<{
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   letter-spacing: 0.5px;
 }
 
 .metadata-value {
   font-size: 14px;
-  color: var(--foreground-normal);
+  color: var(--theme--foreground);
 }
 </style>

@@ -59,11 +59,11 @@ const versionLabel = `Version ${packageJson.version}`;
 
 <style lang="scss" scoped>
 .version {
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   transition: color var(--fast) var(--transition);
 
   &::v-deep(.v-icon) {
-    color: var(--foreground-subdued);
+    color: var(--theme--foreground-subdued);
     transition: color var(--fast) var(--transition);
   }
 }

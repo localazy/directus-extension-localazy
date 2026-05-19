@@ -249,7 +249,7 @@ onBeforeMount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   font-size: 13px;
   margin-bottom: 16px;
 }
@@ -284,7 +284,7 @@ onBeforeMount(() => {
 .filter-label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -298,7 +298,7 @@ onBeforeMount(() => {
    default Directus active-tab color shift was too subtle, so we promote it to
    `--primary` and bump weight; no card, no underline strip. */
 .sessions-tabs :deep(.v-tab.active) {
-  color: var(--primary);
+  color: var(--theme--primary);
   font-weight: 600;
 }
 

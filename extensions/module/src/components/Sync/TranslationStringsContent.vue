@@ -2,7 +2,7 @@
   <div>
     <v-checkbox v-model="shouldSynchronize" class="collection-item collection-item-clickable">
       <span>
-        <v-icon color="var(--primary)" class="collection-icon" name="translate" />
+        <v-icon color="var(--theme--primary)" class="collection-icon" name="translate" />
         <span class="collection-name"
           >Translation Strings
           <a

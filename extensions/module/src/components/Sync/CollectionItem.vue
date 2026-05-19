@@ -21,14 +21,14 @@
         @update:model-value="onUpdateCollectionSelection"
       >
         <span>
-          <v-icon :color="collection.color || 'var(--primary)'" class="collection-icon" :name="collection.icon" />
+          <v-icon :color="collection.color || 'var(--theme--primary)'" class="collection-icon" :name="collection.icon" />
           <span class="collection-name">{{ collection.name }}</span>
         </span>
       </v-checkbox>
 
       <v-list-item v-else class="collection-item collection-item-unclickable v-list-item">
         <span>
-          <v-icon :color="collection.color || 'var(--primary)'" class="collection-icon" :name="collection.icon" />
+          <v-icon :color="collection.color || 'var(--theme--primary)'" class="collection-icon" :name="collection.icon" />
           <span class="collection-name">{{ collection.name }}</span>
         </span>
       </v-list-item>
@@ -214,12 +214,12 @@ function onGroupClick() {
 
 .collection-group-chevron {
   margin-right: 0 !important;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   transform: rotate(0deg);
   transition: transform var(--medium) var(--transition);
 
   &:hover {
-    color: var(--foreground-normal);
+    color: var(--theme--foreground);
   }
 
   &.active {

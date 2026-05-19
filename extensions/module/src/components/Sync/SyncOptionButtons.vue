@@ -69,23 +69,23 @@ function onUpdateCollectionSelection() {
   width: 100%;
 
   & .v-icon {
-    --v-icon-color: var(--foreground-subdued);
+    --v-icon-color: var(--theme--foreground-subdued);
   }
 
   .checkbox-button {
     &::v-deep(.v-icon) {
-      color: var(--foreground-subdued);
+      color: var(--theme--foreground-subdued);
     }
 
     &:hover {
       ::v-deep(.checkbox) {
-        color: var(--foreground-subdued);
+        color: var(--theme--foreground-subdued);
       }
     }
   }
 
   & .button-label {
-    color: var(--foreground-subdued);
+    color: var(--theme--foreground-subdued);
     font-weight: 500;
   }
 
