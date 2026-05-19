@@ -22,7 +22,8 @@ import { uniqWith } from 'lodash';
 import { useGetCollectionFromSchema } from '../hook/composables/use-get-collection-from-schema';
 import type { DirectusLogger, ItemsServiceCtor } from '../hook/types/directus-services';
 import { SyncLogSession } from '../../../common/models/collections-data/sync-log';
-import { createSyncLogWriter, SyncLogFailureCallback, SyncLogStorage } from '../../../common/services/orchestrator/sync-log-writer';
+import { createSyncLogWriter, SyncLogFailureCallback } from '../../../common/services/orchestrator/sync-log-writer';
+import { createServerSyncLogStorage } from '../shared/sync-log-storage';
 import { FAILURE_NOTIFICATION_WINDOW_MS, shouldSuppressFailureNotification } from './notification-dedupe';
 
 /**
@@ -410,41 +411,6 @@ type NotifyOnFailureConfig = {
   recipientUserId: string;
   logger: DirectusLogger;
 };
-
-/**
- * Server-side `SyncLogStorage` adapter — translates the deep writer's column-aware
- * storage operations into `ItemsService` calls against `localazy_sync_log` with admin
- * accountability and `emitEvents: false` on writes (so the upload hook doesn't recurse
- * through write-backs). Orchestration (chain, swallow, trim, failure callback) lives in
- * `common/services/orchestrator/sync-log-writer.ts`.
- */
-function createServerSyncLogStorage(ItemsService: ItemsServiceCtor, schema: SchemaOverview): SyncLogStorage {
-  function service() {
-    return makeItemsService<Partial<SyncLogSession>>(ItemsService, LOCALAZY_COLLECTIONS.syncLog, schema, null);
-  }
-  return {
-    async createSession(row) {
-      await service().createOne(row, { emitEvents: false } as MutationOptions);
-    },
-    async readEntries(id) {
-      const row = await service().readOne(id);
-      return row?.entries ?? '[]';
-    },
-    async writeEntries(id, entriesJson) {
-      await service().updateOne(id, { entries: entriesJson }, { emitEvents: false } as MutationOptions);
-    },
-    async writeFinish(id, fields) {
-      await service().updateOne(id, fields, { emitEvents: false } as MutationOptions);
-    },
-    async listIdsByStartedAtDesc() {
-      const rows = await service().readByQuery({ limit: -1, sort: ['-started_at'], fields: ['id'] });
-      return rows.map((r) => r.id).filter((id): id is string => typeof id === 'string');
-    },
-    async deleteByIds(ids) {
-      await service().deleteMany(ids, { emitEvents: false } as MutationOptions);
-    },
-  };
-}
 
 /**
  * Server-side Sync-log writer. Composes the `ItemsService`-backed storage adapter with
