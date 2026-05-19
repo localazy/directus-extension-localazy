@@ -12,6 +12,7 @@ import { createContentTransferSetupsFields } from '../data/fields/content-transf
 import { createLocalazyDataFields } from '../data/fields/localazy-data/create';
 import { createSyncStateFields } from '../data/fields/sync-state/create';
 import { createSyncLogFields } from '../data/fields/sync-log/create';
+import { computeFieldHealActions } from './utilities/heal-fields';
 
 /**
  * Collection names owned by this extension. Used by the installer and the per-singleton
@@ -118,15 +119,27 @@ export const useLocalazyInstallerStore = defineStore('localazyInstaller', () => 
       return;
     }
 
-    // Heal: declarative field check. Diff what we declare against what Directus reports
-    // and POST any missing fields. The correct route is `/fields/{collection}` —
-    // the old `/collections/{collection}/fields` was a 404 (latent bug pre-dating PR 21).
+    // Heal: declarative field check. Diff what we declare against what Directus reports.
+    // The route `/fields/{collection}` accepts POSTs for missing fields and
+    // `/fields/{collection}/{field}` accepts PATCHes for metadata reconciliation.
+    // (The old `/collections/{collection}/fields` route was a 404 — latent bug pre-dating PR 21.)
+    //
+    // Metadata reconciliation specifically fixes `meta.special` drift: older Localazy
+    // installations have boolean field rows in `directus_fields` without `cast-boolean`
+    // (the flag was added to the field declarations later). On MySQL the driver returns
+    // `tinyint(1)` as raw `1`/`0` without the cast, which breaks `<v-select>` strict
+    // equality against item values like `{ value: true }`. SQLite happens to coerce
+    // `tinyint(1)` → boolean and masks the bug locally.
     const existingFields = fieldsStore.getFieldsForCollection(plan.name) as Field[];
-    const missing = plan.fields().filter((f) => !existingFields.find((ef) => ef.field === f.field));
-    if (missing.length === 0) return;
+    const { missing, metaUpdates } = computeFieldHealActions(plan.fields(), existingFields);
+    if (missing.length === 0 && metaUpdates.length === 0) return;
 
     for (const field of missing) {
       await api.post(`/fields/${plan.name}`, field);
+      await sleep(100);
+    }
+    for (const update of metaUpdates) {
+      await api.patch(`/fields/${plan.name}/${update.field}`, { meta: { special: update.special } });
       await sleep(100);
     }
     await fieldsStore.hydrate();
