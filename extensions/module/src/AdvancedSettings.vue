@@ -225,7 +225,7 @@ async function onSaveChanges() {
 
 .operator-tools-note {
   font-size: 13px;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   margin: 0 0 12px 0;
   max-width: 640px;
 }
@@ -247,7 +247,7 @@ async function onSaveChanges() {
   display: contents;
 
   dt {
-    color: var(--theme--foreground-subdued);
+    color: var(--theme--foreground);
     font-weight: 600;
   }
 

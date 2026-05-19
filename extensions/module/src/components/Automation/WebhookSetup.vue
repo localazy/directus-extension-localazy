@@ -198,7 +198,7 @@ watch(
   display: flex;
   gap: 8px;
   align-items: center;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   font-size: 14px;
 }
 
@@ -246,7 +246,7 @@ watch(
 .step-description {
   margin: 6px 0 0 0;
   font-size: 13px;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
 
   code {
     background: var(--theme--background-subdued);

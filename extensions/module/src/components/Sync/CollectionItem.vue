@@ -322,7 +322,7 @@ watch(allRenderedFields, (next) => {
 
 .collection-group-chevron {
   margin-right: 0 !important;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   transform: rotate(0deg);
   transition: transform var(--medium) var(--transition);
 

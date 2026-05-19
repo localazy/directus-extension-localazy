@@ -231,7 +231,7 @@ $radius: var(--border-radius, var(--theme--border-radius));
 $bg-card: var(--background-normal, var(--theme--background-normal, var(--theme--background)));
 $bg-subdued: var(--background-subdued, var(--theme--background-subdued));
 $fg-normal: var(--foreground-normal, var(--theme--foreground));
-$fg-subdued: var(--foreground-subdued, var(--theme--foreground-subdued));
+$fg-subdued: var(--foreground-subdued, var(--theme--foreground));
 $fg-accent: var(--foreground-accent, var(--theme--foreground-accent, var(--theme--foreground)));
 $mono: var(--family-monospace, var(--theme--family-monospace, ui-monospace, SFMono-Regular, Menlo, monospace));
 
@@ -325,6 +325,6 @@ $mono: var(--family-monospace, var(--theme--family-monospace, ui-monospace, SFMo
 }
 
 .hidden-language {
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
 }
 </style>
