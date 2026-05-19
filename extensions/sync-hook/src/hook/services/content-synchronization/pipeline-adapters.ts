@@ -26,6 +26,14 @@ import type { FieldsServiceCtor, ItemsServiceCtor } from '../../types/directus-s
  * permissions don't gate sync. Returns `null` when the Localazy collections aren't yet
  * provisioned in the schema, when the IO call fails, or when any of the three rows is
  * missing.
+ *
+ * The schema guard must cover every collection we then read. The installer creates the
+ * Localazy collections one at a time and seeds each singleton's row before moving on,
+ * so each PATCH fires an `items.create` event with a schema snapshot that only contains
+ * the collections created so far. Guarding only the first two would let the handler run
+ * between "contentTransferSetup seeded" and "config created", and `new ItemsService(config, …)`
+ * then throws `Cannot read properties of undefined (reading 'primary')` inside Directus'
+ * schema traversal.
  */
 export function makeBundleLocalazyContextLoader(deps: {
   ItemsService: ItemsServiceCtor;
@@ -33,7 +41,11 @@ export function makeBundleLocalazyContextLoader(deps: {
 }): AutomatedExportLocalazyContextLoader {
   return async () => {
     const { ItemsService, schema } = deps;
-    if (!schema.collections?.[LOCALAZY_COLLECTIONS.settings] || !schema.collections?.[LOCALAZY_COLLECTIONS.contentTransferSetup]) {
+    if (
+      !schema.collections?.[LOCALAZY_COLLECTIONS.settings] ||
+      !schema.collections?.[LOCALAZY_COLLECTIONS.contentTransferSetup] ||
+      !schema.collections?.[LOCALAZY_COLLECTIONS.config]
+    ) {
       return null;
     }
     try {
