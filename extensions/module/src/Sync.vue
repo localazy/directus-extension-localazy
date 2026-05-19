@@ -46,7 +46,35 @@
         @deselect-all="deselectAll"
       />
 
+      <div class="search-row">
+        <v-input
+          v-model="searchQuery"
+          class="search-input"
+          placeholder="Search collections and fields"
+          :nullable="false"
+          @keydown.esc="clearSearch"
+        >
+          <template #prepend>
+            <v-icon name="search" class="search-icon" />
+          </template>
+          <template #append>
+            <v-icon v-if="isSearchActive" name="close" clickable class="clear-icon" @click="clearSearch" />
+          </template>
+        </v-input>
+      </div>
+
       <div v-if="installed" class="page">
+        <div v-if="isSearchActive && !hasAnyVisibleTreeNode && !translationStringsVisible" class="empty-results">
+          <p class="empty-results-title">No collections or fields match “{{ searchQuery }}”.</p>
+          <p v-if="suggestEnablingToggles" class="empty-results-hint">
+            Try a different search term, or open
+            <span class="empty-results-options">Options</span> to enable
+            <span v-if="!showUntranslatableField">“Show untranslatable fields”</span>
+            <span v-if="!showUntranslatableField && !showUntranslatableCollections"> and </span>
+            <span v-if="!showUntranslatableCollections">“Show collections without translatable fields”</span>.
+          </p>
+        </div>
+
         <div class="collection-list">
           <collection-item
             v-for="col in iteratedCollections"
@@ -57,14 +85,17 @@
             :selections="enabledFields"
             :show-untranslatable-field="showUntranslatableField"
             :show-untranslatable-collections="showUntranslatableCollections"
+            :normalized-query="normalizedQuery"
             @update:selections="enabledFields = $event"
           />
         </div>
 
         <translation-strings-content
+          v-if="translationStringsVisible"
           v-model:should-synchronize="synchronizeTranslationStrings"
+          :normalized-query="normalizedQuery"
           :class="{
-            'translation-strings-separator': iteratedCollections.length > 0,
+            'translation-strings-separator': hasAnyVisibleTreeNode,
           }"
         />
       </div>
@@ -104,6 +135,14 @@ import { EnabledField } from '../../common/models/collections-data/content-trans
 import { EnabledFieldsService } from '../../common/utilities/enabled-fields-service';
 import { defaultConfiguration } from './data/default-configuration';
 import { useRouter } from 'vue-router';
+import { useTreeSearch } from './composables/use-tree-search';
+import {
+  buildVisibleTranslatableSelection,
+  isCollectionShown,
+  subtractEnabledFields,
+  unionEnabledFields,
+  VisibilityContext,
+} from './composables/tree-visibility';
 
 const { translatableRootCollections, rootCollections, translatableCollections, collections } = useCollectionsOrganizer();
 const { getTranslatableFields } = useGetFieldsForTranslationRelation();
@@ -206,6 +245,23 @@ const iteratedCollections = computed(() =>
   showUntranslatableCollections.value ? rootCollections.value : translatableRootCollections.value,
 );
 
+// Search lens (ADR-0003) — transient page-local state; resets on every visit.
+const { query: searchQuery, normalizedQuery, isActive: isSearchActive, clear: clearSearch } = useTreeSearch();
+
+// Translation Strings label string is duplicated in TranslationStringsContent.vue —
+// keep both in sync if one moves.
+const TRANSLATION_STRINGS_LABEL = 'Translation Strings';
+
+const visibilityContext = computed<VisibilityContext>(() => ({
+  isActive: isSearchActive.value,
+  isMatch: (label: string) => (normalizedQuery.value.length === 0 ? true : label.toLowerCase().includes(normalizedQuery.value)),
+  allCollections: collections.value,
+  getFieldsForCollection: getTranslatableFields,
+  showUntranslatableField: showUntranslatableField.value,
+  showUntranslatableCollections: showUntranslatableCollections.value,
+  isTranslatableCollection: (c) => translatableCollections.value.some((tc) => tc.collection === c.collection),
+}));
+
 const allTranslatableFields = computed(() =>
   translatableCollections.value.map((c) => ({
     collection: c.collection,
@@ -213,17 +269,55 @@ const allTranslatableFields = computed(() =>
   })),
 );
 
-const someTranslatableFieldsChecked = computed(() => enabledFields.value.length > 0);
-const allTranslatableFieldsChecked = computed(() => enabledFields.value.length === allTranslatableFields.value.length);
+// Visible-only translatable selection, used by the scope-additive Select all
+// path and by the master-checkbox state under an active lens.
+const visibleTranslatableSelection = computed(() => buildVisibleTranslatableSelection(iteratedCollections.value, visibilityContext.value));
+
+const hasAnyVisibleTreeNode = computed(() => iteratedCollections.value.some((c) => isCollectionShown(c, visibilityContext.value)));
+
+const translationStringsVisible = computed(() => !isSearchActive.value || visibilityContext.value.isMatch(TRANSLATION_STRINGS_LABEL));
+
+const suggestEnablingToggles = computed(() => !showUntranslatableField.value || !showUntranslatableCollections.value);
+
+// Master-checkbox state: under a lens, scope to the visible subset; otherwise
+// keep the original "every translatable field globally" rule.
+const someTranslatableFieldsChecked = computed(() => {
+  if (!isSearchActive.value) return enabledFields.value.length > 0;
+  const visible = visibleTranslatableSelection.value;
+  return visible.some((entry) =>
+    entry.fields.some((field) => enabledFields.value.find((e) => e.collection === entry.collection)?.fields.includes(field)),
+  );
+});
+
+const allTranslatableFieldsChecked = computed(() => {
+  if (!isSearchActive.value) return enabledFields.value.length === allTranslatableFields.value.length;
+  const visible = visibleTranslatableSelection.value;
+  if (visible.length === 0) return false;
+  return visible.every((entry) => {
+    const current = enabledFields.value.find((e) => e.collection === entry.collection);
+    return !!current && entry.fields.every((f) => current.fields.includes(f));
+  });
+});
 
 function selectAll() {
-  enabledFields.value = allTranslatableFields.value;
-  synchronizeTranslationStrings.value = true;
+  if (!isSearchActive.value) {
+    enabledFields.value = allTranslatableFields.value;
+    synchronizeTranslationStrings.value = true;
+    return;
+  }
+  // Lens-scoped, additive (ADR-0003): preserve selections outside the visible set.
+  enabledFields.value = unionEnabledFields(enabledFields.value, visibleTranslatableSelection.value);
+  if (translationStringsVisible.value) synchronizeTranslationStrings.value = true;
 }
 
 function deselectAll() {
-  enabledFields.value = [];
-  synchronizeTranslationStrings.value = false;
+  if (!isSearchActive.value) {
+    enabledFields.value = [];
+    synchronizeTranslationStrings.value = false;
+    return;
+  }
+  enabledFields.value = subtractEnabledFields(enabledFields.value, visibleTranslatableSelection.value);
+  if (translationStringsVisible.value) synchronizeTranslationStrings.value = false;
 }
 </script>
 
@@ -250,6 +344,50 @@ function deselectAll() {
   padding-top: 8px;
   margin-top: 8px;
   border-top: 1px solid var(--theme--border-color);
+}
+
+.search-row {
+  margin-top: 16px;
+
+  .search-input {
+    width: 100%;
+  }
+
+  .search-icon {
+    color: var(--theme--foreground-subdued);
+  }
+
+  .clear-icon {
+    color: var(--theme--foreground-subdued);
+    &:hover {
+      color: var(--theme--foreground);
+    }
+  }
+}
+
+.empty-results {
+  margin: 16px 0;
+  padding: 16px;
+  background-color: var(--theme--background-subdued);
+  border: 1px dashed var(--theme--border-color-subdued);
+  border-radius: var(--theme--border-radius);
+  color: var(--theme--foreground-subdued);
+  font-size: 13px;
+
+  .empty-results-title {
+    margin: 0 0 4px 0;
+    font-weight: 500;
+    color: var(--theme--foreground);
+  }
+
+  .empty-results-hint {
+    margin: 0;
+  }
+
+  .empty-results-options {
+    font-weight: 500;
+    color: var(--theme--foreground);
+  }
 }
 
 .last-sync-banner {
