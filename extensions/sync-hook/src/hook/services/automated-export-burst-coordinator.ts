@@ -6,6 +6,7 @@ import { createSyncLogWriter } from '../../../../common/services/orchestrator/sy
 import type { SyncLogWriter } from '../../../../common/services/orchestrator/ports';
 import { createServerSyncLogStorage } from '../../shared/sync-log-storage';
 import type { ItemsServiceCtor } from '../types/directus-services';
+import { LOCALAZY_COLLECTIONS } from '../../../../common/models/collections-data/collection-names';
 
 /**
  * Event_type column value for hook-triggered Automated export bursts. Sits next to
@@ -22,8 +23,6 @@ const BURST_EVENT_TYPE = 'upload-automated';
  * user attribution lives inside each entry's `data.user`.
  */
 const BURST_INITIATOR = 'hook';
-
-const SYNC_LOG_COLLECTION = 'localazy_sync_log';
 
 /** Default idle window before the burst auto-finalises. */
 const DEFAULT_IDLE_WINDOW_MS = 30_000;
@@ -286,7 +285,7 @@ export function createAutomatedExportBurstCoordinator(deps: AutomatedExportBurst
    */
   async function sweepOrphans(schema: SchemaOverview): Promise<void> {
     try {
-      const service = new ItemsService<Partial<SyncLogSession>>(SYNC_LOG_COLLECTION, { schema, accountability: null });
+      const service = new ItemsService<Partial<SyncLogSession>>(LOCALAZY_COLLECTIONS.syncLog, { schema, accountability: null });
       const orphans = await service.readByQuery({
         filter: {
           event_type: { _eq: BURST_EVENT_TYPE },

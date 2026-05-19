@@ -13,19 +13,11 @@ import { createLocalazyDataFields } from '../data/fields/localazy-data/create';
 import { createSyncStateFields } from '../data/fields/sync-state/create';
 import { createSyncLogFields } from '../data/fields/sync-log/create';
 import { computeFieldHealActions } from './utilities/heal-fields';
+import { LOCALAZY_COLLECTIONS } from '../../../common/models/collections-data/collection-names';
 
-/**
- * Collection names owned by this extension. Used by the installer and the per-singleton
- * stores. Don't hard-code these strings elsewhere — import the constant.
- */
-export const LOCALAZY_COLLECTIONS = {
-  groupingFolder: 'localazy_data',
-  settings: 'localazy_settings',
-  contentTransferSetup: 'localazy_content_transfer_setup',
-  config: 'localazy_config_data',
-  syncState: 'localazy_sync_state',
-  syncLog: 'localazy_sync_log',
-} as const;
+// Re-exported for backward compatibility — many module files import this name from the
+// installer store. New code should import directly from `common/models/collections-data/collection-names`.
+export { LOCALAZY_COLLECTIONS };
 
 type CollectionPlan = {
   name: string;

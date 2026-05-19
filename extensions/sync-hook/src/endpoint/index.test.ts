@@ -74,8 +74,28 @@ function makeFakeItemsService(initial: Record<string, FakeRow[]>) {
       this.collection = collection;
       ctorCalls.push({ collection, options });
     }
-    async readByQuery(_q: unknown): Promise<T[]> {
-      return ((tables.get(this.collection) ?? []) as T[]).slice();
+    async readByQuery(q: unknown): Promise<T[]> {
+      const rows = ((tables.get(this.collection) ?? []) as T[]).slice();
+      // Tests of the admin-policy lookup pass a filter shaped like
+      //   { _and: [{ id: { _eq: <userId> } }, ADMIN_USERS_FILTER] }
+      // The fake user rows carry an `admin_access` boolean that stands in for the real
+      // user → role → policies traversal — when the filter is present, return the row
+      // only if that boolean is `true`. This is the smallest model that lets us cover
+      // the gate's three outcomes (existence + admin + not-admin) without a real schema.
+      const filter = (q as { filter?: Record<string, unknown> } | undefined)?.filter;
+      if (this.collection === 'directus_users' && filter && '_and' in filter) {
+        const clauses = (filter as { _and: Array<Record<string, unknown>> })._and;
+        const idClause = clauses.find((c) => 'id' in c) as { id?: { _eq?: string } } | undefined;
+        const hasAdminTraversal = clauses.some(
+          (c) =>
+            'role' in c &&
+            JSON.stringify((c as { role: unknown }).role) === JSON.stringify({ policies: { policy: { admin_access: { _eq: true } } } }),
+        );
+        if (idClause?.id?._eq !== undefined && hasAdminTraversal) {
+          return rows.filter((r) => r.id === idClause.id?._eq && r.admin_access === true);
+        }
+      }
+      return rows;
     }
     async readOne(id: string | number, _q?: unknown): Promise<T | null> {
       const row = (tables.get(this.collection) ?? []).find((r) => r.id === id);
@@ -263,7 +283,7 @@ describe('webhook handler — HMAC verification', () => {
     logger = makeFakeLogger();
     const { FakeService, tables: t } = makeFakeItemsService({
       localazy_settings: [defaultSettings()],
-      localazy_data: [defaultData()],
+      localazy_config_data: [defaultData()],
       localazy_content_transfer_setup: [defaultTransferSetup()],
       directus_users: [defaultUser()],
       localazy_sync_log: [],
@@ -351,7 +371,7 @@ describe('webhook handler — HMAC verification', () => {
   });
 
   it('not connected (no access_token) → 401 not_connected', async () => {
-    tables.set('localazy_data', [{ ...defaultData(), access_token: '' }]);
+    tables.set('localazy_config_data', [{ ...defaultData(), access_token: '' }]);
     const handler = createWebhookHandler(getDeps);
     const { res, captured } = makeFakeRes();
 
@@ -387,7 +407,7 @@ describe('webhook handler — gating outcomes', () => {
   function setupHandler(settingsOverride: Record<string, unknown> = {}, users: FakeRow[] = [defaultUser()]) {
     const { FakeService, tables: t } = makeFakeItemsService({
       localazy_settings: [defaultSettings(settingsOverride)],
-      localazy_data: [defaultData()],
+      localazy_config_data: [defaultData()],
       localazy_content_transfer_setup: [defaultTransferSetup()],
       directus_users: users,
       localazy_sync_log: [],

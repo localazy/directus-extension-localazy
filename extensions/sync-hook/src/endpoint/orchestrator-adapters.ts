@@ -25,6 +25,7 @@ import { SyncLogSession } from '../../../common/models/collections-data/sync-log
 import { createSyncLogWriter, SyncLogFailureCallback } from '../../../common/services/orchestrator/sync-log-writer';
 import { createServerSyncLogStorage } from '../shared/sync-log-storage';
 import { FAILURE_NOTIFICATION_WINDOW_MS, shouldSuppressFailureNotification } from './notification-dedupe';
+import { LOCALAZY_COLLECTIONS } from '../../../common/models/collections-data/collection-names';
 
 /**
  * Shape of the `localazy_sync_state` row the orchestrator's lock cares about. Mirrors the
@@ -41,16 +42,6 @@ type LockRow = Pick<
   | 'sync_last_heartbeat_at'
   | 'acquired_token'
 >;
-
-/**
- * Localazy collection names mirrored from the module side. Keeping these constants
- * inline (rather than importing from the module workspace) avoids dragging Vue's runtime
- * into the server-side bundle.
- */
-const LOCALAZY_COLLECTIONS = {
-  syncState: 'localazy_sync_state',
-  syncLog: 'localazy_sync_log',
-} as const;
 
 /**
  * Construct an `ItemsService` for a given collection using the supplied accountability.
