@@ -141,7 +141,10 @@ h2 {
   padding-bottom: 4px;
   font-size: 24px;
   line-height: 34px;
-  border-bottom: 2px solid var(--border-subdued);
+  /* Directus 11 renamed theme tokens to the `--theme--*` namespace. The old
+     `--border-subdued` is undefined → the whole shorthand becomes invalid CSS
+     and the section divider disappears. */
+  border-bottom: 2px solid var(--theme--border-color-subdued);
   font-weight: 600;
 }
 
@@ -155,10 +158,10 @@ h3 {
   padding-bottom: 4px;
   font-size: 20px;
   line-height: 22px;
-  border-bottom: 1px solid var(--border-subdued);
+  border-bottom: 1px solid var(--theme--border-color-subdued);
 
   .v-icon {
-    color: var(--primary);
+    color: var(--theme--primary);
   }
 }
 

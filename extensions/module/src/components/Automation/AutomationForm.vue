@@ -246,14 +246,14 @@ onMounted(() => {
 .section-header-divider {
   margin-top: 16px;
   padding-top: 32px;
-  border-top: 1px solid var(--border-subdued);
+  border-top: 1px solid var(--theme--border-color-subdued);
 }
 
 .section-title {
   font-size: 20px;
   font-weight: 700;
   margin: 0 0 4px 0;
-  color: var(--foreground-normal);
+  color: var(--theme--foreground);
 }
 
 .section-description {
@@ -269,7 +269,7 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 600;
   margin: 0 0 8px 0;
-  color: var(--foreground-normal);
+  color: var(--theme--foreground);
 }
 
 .webhook-description {
@@ -288,14 +288,14 @@ onMounted(() => {
   font-style: italic;
   font-size: 13px;
   line-height: 18px;
-  color: var(--foreground-normal);
+  color: var(--theme--foreground);
 
   & a {
     text-decoration: underline;
   }
 
   code {
-    background: var(--background-subdued);
+    background: var(--theme--background-subdued);
     padding: 1px 4px;
     border-radius: 4px;
     font-style: normal;
@@ -304,6 +304,6 @@ onMounted(() => {
 
 .hint {
   margin-top: 6px;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
 }
 </style>

@@ -98,17 +98,17 @@ const columns: Array<{ key: SortKey; label: string }> = [
 .sortable-header {
   text-align: left;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border-subdued);
+  border-bottom: 1px solid var(--theme--border-color-subdued);
   cursor: pointer;
   user-select: none;
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   letter-spacing: 0.5px;
 
   &.active {
-    color: var(--primary);
+    color: var(--theme--primary);
   }
 }
 
@@ -123,12 +123,12 @@ const columns: Array<{ key: SortKey; label: string }> = [
   transition: background-color var(--fast) var(--transition);
 
   &:hover {
-    background-color: var(--background-subdued);
+    background-color: var(--theme--background-subdued);
   }
 
   td {
     padding: 12px 16px;
-    border-bottom: 1px solid var(--border-subdued);
+    border-bottom: 1px solid var(--theme--border-color-subdued);
     font-size: 14px;
   }
 }
@@ -143,7 +143,7 @@ const columns: Array<{ key: SortKey; label: string }> = [
 .empty-state {
   padding: 56px 32px;
   text-align: center;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   font-size: 14px;
 }
 </style>

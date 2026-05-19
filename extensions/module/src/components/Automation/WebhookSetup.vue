@@ -198,7 +198,7 @@ watch(
   display: flex;
   gap: 8px;
   align-items: center;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   font-size: 14px;
 }
 
@@ -212,9 +212,9 @@ watch(
 }
 
 .notice-url {
-  font-family: var(--family-monospace);
+  font-family: var(--theme--fonts--monospace--font-family);
   font-size: 13px;
-  color: var(--foreground-normal);
+  color: var(--theme--foreground);
   word-break: break-all;
 }
 
@@ -246,10 +246,10 @@ watch(
 .step-description {
   margin: 6px 0 0 0;
   font-size: 13px;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
 
   code {
-    background: var(--background-subdued);
+    background: var(--theme--background-subdued);
     padding: 1px 6px;
     border-radius: 4px;
     font-size: 12px;
@@ -262,10 +262,10 @@ watch(
   align-items: flex-start;
   margin-top: 8px;
   padding: 8px 12px;
-  background: var(--warning-25, var(--background-subdued));
-  border: 1px solid var(--warning-50, var(--border-subdued));
-  border-radius: var(--border-radius);
-  color: var(--warning, var(--foreground-normal));
+  background: var(--warning-25, var(--theme--background-subdued));
+  border: 1px solid var(--warning-50, var(--theme--border-color-subdued));
+  border-radius: var(--theme--border-radius);
+  color: var(--warning, var(--theme--foreground));
   font-size: 13px;
   line-height: 1.4;
 }

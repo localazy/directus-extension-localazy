@@ -60,7 +60,7 @@ const statusClass = computed(() => {
 .status-label {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: var(--border-radius);
+  border-radius: var(--theme--border-radius);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.4;
@@ -68,21 +68,21 @@ const statusClass = computed(() => {
 
 .status-success {
   background: var(--success-25, rgba(46, 184, 124, 0.12));
-  color: var(--success);
+  color: var(--theme--success);
 }
 
 .status-warning {
   background: var(--warning-25, rgba(255, 167, 38, 0.15));
-  color: var(--warning);
+  color: var(--theme--warning);
 }
 
 .status-danger {
   background: var(--danger-25, rgba(231, 76, 60, 0.12));
-  color: var(--danger);
+  color: var(--theme--danger);
 }
 
 .status-neutral {
-  background: var(--background-subdued);
-  color: var(--foreground-subdued);
+  background: var(--theme--background-subdued);
+  color: var(--theme--foreground-subdued);
 }
 </style>

@@ -249,7 +249,7 @@ function deselectAll() {
 .translation-strings-separator {
   padding-top: 8px;
   margin-top: 8px;
-  border-top: 1px solid var(--border-normal);
+  border-top: 1px solid var(--theme--border-color);
 }
 
 .last-sync-banner {
@@ -259,18 +259,18 @@ function deselectAll() {
   padding: 10px 14px;
   margin-top: 12px;
   margin-bottom: 12px;
-  background-color: var(--background-subdued);
-  border: 1px solid var(--border-subdued);
-  border-radius: var(--border-radius);
+  background-color: var(--theme--background-subdued);
+  border: 1px solid var(--theme--border-color-subdued);
+  border-radius: var(--theme--border-radius);
   cursor: pointer;
   font-size: 13px;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   transition: background-color var(--fast) var(--transition);
 
   &:hover,
   &:focus {
-    background-color: var(--background-normal);
-    color: var(--foreground-normal);
+    background-color: var(--theme--background-normal);
+    color: var(--theme--foreground);
     outline: none;
   }
 

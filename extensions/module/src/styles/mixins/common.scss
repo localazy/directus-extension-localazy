@@ -32,20 +32,20 @@
 
   // Background
   .bg-success {
-    background-color: var(--success);
+    background-color: var(--theme--success);
   }
 
   .bg-danger {
-    background-color: var(--danger);
+    background-color: var(--theme--danger);
   }
 
   .bg-warning {
-    background-color: var(--warning);
+    background-color: var(--theme--warning);
   }
 
   // Colors
   .text-foreground-normal {
-    color: var(--foreground-normal);
+    color: var(--theme--foreground);
   }
 
   // Width

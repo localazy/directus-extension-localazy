@@ -229,14 +229,14 @@ watch(
 }
 
 .input-note-error {
-  color: var(--danger) !important;
+  color: var(--theme--danger) !important;
 }
 
 .note {
   font-style: italic;
   font-size: 13px;
   line-height: 18px;
-  color: var(--foreground-normal);
+  color: var(--theme--foreground);
 
   & a {
     text-decoration: underline;
@@ -245,7 +245,7 @@ watch(
 
 .input-error {
   & ::v-deep(.input) {
-    border-color: var(--danger);
+    border-color: var(--theme--danger);
   }
 }
 </style>

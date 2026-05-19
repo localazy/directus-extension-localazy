@@ -91,19 +91,19 @@ onBeforeMount(async () => {
 .empty-state {
   padding: 48px;
   text-align: center;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
 }
 
 .metadata-section {
-  background-color: var(--background-normal);
+  background-color: var(--theme--background-normal);
   padding: 24px;
-  border-radius: var(--border-radius);
+  border-radius: var(--theme--border-radius);
   margin-bottom: 16px;
 }
 
 .summary-row {
   margin-top: 24px;
-  border-top: 1px solid var(--border-subdued);
+  border-top: 1px solid var(--theme--border-color-subdued);
   padding-top: 16px;
 }
 
@@ -111,20 +111,20 @@ onBeforeMount(async () => {
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   letter-spacing: 0.5px;
   margin-bottom: 4px;
 }
 
 .summary-value {
   font-size: 14px;
-  color: var(--foreground-normal);
+  color: var(--theme--foreground);
 }
 
 .entries-section {
-  background-color: var(--background-normal);
+  background-color: var(--theme--background-normal);
   padding: 24px;
-  border-radius: var(--border-radius);
+  border-radius: var(--theme--border-radius);
 }
 
 .entries-list {
@@ -134,8 +134,8 @@ onBeforeMount(async () => {
 
 .entry-row {
   padding: 12px 0;
-  border-bottom: 1px solid var(--border-subdued);
-  font-family: var(--family-monospace);
+  border-bottom: 1px solid var(--theme--border-color-subdued);
+  font-family: var(--theme--fonts--monospace--font-family);
 
   &:last-child {
     border-bottom: none;
@@ -153,7 +153,7 @@ onBeforeMount(async () => {
 }
 
 .entry-timestamp {
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   font-size: 12px;
   white-space: nowrap;
   min-width: 80px;
@@ -161,26 +161,26 @@ onBeforeMount(async () => {
 
 .entry-message {
   font-size: 13px;
-  color: var(--foreground-normal);
+  color: var(--theme--foreground);
 }
 
 .entry-info .entry-icon {
-  color: var(--primary);
+  color: var(--theme--primary);
 }
 .entry-warn .entry-icon {
-  color: var(--warning);
+  color: var(--theme--warning);
 }
 .entry-error .entry-icon {
-  color: var(--danger);
+  color: var(--theme--danger);
 }
 
 .entry-data {
   margin: 8px 0 0 32px;
   padding: 8px 12px;
-  background-color: var(--background-subdued);
-  border-radius: var(--border-radius);
+  background-color: var(--theme--background-subdued);
+  border-radius: var(--theme--border-radius);
   font-size: 12px;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   white-space: pre-wrap;
   word-break: break-all;
 }
