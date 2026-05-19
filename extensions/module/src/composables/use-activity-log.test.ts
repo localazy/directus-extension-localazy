@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  classifyInitiator,
   compareSessions,
   filterSessions,
   formatDuration,
@@ -30,20 +31,45 @@ const baseSession: SyncLogSession = {
 const make = (overrides: Partial<SyncLogSession>): SyncLogSession => ({ ...baseSession, ...overrides });
 
 describe('tabForEventType', () => {
-  it('routes upload-* to upload', () => {
+  it('routes upload-* to upload (Export tab)', () => {
     expect(tabForEventType('upload-incremental')).toBe('upload');
     expect(tabForEventType('upload-full')).toBe('upload');
     expect(tabForEventType('upload-automated')).toBe('upload');
   });
 
-  it('routes download-* to download', () => {
+  it('routes download-* to download (Import tab)', () => {
     expect(tabForEventType('download-incremental')).toBe('download');
     expect(tabForEventType('download-full')).toBe('download');
   });
 
-  it('routes webhook and unknown values to webhook', () => {
-    expect(tabForEventType('webhook')).toBe('webhook');
-    expect(tabForEventType('manual-override')).toBe('webhook');
+  // `'webhook'` is inbound Localazy → Directus and semantically a download; routing
+  // it to the Import tab is the simplification PR 67 introduces. The Initiator filter
+  // is where users distinguish webhook-driven runs from UI-driven ones.
+  it('routes webhook to download (Import tab)', () => {
+    expect(tabForEventType('webhook')).toBe('download');
+  });
+
+  it('routes unknown event types to download as the safe fallback', () => {
+    expect(tabForEventType('manual-override')).toBe('download');
+    expect(tabForEventType('some-future-event')).toBe('download');
+  });
+});
+
+describe('classifyInitiator', () => {
+  it("classifies the reserved 'hook' and 'webhook' markers as automated", () => {
+    expect(classifyInitiator('hook')).toBe('automated');
+    expect(classifyInitiator('webhook')).toBe('automated');
+  });
+
+  it('classifies a Directus user UUID as manual', () => {
+    expect(classifyInitiator('c1edb242-a6d8-43ff-82c9-b5eebc39595a')).toBe('manual');
+  });
+
+  it('classifies a non-UUID, non-reserved string as automated (defensive default)', () => {
+    // Future markers — anything system-driven that hasn't been added to the reserved
+    // set yet — default to automated rather than misclassifying as user activity.
+    expect(classifyInitiator('scheduled')).toBe('automated');
+    expect(classifyInitiator('')).toBe('automated');
   });
 });
 
@@ -66,29 +92,54 @@ describe('formatDuration', () => {
 });
 
 describe('filterSessions', () => {
+  // Initiator column in production carries either a Directus user UUID (manual runs)
+  // or one of the reserved markers `'webhook'` / `'hook'` (automated runs). The fixture
+  // mirrors that so the new Initiator filter classifies rows as it would in real data.
+  const ALICE = '00000000-0000-4000-8000-000000000001';
+  const BOB = '00000000-0000-4000-8000-000000000002';
   const sessions: SyncLogSession[] = [
-    make({ id: '1', event_type: 'upload-incremental', initiator: 'alice', status: 'completed' }),
-    make({ id: '2', event_type: 'upload-full', initiator: 'bob', status: 'failed' }),
-    make({ id: '3', event_type: 'download-incremental', initiator: 'alice', status: 'skipped' }),
-    make({ id: '4', event_type: 'webhook', initiator: 'webhook', status: 'completed' }),
+    make({ id: '1', event_type: 'upload-incremental', initiator: ALICE, status: 'completed' }),
+    make({ id: '2', event_type: 'upload-full', initiator: BOB, status: 'failed' }),
+    make({ id: '3', event_type: 'upload-automated', initiator: 'hook', status: 'completed' }),
+    make({ id: '4', event_type: 'download-incremental', initiator: ALICE, status: 'skipped' }),
+    make({ id: '5', event_type: 'webhook', initiator: 'webhook', status: 'completed' }),
   ];
 
-  it('filters by tab', () => {
-    expect(filterSessions(sessions, { tab: 'upload' }).map((s) => s.id)).toEqual(['1', '2']);
-    expect(filterSessions(sessions, { tab: 'download' }).map((s) => s.id)).toEqual(['3']);
-    expect(filterSessions(sessions, { tab: 'webhook' }).map((s) => s.id)).toEqual(['4']);
+  it('filters by tab — webhook event_type lands in download (Import) now', () => {
+    expect(filterSessions(sessions, { tab: 'upload' }).map((s) => s.id)).toEqual(['1', '2', '3']);
+    expect(filterSessions(sessions, { tab: 'download' }).map((s) => s.id)).toEqual(['4', '5']);
   });
 
   it('treats an empty / missing `statuses` set as "show all"', () => {
-    expect(filterSessions(sessions, { tab: 'upload', statuses: [] }).map((s) => s.id)).toEqual(['1', '2']);
-    expect(filterSessions(sessions, { tab: 'upload' }).map((s) => s.id)).toEqual(['1', '2']);
+    expect(filterSessions(sessions, { tab: 'upload', statuses: [] }).map((s) => s.id)).toEqual(['1', '2', '3']);
+    expect(filterSessions(sessions, { tab: 'upload' }).map((s) => s.id)).toEqual(['1', '2', '3']);
   });
 
   it('filters by `statuses` as an OR set', () => {
-    expect(filterSessions(sessions, { tab: 'upload', statuses: ['completed'] }).map((s) => s.id)).toEqual(['1']);
-    expect(filterSessions(sessions, { tab: 'upload', statuses: ['completed', 'failed'] }).map((s) => s.id)).toEqual(['1', '2']);
+    expect(filterSessions(sessions, { tab: 'upload', statuses: ['completed'] }).map((s) => s.id)).toEqual(['1', '3']);
+    expect(filterSessions(sessions, { tab: 'upload', statuses: ['completed', 'failed'] }).map((s) => s.id)).toEqual(['1', '2', '3']);
     // A status that no upload row carries returns nothing within the tab.
     expect(filterSessions(sessions, { tab: 'upload', statuses: ['skipped'] }).map((s) => s.id)).toEqual([]);
+  });
+
+  it('filters by `initiators` — manual surfaces only user-UUID rows', () => {
+    expect(filterSessions(sessions, { tab: 'upload', initiators: ['manual'] }).map((s) => s.id)).toEqual(['1', '2']);
+    expect(filterSessions(sessions, { tab: 'download', initiators: ['manual'] }).map((s) => s.id)).toEqual(['4']);
+  });
+
+  it("filters by `initiators` — automated surfaces 'hook' and 'webhook' rows", () => {
+    expect(filterSessions(sessions, { tab: 'upload', initiators: ['automated'] }).map((s) => s.id)).toEqual(['3']);
+    expect(filterSessions(sessions, { tab: 'download', initiators: ['automated'] }).map((s) => s.id)).toEqual(['5']);
+  });
+
+  it('treats an empty / missing `initiators` set as "show all"', () => {
+    expect(filterSessions(sessions, { tab: 'upload', initiators: [] }).map((s) => s.id)).toEqual(['1', '2', '3']);
+    expect(filterSessions(sessions, { tab: 'upload' }).map((s) => s.id)).toEqual(['1', '2', '3']);
+  });
+
+  it('combines status + initiator as AND', () => {
+    // Only upload rows that are BOTH completed AND manual.
+    expect(filterSessions(sessions, { tab: 'upload', statuses: ['completed'], initiators: ['manual'] }).map((s) => s.id)).toEqual(['1']);
   });
 
   it('filters by dateFrom / dateTo', () => {
