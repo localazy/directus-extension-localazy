@@ -30,11 +30,14 @@ import { useLocalazySettingsStore } from './stores/localazy-settings-store';
 import { useSingletonForm } from './composables/use-singleton-form';
 import { useLocalazyBoot } from './composables/use-localazy-boot';
 import { useDirectusNotificationsStore } from './composables/use-directus-stores';
+import { useUnsavedChangesGuard } from './composables/use-unsaved-changes-guard';
 
 const settingsCollectionName = LOCALAZY_COLLECTIONS.settings;
 
 const settingsStore = useLocalazySettingsStore();
 const { edits: settingsEdits, changesExist, save: saveSettings, loading: saving } = useSingletonForm(settingsStore);
+
+useUnsavedChangesGuard(changesExist);
 
 const notificationsStore = useDirectusNotificationsStore();
 const { installed, hydrating, hydrated, localazyData, boot } = useLocalazyBoot();

@@ -70,10 +70,13 @@ import { useSingletonForm } from './composables/use-singleton-form';
 import { useLocalazyBoot } from './composables/use-localazy-boot';
 import { useBundleStatus } from './composables/use-bundle-status';
 import { useDirectusNotificationsStore } from './composables/use-directus-stores';
+import { useUnsavedChangesGuard } from './composables/use-unsaved-changes-guard';
 import { BUNDLE_README_URL } from './data/constants';
 
 const settingsStore = useLocalazySettingsStore();
 const { edits: settingsEdits, changesExist, save: saveSettings, loading: saving } = useSingletonForm(settingsStore);
+
+useUnsavedChangesGuard(changesExist);
 
 const notificationsStore = useDirectusNotificationsStore();
 const { installed, hydrated, localazyData, boot } = useLocalazyBoot();
@@ -139,7 +142,7 @@ onBeforeMount(() => {
   align-items: center;
   gap: 8px;
   margin-top: 24px;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   font-size: 14px;
 }
 
@@ -149,19 +152,19 @@ onBeforeMount(() => {
 
 .bundle-version {
   font-size: 12px;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   margin-top: 16px;
   margin-bottom: 16px;
 
   code {
-    background: var(--background-subdued);
+    background: var(--theme--background-subdued);
     padding: 1px 4px;
     border-radius: 4px;
   }
 }
 
 code {
-  background: var(--background-subdued);
+  background: var(--theme--background-subdued);
   padding: 1px 4px;
   border-radius: 4px;
   font-size: 12px;
