@@ -6,6 +6,7 @@ import { DirectusLocalazyLanguage } from '../../../../common/models/directus-loc
 import { ContentFromLocalazyService } from '../../../../common/services/content-from-localazy-service';
 import { EnabledField } from '../../../../common/models/collections-data/content-transfer-setup';
 import { LocalazyData } from '../../../../common/models/collections-data/localazy-data';
+import type { DirectusLogger } from '../types/directus-services';
 
 type FetchContentInLanguage = {
   lang: DirectusLocalazyLanguage;
@@ -19,6 +20,7 @@ type ImportContentFromLocalazy = {
   enabledFields: EnabledField[];
   localazyData: LocalazyData;
   localazyProject: Project;
+  logger: DirectusLogger;
 
   progressCallbacks: {
     nothingToImport: () => void;
@@ -39,10 +41,10 @@ type ImportContentFromLocalazyReturn = ImportContentFromLocalazySuccessReturn | 
 
 class ImportFromLocalazyService {
   async importContentFromLocalazy(data: ImportContentFromLocalazy): Promise<ImportContentFromLocalazyReturn> {
-    const { languages, enabledFields, progressCallbacks, localazyProject, localazyData } = data;
+    const { languages, enabledFields, progressCallbacks, localazyProject, localazyData, logger } = data;
 
     const uniqueLocalazyFormLanguages = uniqWith(languages, (a, b) => a.localazyForm === b.localazyForm);
-    const directusFile = await this.loadFile(localazyData.access_token, localazyProject?.id || '');
+    const directusFile = await this.loadFile(logger, localazyData.access_token, localazyProject?.id || '');
 
     if (!directusFile) {
       progressCallbacks.nothingToImport();
@@ -74,7 +76,7 @@ class ImportFromLocalazyService {
     return { success: false };
   }
 
-  private async loadFile(token: string, projectId: string) {
+  private async loadFile(logger: DirectusLogger, token: string, projectId: string) {
     if (!token) {
       return null;
     }
@@ -86,7 +88,7 @@ class ImportFromLocalazyService {
         });
         return files.find((file) => file.name === 'directus.json') || null;
       } catch (e: unknown) {
-        trackLocalazyError(e, 'loadFile');
+        trackLocalazyError(logger, e, 'loadFile');
         return null;
       }
     } else {

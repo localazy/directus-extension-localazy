@@ -14,7 +14,7 @@ const adapterMocks = vi.hoisted(() => ({
   collectionContentFetcherFactory: vi.fn(),
   translationStringsFetcherFactory: vi.fn(),
   sourceLanguageImportContentFetcherFactory: vi.fn(),
-  dispatchToLocalazy: vi.fn(),
+  dispatchFactory: vi.fn(),
 }));
 
 const reporterMocks = vi.hoisted(() => ({
@@ -40,7 +40,7 @@ vi.mock('./services/content-synchronization/pipeline-adapters', () => ({
   makeTranslationStringsFetcher: adapterMocks.translationStringsFetcherFactory.mockReturnValue('translationStringsFetcherSentinel'),
   makeSourceLanguageImportContentFetcher:
     adapterMocks.sourceLanguageImportContentFetcherFactory.mockReturnValue('sourceLanguageFetcherSentinel'),
-  dispatchToLocalazy: adapterMocks.dispatchToLocalazy,
+  makeDispatchToLocalazy: adapterMocks.dispatchFactory.mockReturnValue('dispatchSentinel'),
 }));
 
 vi.mock('./services/content-synchronization/deprecation-key-projectors', () => ({
@@ -79,6 +79,7 @@ describe('sync-hook entry point', () => {
     adapterMocks.collectionContentFetcherFactory.mockReturnValue('collectionContentFetcherSentinel');
     adapterMocks.translationStringsFetcherFactory.mockReturnValue('translationStringsFetcherSentinel');
     adapterMocks.sourceLanguageImportContentFetcherFactory.mockReturnValue('sourceLanguageFetcherSentinel');
+    adapterMocks.dispatchFactory.mockReturnValue('dispatchSentinel');
     pipelineMocks.runAutomatedExportPipeline.mockResolvedValue({ kind: 'exported' });
     pipelineMocks.runAutomatedDeprecationPipeline.mockResolvedValue({ kind: 'deprecated', keysCount: 0 });
     registrations = new Map();
@@ -120,13 +121,22 @@ describe('sync-hook entry point', () => {
       it(`${event} composes the export pipeline with the translation-strings fetcher`, async () => {
         await registrations.get(event)!({ keys: ['k1'] }, { schema: fakeSchema });
 
-        expect(adapterMocks.loadContextFactory).toHaveBeenCalledWith({ ItemsService: fakeItemsService, schema: fakeSchema });
-        expect(adapterMocks.translationStringsFetcherFactory).toHaveBeenCalledWith({ ItemsService: fakeItemsService, schema: fakeSchema });
+        expect(adapterMocks.loadContextFactory).toHaveBeenCalledWith({
+          ItemsService: fakeItemsService,
+          schema: fakeSchema,
+          logger: fakeLogger,
+        });
+        expect(adapterMocks.translationStringsFetcherFactory).toHaveBeenCalledWith({
+          ItemsService: fakeItemsService,
+          schema: fakeSchema,
+          logger: fakeLogger,
+        });
+        expect(adapterMocks.dispatchFactory).toHaveBeenCalledWith(fakeLogger);
         expect(pipelineMocks.runAutomatedExportPipeline).toHaveBeenCalledExactlyOnceWith({
           loadContext: 'loadContextSentinel',
           directusApi: { tag: 'directus-api-service-sentinel' },
           fetchContent: 'translationStringsFetcherSentinel',
-          dispatchContent: adapterMocks.dispatchToLocalazy,
+          dispatchContent: 'dispatchSentinel',
         });
         expect(reporterMocks.reportAutomatedExportOutcome).toHaveBeenCalledExactlyOnceWith({
           outcome: { kind: 'exported' },
@@ -169,12 +179,13 @@ describe('sync-hook entry point', () => {
         schema: fakeSchema,
         keys: ['a', 'b'],
         collection: 'articles',
+        logger: fakeLogger,
       });
       expect(pipelineMocks.runAutomatedExportPipeline).toHaveBeenCalledExactlyOnceWith({
         loadContext: 'loadContextSentinel',
         directusApi: { tag: 'directus-api-service-sentinel' },
         fetchContent: 'collectionContentFetcherSentinel',
-        dispatchContent: adapterMocks.dispatchToLocalazy,
+        dispatchContent: 'dispatchSentinel',
       });
       expect(reporterMocks.reportAutomatedExportOutcome).toHaveBeenCalledExactlyOnceWith({
         outcome: { kind: 'exported' },
