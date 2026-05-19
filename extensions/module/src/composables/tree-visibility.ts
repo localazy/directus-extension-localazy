@@ -46,30 +46,45 @@ export function subtreeHasMatch(collection: AppCollection, ctx: VisibilityContex
   return getNestedCollections(collection, ctx).some((child) => subtreeHasMatch(child, ctx));
 }
 
+// `inMatchedSubtree` carries the "an ancestor's name matched the lens"
+// signal through the recursion. Inside such a subtree the lens is effectively
+// off (Q3 / ADR-0003 — a collection-name match reveals every descendant in
+// full, including nested collections and their fields).
+
 // Should the collection appear in the tree right now? The pre-lens half is a
 // straight port of CollectionItem.vue's `shouldRender`; the lens then prunes
-// any branch that has nothing to reveal.
-export function isCollectionShown(collection: AppCollection, ctx: VisibilityContext): boolean {
+// any branch that has nothing to reveal — unless an ancestor's name matched,
+// in which case the lens is silenced for this subtree.
+export function isCollectionShown(collection: AppCollection, ctx: VisibilityContext, inMatchedSubtree = false): boolean {
   const nested = getNestedCollections(collection, ctx);
   const baseShown = nested.length > 0 || ctx.isTranslatableCollection(collection) || ctx.showUntranslatableCollections;
   if (!baseShown) return false;
+  if (inMatchedSubtree) return true;
   return subtreeHasMatch(collection, ctx);
 }
 
-// Which fields the collection renders right now. A collection-name match shows
-// every field (Q3 / ADR-0003 — collection-level intent overrides field-level
-// filtering); otherwise only fields whose names match the lens.
-export function visibleFieldsForCollection(collection: AppCollection, ctx: VisibilityContext): Field[] {
+// Which fields the collection renders right now. A collection-name match (or
+// any ancestor's name match) shows every field unfiltered; otherwise only
+// fields whose own names match the lens.
+export function visibleFieldsForCollection(collection: AppCollection, ctx: VisibilityContext, inMatchedSubtree = false): Field[] {
   const rendered = renderedFieldsFor(collection, ctx);
-  if (!ctx.isActive) return rendered;
+  if (!ctx.isActive || inMatchedSubtree) return rendered;
   if (collectionNameMatches(collection, ctx)) return rendered;
   return rendered.filter((f) => ctx.isMatch(f.name));
 }
 
 // Translatable fields among the currently visible ones — the set the
 // scope-additive Select all / per-collection checkbox operates on.
-export function visibleTranslatableFieldsFor(collection: AppCollection, ctx: VisibilityContext): Field[] {
-  return visibleFieldsForCollection(collection, ctx).filter(FieldsUtilsService.isTranslatableField);
+export function visibleTranslatableFieldsFor(collection: AppCollection, ctx: VisibilityContext, inMatchedSubtree = false): Field[] {
+  return visibleFieldsForCollection(collection, ctx, inMatchedSubtree).filter(FieldsUtilsService.isTranslatableField);
+}
+
+// Are this collection's descendants inside a name-matched subtree? True iff an
+// ancestor already flagged the subtree as matched, OR this collection's own
+// name matches the active lens (in which case its children inherit the flag).
+export function descendantsInMatchedSubtree(collection: AppCollection, ctx: VisibilityContext, inMatchedSubtree: boolean): boolean {
+  if (inMatchedSubtree) return true;
+  return ctx.isActive && collectionNameMatches(collection, ctx);
 }
 
 // Flattened {collection, fields[]} list of every visible translatable field in
@@ -77,15 +92,16 @@ export function visibleTranslatableFieldsFor(collection: AppCollection, ctx: Vis
 // union and the master-checkbox indeterminate state under an active lens.
 export function buildVisibleTranslatableSelection(rootCollections: AppCollection[], ctx: VisibilityContext): EnabledField[] {
   const out: EnabledField[] = [];
-  const walk = (collection: AppCollection): void => {
-    if (!isCollectionShown(collection, ctx)) return;
+  const walk = (collection: AppCollection, inMatchedSubtree: boolean): void => {
+    if (!isCollectionShown(collection, ctx, inMatchedSubtree)) return;
     if (ctx.isTranslatableCollection(collection)) {
-      const visible = visibleTranslatableFieldsFor(collection, ctx);
+      const visible = visibleTranslatableFieldsFor(collection, ctx, inMatchedSubtree);
       if (visible.length > 0) out.push({ collection: collection.collection, fields: visible.map((f) => f.field) });
     }
-    for (const nested of getNestedCollections(collection, ctx)) walk(nested);
+    const childInSubtree = descendantsInMatchedSubtree(collection, ctx, inMatchedSubtree);
+    for (const nested of getNestedCollections(collection, ctx)) walk(nested, childInSubtree);
   };
-  for (const root of rootCollections) walk(root);
+  for (const root of rootCollections) walk(root, false);
   return out;
 }
 

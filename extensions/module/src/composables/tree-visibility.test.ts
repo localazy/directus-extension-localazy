@@ -143,6 +143,39 @@ describe('buildVisibleTranslatableSelection', () => {
       { collection: 'pages', fields: ['heading'] },
     ]);
   });
+
+  it('reveals every nested collection when an ancestor folder name matches', () => {
+    // Q3 / ADR-0003: a name-matched folder (no translatable fields of its own)
+    // must expose its entire descendant subtree, not an empty body. Regression
+    // test for the "Partnership Deals" case in PR #87 follow-up.
+    const ctx = makeCtx({ isActive: true, isMatch: (s) => s.toLowerCase().includes('content') });
+    expect(buildVisibleTranslatableSelection([content], ctx)).toEqual([
+      { collection: 'articles', fields: ['title', 'body'] },
+      { collection: 'pages', fields: ['heading'] },
+    ]);
+  });
+});
+
+describe('isCollectionShown — name-matched subtree', () => {
+  it('shows a non-matching descendant when its ancestor flagged the subtree as matched', () => {
+    const ctx = makeCtx({ isActive: true, isMatch: (s) => s.toLowerCase().includes('content') });
+    // `content` matches on its own; `articles` does not — but it's inside the matched subtree.
+    expect(isCollectionShown(articles, ctx, /* inMatchedSubtree */ true)).toBe(true);
+  });
+
+  it('still hides a node that the base visibility rules already exclude, even inside a matched subtree', () => {
+    const ctx = makeCtx({ isActive: true, isMatch: () => true });
+    // `settings` is untranslatable and the toggle is off; the matched-subtree
+    // flag does not override base visibility.
+    expect(isCollectionShown(settings, ctx, true)).toBe(false);
+  });
+});
+
+describe('visibleFieldsForCollection — inside a matched subtree', () => {
+  it('returns every rendered field when inside a name-matched subtree, regardless of own-name match', () => {
+    const ctx = makeCtx({ isActive: true, isMatch: (s) => s.toLowerCase().includes('content') });
+    expect(visibleFieldsForCollection(articles, ctx, true).map((f) => f.field)).toEqual(['title', 'body']);
+  });
 });
 
 describe('unionEnabledFields — scope-additive Select all', () => {
