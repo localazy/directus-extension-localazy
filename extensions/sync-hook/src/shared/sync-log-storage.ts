@@ -1,9 +1,8 @@
 import type { MutationOptions, SchemaOverview } from '@directus/types';
 import { SyncLogSession } from '../../../common/models/collections-data/sync-log';
 import { SyncLogStorage } from '../../../common/services/orchestrator/sync-log-writer';
+import { LOCALAZY_COLLECTIONS } from '../../../common/models/collections-data/collection-names';
 import type { ItemsServiceCtor } from '../hook/types/directus-services';
-
-const LOCALAZY_SYNC_LOG_COLLECTION = 'localazy_sync_log';
 
 /**
  * Server-side `SyncLogStorage` adapter — translates the deep writer's column-aware
@@ -22,7 +21,7 @@ const LOCALAZY_SYNC_LOG_COLLECTION = 'localazy_sync_log';
  */
 export function createServerSyncLogStorage(ItemsService: ItemsServiceCtor, schema: SchemaOverview): SyncLogStorage {
   function service() {
-    return new ItemsService<Partial<SyncLogSession>>(LOCALAZY_SYNC_LOG_COLLECTION, { schema, accountability: null });
+    return new ItemsService<Partial<SyncLogSession>>(LOCALAZY_COLLECTIONS.syncLog, { schema, accountability: null });
   }
   return {
     async createSession(row) {

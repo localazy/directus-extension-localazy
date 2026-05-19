@@ -16,6 +16,7 @@ import { ExportToLocalazyService } from '../export-to-localazy-service';
 import { importFromLocalazyService } from '../import-from-localazy-service';
 import { TranslationStringsService } from '../../../../../common/services/translation-strings-service';
 import { DirectusApiService } from '../directus-service';
+import { LOCALAZY_COLLECTIONS } from '../../../../../common/models/collections-data/collection-names';
 import type { FieldsServiceCtor, ItemsServiceCtor } from '../../types/directus-services';
 
 /**
@@ -32,16 +33,16 @@ export function makeBundleLocalazyContextLoader(deps: {
 }): AutomatedExportLocalazyContextLoader {
   return async () => {
     const { ItemsService, schema } = deps;
-    if (!schema.collections?.localazy_settings || !schema.collections?.localazy_content_transfer_setup) {
+    if (!schema.collections?.[LOCALAZY_COLLECTIONS.settings] || !schema.collections?.[LOCALAZY_COLLECTIONS.contentTransferSetup]) {
       return null;
     }
     try {
-      const settingsService = new ItemsService<Settings>('localazy_settings', { schema, accountability: null });
-      const transferSetupService = new ItemsService<ContentTransferSetupDatabase>('localazy_content_transfer_setup', {
+      const settingsService = new ItemsService<Settings>(LOCALAZY_COLLECTIONS.settings, { schema, accountability: null });
+      const transferSetupService = new ItemsService<ContentTransferSetupDatabase>(LOCALAZY_COLLECTIONS.contentTransferSetup, {
         schema,
         accountability: null,
       });
-      const localazyDataService = new ItemsService<LocalazyData>('localazy_config_data', { schema, accountability: null });
+      const localazyDataService = new ItemsService<LocalazyData>(LOCALAZY_COLLECTIONS.config, { schema, accountability: null });
 
       const [settings = null] = await settingsService.readByQuery({ fields: ['*'], limit: 1 });
       const [contentTransferSetup = null] = await transferSetupService.readByQuery({ fields: ['*'], limit: 1 });

@@ -83,3 +83,29 @@ CI (`.github/workflows/qa.yml`) runs `npm run check` then a production build on 
 ## Coding conventions
 
 - **Avoid `as any` and `as unknown` casts unless truly necessary.** Both bypass TypeScript's safety net and tend to mask real bugs. Prefer real types — even partial ones via `Partial<T>` / `Pick<T, K>` — or narrow the consumer's signature so the cast isn't needed. When a cast is unavoidable (mocking a complex third-party type in a test is the most common case), use a single targeted cast (`as TargetType`) rather than the `as unknown as TargetType` double-cast escape hatch, and keep its scope as small as possible.
+
+- **Never hard-code Localazy collection names.** Always import `LOCALAZY_COLLECTIONS` from `extensions/common/models/collections-data/collection-names.ts`. The literals look interchangeable but they are not:
+  - `localazy_data` — UI grouping folder in `directus_collections`. **No backing table.** Reading it with `ItemsService.readByQuery()` throws `Cannot read properties of undefined (reading 'primary')` inside Directus' schema traversal — and if the caller doesn't `try/catch` it surfaces as an unhandled rejection that makes the HTTP request hang until the client times out.
+  - `localazy_config_data` — the actual single-row collection storing the OAuth token + project id.
+  - The other names (`localazy_settings`, `localazy_content_transfer_setup`, `localazy_sync_state`, `localazy_sync_log`) are real collections.
+
+  A duplicated local `LOCALAZY_COLLECTIONS` block in `endpoint/index.ts` once mislabeled the folder as the data collection and silently hung the webhook handler for every delivery. Don't reintroduce a per-file copy of these names.
+
+## Directus 10 shapes redefined in Directus 11
+
+We support Directus 11, so the shapes below are the current truth. They are listed here because the Directus 10 shapes still live in older guides, blog posts, and the SDK's training-data fingerprint — code-completion and AI assistants will happily reach for them. When you touch system-collection fields, verify the relocation first.
+
+- **`admin_access` and `app_access` moved from `directus_roles` to `directus_policies`.** Directus 11 added a policy layer between users/roles and permissions. There is no `directus_users.admin_access` column. The traversal is:
+
+  `directus_users.role` (m2o) → `directus_roles.policies` (o2m to `directus_access`) → `directus_access.policy` (m2o to `directus_policies`) → `admin_access`.
+
+  To query users-who-are-admins, import the shared filter from `extensions/common/utilities/admin-users-filter.ts`:
+
+  ```ts
+  import { ADMIN_USERS_FILTER } from '.../common/utilities/admin-users-filter';
+  // ADMIN_USERS_FILTER === { role: { policies: { policy: { admin_access: { _eq: true } } } } }
+  ```
+
+  Reading `directus_users` with `fields: ['admin_access']` makes `ItemsService.readOne()` throw — when the caller's `catch` clause maps that to "user missing" you get the symptom "webhook fails on every delivery because the configured user no longer exists" even though the user is still right there. The webhook gate hit exactly this trap (see `endpoint/index.ts` `lookupWebhookUser`).
+
+Add new entries here when you find another Directus 10 shape that Directus 11 has restructured.

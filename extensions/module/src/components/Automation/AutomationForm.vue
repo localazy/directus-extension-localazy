@@ -124,6 +124,7 @@ import { useApi } from '@directus/extensions-sdk';
 import type { Item } from '@directus/types';
 import { useLocalazyStore } from '../../stores/localazy-store';
 import { Settings } from '../../../../common/models/collections-data/settings';
+import { ADMIN_USERS_FILTER } from '../../../../common/utilities/admin-users-filter';
 import WebhookSetup from './WebhookSetup.vue';
 
 const localEdits = defineModel<Settings>('edits', { required: true });
@@ -141,16 +142,9 @@ type AdminUser = { id: string; first_name: string | null; last_name: string | nu
 const adminUsers = ref<AdminUser[]>([]);
 const loadingUsers = ref(false);
 
-/**
- * Filter for users whose role has at least one policy with `admin_access = true`.
- * In Directus 11, `admin_access` lives on `directus_policies`, not on `directus_roles`
- * (which was the v10 shape). The traversal is
- * `directus_users.role` (m2o) → `directus_roles.policies` (o2m to `directus_access`)
- * → `directus_access.policy` (m2o to `directus_policies`) → `admin_access`.
- * Excluding non-admin users client-side instead would still leak their existence
- * via the API response, and we'd pay the bandwidth for a list we then discard.
- */
-const ADMIN_USERS_FILTER = { role: { policies: { policy: { admin_access: { _eq: true } } } } } as const;
+// `ADMIN_USERS_FILTER` traverses Directus 11's user → role → policies → admin_access
+// path. Excluding non-admin users client-side instead would still leak their existence
+// via the API response, and we'd pay the bandwidth for a list we then discard.
 
 async function loadAdminUsers(): Promise<void> {
   loadingUsers.value = true;
