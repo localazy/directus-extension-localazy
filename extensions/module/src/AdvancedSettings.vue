@@ -73,12 +73,15 @@ import { useSingletonForm } from './composables/use-singleton-form';
 import { useLocalazyBoot } from './composables/use-localazy-boot';
 import { useDirectusNotificationsStore } from './composables/use-directus-stores';
 import { useNow } from './composables/use-now';
+import { useUnsavedChangesGuard } from './composables/use-unsaved-changes-guard';
 import { SYNC_LOCK_STUCK_HINT_MS } from '../../common/services/orchestrator/lock-constants';
 
 const settingsCollectionName = LOCALAZY_COLLECTIONS.settings;
 
 const settingsStore = useLocalazySettingsStore();
 const { edits: settingsEdits, changesExist, save: saveSettings, loading: saving } = useSingletonForm(settingsStore);
+
+useUnsavedChangesGuard(changesExist);
 
 const notificationsStore = useDirectusNotificationsStore();
 const { installed, hydrating, hydrated, localazyData, boot } = useLocalazyBoot();
@@ -202,21 +205,21 @@ async function onSaveChanges() {
 .operator-tools {
   margin-top: 48px;
   padding: 16px;
-  border: 1px solid var(--border-subdued);
-  border-radius: var(--border-radius);
-  background: var(--background-subdued);
+  border: 1px solid var(--theme--border-color-subdued);
+  border-radius: var(--theme--border-radius);
+  background: var(--theme--background-subdued);
 }
 
 .operator-tools-title {
   font-size: 16px;
   font-weight: 600;
   margin: 0 0 8px 0;
-  color: var(--foreground-normal);
+  color: var(--theme--foreground);
 }
 
 .operator-tools-note {
   font-size: 13px;
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   margin: 0 0 12px 0;
   max-width: 640px;
 }
@@ -227,9 +230,9 @@ async function onSaveChanges() {
   gap: 4px 16px;
   margin: 0 0 16px 0;
   padding: 8px 12px;
-  background: var(--background-normal);
-  border: 1px solid var(--border-subdued);
-  border-radius: var(--border-radius);
+  background: var(--theme--background-normal);
+  border: 1px solid var(--theme--border-color-subdued);
+  border-radius: var(--theme--border-radius);
   font-size: 12px;
   max-width: 640px;
 }
@@ -238,14 +241,14 @@ async function onSaveChanges() {
   display: contents;
 
   dt {
-    color: var(--foreground-subdued);
+    color: var(--theme--foreground-subdued);
     font-weight: 600;
   }
 
   dd {
     margin: 0;
-    color: var(--foreground-normal);
-    font-family: var(--family-monospace);
+    color: var(--theme--foreground);
+    font-family: var(--theme--fonts--monospace--font-family);
   }
 }
 </style>
