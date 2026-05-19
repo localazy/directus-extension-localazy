@@ -70,6 +70,7 @@ const schemaWithLocalazyCollections = {
   collections: {
     localazy_settings: {},
     localazy_content_transfer_setup: {},
+    localazy_config_data: {},
   },
 } as unknown as SchemaOverview;
 
@@ -117,6 +118,23 @@ describe('makeBundleLocalazyContextLoader', () => {
 
   it('returns null when localazy_content_transfer_setup is missing but localazy_settings is present', async () => {
     const partialSchema = { collections: { localazy_settings: {} } } as unknown as SchemaOverview;
+    const ItemsService = makeItemsServiceCtor({});
+
+    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: partialSchema })();
+
+    expect(result).toBeNull();
+    expect(ItemsService).not.toHaveBeenCalled();
+  });
+
+  // Closes the install-time race: the installer creates collections sequentially and seeds
+  // each singleton's row before moving on, so the `items.create` event for the
+  // content-transfer-setup seed fires with a schema that includes settings +
+  // contentTransferSetup but not yet config. Without this guard, `new ItemsService(config, …)`
+  // throws inside Directus' schema traversal.
+  it('returns null when localazy_config_data is missing but the other two are present', async () => {
+    const partialSchema = {
+      collections: { localazy_settings: {}, localazy_content_transfer_setup: {} },
+    } as unknown as SchemaOverview;
     const ItemsService = makeItemsServiceCtor({});
 
     const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: partialSchema })();

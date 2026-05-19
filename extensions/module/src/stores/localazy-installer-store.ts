@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { useApi } from '@directus/extensions-sdk';
-import type { DeepPartial, Field } from '@directus/types';
+import type { AppCollection, DeepPartial, Field } from '@directus/types';
 import { sleep } from '../../../common/utilities/sleep';
 import { getConfig } from '../../../common/config/get-config';
 import { useErrorsStore } from './errors-store';
@@ -14,6 +14,7 @@ import { createSyncStateFields } from '../data/fields/sync-state/create';
 import { createSyncLogFields } from '../data/fields/sync-log/create';
 import { computeFieldHealActions } from './utilities/heal-fields';
 import { LOCALAZY_COLLECTIONS } from '../../../common/models/collections-data/collection-names';
+import { detectLanguageDefaults } from './utilities/detect-language-defaults';
 
 // Re-exported for backward compatibility — many module files import this name from the
 // installer store. New code should import directly from `common/models/collections-data/collection-names`.
@@ -145,10 +146,22 @@ export const useLocalazyInstallerStore = defineStore('localazyInstaller', () => 
       installing.value = true;
       try {
         await ensureFolder();
+        // Seed the language fields from the user's existing Directus schema so the
+        // Project Setup page renders without a phantom "unsaved changes" warning. The
+        // form used to do this in a `watchEffect` that mutated `edits` while `store.data`
+        // stayed empty — that flipped `changesExist=true` on every fresh mount. Seeding
+        // the values up-front keeps form state and store state in lockstep on first
+        // visit. Only runs at install time; if the user adds a `languages` collection
+        // later, the Project Setup dropdowns let them pick manually.
         await ensureCollection({
           name: LOCALAZY_COLLECTIONS.settings,
           fields: createSettingsFields,
-          defaults: defaultConfiguration().settings,
+          defaults: {
+            ...defaultConfiguration().settings,
+            ...detectLanguageDefaults(collectionsStore.collections as AppCollection[], (collection) =>
+              fieldsStore.getFieldsForCollection(collection),
+            ),
+          },
         });
         await ensureCollection({
           name: LOCALAZY_COLLECTIONS.contentTransferSetup,

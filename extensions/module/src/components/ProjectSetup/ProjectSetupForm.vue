@@ -154,20 +154,14 @@ const languageSelectOptions = computed(() =>
   }),
 );
 
-watchEffect(() => {
-  const lookupLanguageCollection = possibleLanguageCollections.find((col) => col.value.toLocaleLowerCase() === 'languages');
-  if (lookupLanguageCollection) {
-    localEdits.value.language_collection = lookupLanguageCollection.value;
-  }
-});
-
-watchEffect(() => {
-  const lookupLanguageCodeField = possibleLanguageCodeFields.value.find((col) => col.value.toLocaleLowerCase() === 'code');
-  if (lookupLanguageCodeField) {
-    localEdits.value.language_code_field = lookupLanguageCodeField.value;
-  }
-});
-
+// When the user picks a new language collection from the dropdown, the watcher below
+// clears `language_code_field`. This effect then re-runs (it depends on
+// `possibleLanguageCodeFields`, which is keyed off `language_collection`) and re-fills
+// the field with `code` if the new collection has one. The initial mount case — where
+// `language_collection` was seeded by the installer and `language_code_field` already
+// matches — short-circuits to a no-op write that Vue's reactive setter ignores, so
+// `changesExist` stays false. (The on-mount seed itself happens in the installer; see
+// `localazy-installer-store.ts`.)
 watchEffect(() => {
   const lookupLanguageCodeField = possibleLanguageCodeFields.value.find((col) => col.value.toLocaleLowerCase() === 'code');
   if (lookupLanguageCodeField) {
