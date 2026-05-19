@@ -18,7 +18,9 @@ describe('summarizeUploadContent', () => {
       items: 0,
       collections: 0,
       sourceLangEntries: 0,
+      nonEmptySourceLangEntries: 0,
       translationEntries: 0,
+      nonEmptyTranslationEntries: 0,
     });
   });
 
@@ -36,7 +38,9 @@ describe('summarizeUploadContent', () => {
       items: 2,
       collections: 1,
       sourceLangEntries: 3,
+      nonEmptySourceLangEntries: 3,
       translationEntries: 0,
+      nonEmptyTranslationEntries: 0,
     });
   });
 
@@ -52,7 +56,9 @@ describe('summarizeUploadContent', () => {
       items: 2,
       collections: 2,
       sourceLangEntries: 2,
+      nonEmptySourceLangEntries: 2,
       translationEntries: 0,
+      nonEmptyTranslationEntries: 0,
     });
   });
 
@@ -70,7 +76,9 @@ describe('summarizeUploadContent', () => {
       items: 1,
       collections: 1,
       sourceLangEntries: 1,
+      nonEmptySourceLangEntries: 1,
       translationEntries: 2,
+      nonEmptyTranslationEntries: 2,
     });
   });
 
@@ -89,6 +97,7 @@ describe('summarizeUploadContent', () => {
     });
     const summary = summarizeUploadContent(content);
     expect(summary.sourceLangEntries).toBe(1);
+    expect(summary.nonEmptySourceLangEntries).toBe(1);
     expect(summary.items).toBe(1);
   });
 
@@ -105,7 +114,9 @@ describe('summarizeUploadContent', () => {
       items: 0,
       collections: 0,
       sourceLangEntries: 2,
+      nonEmptySourceLangEntries: 2,
       translationEntries: 1,
+      nonEmptyTranslationEntries: 1,
     });
   });
 
@@ -117,5 +128,68 @@ describe('summarizeUploadContent', () => {
       },
     });
     expect(summarizeUploadContent(content).items).toBe(1);
+  });
+
+  describe('non-empty counting', () => {
+    it('treats empty string and whitespace-only strings as empty', () => {
+      const content = asContent({
+        sourceLanguage: {
+          posts: {
+            '1': { translations: { title: 'Hello', subtitle: '', body: '   ', cta: '\t\n' } },
+            '2': { translations: { title: '', body: 'World' } },
+          },
+        },
+        otherLanguages: {},
+      });
+      const summary = summarizeUploadContent(content);
+      expect(summary.sourceLangEntries).toBe(6);
+      expect(summary.nonEmptySourceLangEntries).toBe(2);
+    });
+
+    it('counts non-empty entries inside nested JSON fields', () => {
+      const content = asContent({
+        sourceLanguage: {
+          posts: {
+            '1': {
+              translations: {
+                rich: { headline: 'Hi', tagline: '', meta: { caption: 'Caption', alt: ' ' } },
+              },
+            },
+          },
+        },
+        otherLanguages: {},
+      });
+      const summary = summarizeUploadContent(content);
+      expect(summary.sourceLangEntries).toBe(4);
+      expect(summary.nonEmptySourceLangEntries).toBe(2);
+    });
+
+    it('tracks non-empty separately for source and translation languages', () => {
+      const content = asContent({
+        sourceLanguage: {
+          posts: { '1': { translations: { title: 'Hi', body: '' } } },
+        },
+        otherLanguages: {
+          fr: { posts: { '1': { translations: { title: 'Salut', body: '   ' } } } },
+        },
+      });
+      const summary = summarizeUploadContent(content);
+      expect(summary.sourceLangEntries).toBe(2);
+      expect(summary.nonEmptySourceLangEntries).toBe(1);
+      expect(summary.translationEntries).toBe(2);
+      expect(summary.nonEmptyTranslationEntries).toBe(1);
+    });
+
+    it('counts empty translation_string values as empty', () => {
+      const content = asContent({
+        sourceLanguage: {
+          translation_string: { greeting: { key1: 'Hello', key2: '', key3: '   ' } },
+        },
+        otherLanguages: {},
+      });
+      const summary = summarizeUploadContent(content);
+      expect(summary.sourceLangEntries).toBe(3);
+      expect(summary.nonEmptySourceLangEntries).toBe(1);
+    });
   });
 });

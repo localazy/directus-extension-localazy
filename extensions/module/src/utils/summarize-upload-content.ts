@@ -8,10 +8,18 @@ export type UploadContentSummary = {
   /** Number of source-language string entries that will be sent (post-filter). */
   sourceLangEntries: number;
   /**
+   * Subset of `sourceLangEntries` whose string value is non-empty after trimming
+   * whitespace. Localazy's `import.json` drops blank values server-side, so this
+   * is the count that ultimately materialises as keys in the Localazy project.
+   */
+  nonEmptySourceLangEntries: number;
+  /**
    * Number of translation-language string entries that will be sent (post-filter).
    * Excludes source-language entries; sums across all non-source languages.
    */
   translationEntries: number;
+  /** Subset of `translationEntries` whose string value is non-empty after trimming whitespace. */
+  nonEmptyTranslationEntries: number;
 };
 
 /**
@@ -22,6 +30,11 @@ export type UploadContentSummary = {
  * would ripple across the codebase).
  */
 type NestedNode = string | number | null | undefined | NestedNode[] | { [key: string]: NestedNode };
+
+type LeafCounts = {
+  total: number;
+  nonEmpty: number;
+};
 
 /**
  * Build the headline summary stats the upload sync orchestrator emits to the progress
@@ -36,17 +49,13 @@ type NestedNode = string | number | null | undefined | NestedNode[] | { [key: st
  */
 export function summarizeUploadContent(content: TranslatableContent): UploadContentSummary {
   const itemsByCollection = new Map<string, Set<string>>();
-  let sourceLangEntries = 0;
-  let translationEntries = 0;
+  const sourceCounts: LeafCounts = { total: 0, nonEmpty: 0 };
+  const translationCounts: LeafCounts = { total: 0, nonEmpty: 0 };
 
-  countEntries(content.sourceLanguage as Record<string, NestedNode>, itemsByCollection, (n) => {
-    sourceLangEntries += n;
-  });
+  countEntries(content.sourceLanguage as Record<string, NestedNode>, itemsByCollection, sourceCounts);
 
   Object.entries(content.otherLanguages).forEach(([, langContent]) => {
-    countEntries(langContent as Record<string, NestedNode>, itemsByCollection, (n) => {
-      translationEntries += n;
-    });
+    countEntries(langContent as Record<string, NestedNode>, itemsByCollection, translationCounts);
   });
 
   let totalItems = 0;
@@ -57,8 +66,10 @@ export function summarizeUploadContent(content: TranslatableContent): UploadCont
   return {
     items: totalItems,
     collections: itemsByCollection.size,
-    sourceLangEntries,
-    translationEntries,
+    sourceLangEntries: sourceCounts.total,
+    nonEmptySourceLangEntries: sourceCounts.nonEmpty,
+    translationEntries: translationCounts.total,
+    nonEmptyTranslationEntries: translationCounts.nonEmpty,
   };
 }
 
@@ -71,35 +82,38 @@ export function summarizeUploadContent(content: TranslatableContent): UploadCont
  * `@meta:`-prefixed keys are part of the upload payload but represent metadata, not
  * user-visible strings — exclude them from the entry count.
  */
-function countEntries(
-  langContent: Record<string, NestedNode>,
-  itemsByCollection: Map<string, Set<string>>,
-  addEntries: (n: number) => void,
-) {
+function countEntries(langContent: Record<string, NestedNode>, itemsByCollection: Map<string, Set<string>>, counts: LeafCounts) {
   Object.entries(langContent).forEach(([topKey, topValue]) => {
     if (topKey.startsWith('@meta:')) return;
     if (topKey === 'translation_string') {
-      addEntries(countLeafStringsExcludingMeta(topValue));
+      accumulateLeafCounts(topValue, counts);
       return;
     }
     if (topValue && typeof topValue === 'object' && !Array.isArray(topValue)) {
       const collectionItems = itemsByCollection.get(topKey) || new Set<string>();
       Object.entries(topValue).forEach(([itemId, itemValue]) => {
         collectionItems.add(itemId);
-        addEntries(countLeafStringsExcludingMeta(itemValue));
+        accumulateLeafCounts(itemValue, counts);
       });
       itemsByCollection.set(topKey, collectionItems);
     }
   });
 }
 
-function countLeafStringsExcludingMeta(value: NestedNode): number {
-  if (typeof value === 'string') return 1;
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return 0;
-  let n = 0;
+/**
+ * Walk the value tree adding to `counts.total` for every leaf string and to
+ * `counts.nonEmpty` for every leaf whose trimmed value is non-empty. `@meta:` keys are
+ * skipped to mirror the existing payload contract.
+ */
+function accumulateLeafCounts(value: NestedNode, counts: LeafCounts): void {
+  if (typeof value === 'string') {
+    counts.total += 1;
+    if (value.trim() !== '') counts.nonEmpty += 1;
+    return;
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return;
   Object.entries(value).forEach(([k, child]) => {
     if (k.startsWith('@meta:')) return;
-    n += countLeafStringsExcludingMeta(child);
+    accumulateLeafCounts(child, counts);
   });
-  return n;
 }

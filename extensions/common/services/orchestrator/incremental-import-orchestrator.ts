@@ -5,12 +5,12 @@ import { DirectusLocalazyLanguage } from '../../models/directus-localazy-languag
 import { EnabledField } from '../../models/collections-data/content-transfer-setup';
 import { LocalazyData } from '../../models/collections-data/localazy-data';
 import { Settings } from '../../models/collections-data/settings';
-import { SyncLogEntry, SyncLogLevel } from '../../models/collections-data/sync-log';
-import { LockState, OrchestratorAdapters, SyncLogWriter } from './ports';
+import { LockState, OrchestratorAdapters } from './ports';
 import { LocalazyContentSummary, summarizeLocalazyContent } from './summarize-localazy-content';
 import { upsertFromLocalazyContent } from './upsert-localazy-content';
 import { WrittenTriple } from './written-triple';
 import { SYNC_LOCK_HARD_CEILING_MS, SYNC_LOCK_HEARTBEAT_MS, SYNC_LOCK_STALE_HEARTBEAT_MS } from './lock-constants';
+import { LogHandle, makeLogHandle, makeNoopLogHandle } from './log-handle';
 
 export type SyncMode = 'incremental' | 'full';
 
@@ -118,57 +118,6 @@ function isLockStale(state: LockState, now: number): boolean {
     }
   }
   return false;
-}
-
-/**
- * Per-run handle for the optional sync-log writer. The orchestrator threads this through
- * the body so milestone entries land on the persisted row. `appendInfo` / `appendError` /
- * `appendWarn` are thin level-tagged wrappers around `SyncLogWriter.appendEntry`, with
- * `void` returns so the orchestrator can call them inline without awaiting (log writes
- * never gate the sync).
- *
- * When no writer is supplied, the orchestrator uses `makeNoopLogHandle()` — every call
- * is a no-op. Keeps the orchestrator's flow free of conditional checks at every milestone.
- */
-type LogHandle = {
-  appendInfo(message: string, data?: Record<string, unknown>): void;
-  appendWarn(message: string, data?: Record<string, unknown>): void;
-  appendError(message: string, data?: Record<string, unknown>): void;
-  /** Counter incremented every time `appendError` fires. Used to decide `'partial'` vs `'completed'`. */
-  errorCount(): number;
-};
-
-function makeNoopLogHandle(): LogHandle {
-  return {
-    appendInfo() {},
-    appendWarn() {},
-    appendError() {},
-    errorCount() {
-      return 0;
-    },
-  };
-}
-
-function makeLogHandle(writer: SyncLogWriter, sessionId: string): LogHandle {
-  let errorCount = 0;
-  const append = (level: SyncLogLevel, message: string, data?: Record<string, unknown>) => {
-    if (level === 'error') errorCount += 1;
-    const entry: SyncLogEntry = {
-      timestamp: new Date().toISOString(),
-      level,
-      message,
-      ...(data ? { data } : {}),
-    };
-    // Fire-and-forget. The adapter swallows failures inside; we don't await so a slow
-    // PATCH doesn't stall the sync's hot path.
-    void writer.appendEntry(sessionId, entry);
-  };
-  return {
-    appendInfo: (m, d) => append('info', m, d),
-    appendWarn: (m, d) => append('warn', m, d),
-    appendError: (m, d) => append('error', m, d),
-    errorCount: () => errorCount,
-  };
 }
 
 /**

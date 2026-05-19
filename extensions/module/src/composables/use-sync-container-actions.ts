@@ -37,7 +37,7 @@ type UseSyncContainerActions = {
 export const useSyncContainerActions = (data: UseSyncContainerActions) => {
   const { enabledFields, synchronizeTranslationStrings } = data;
 
-  const { resolveExportLanguages, resolveImportLanguages } = useDirectusLanguages();
+  const { resolveExportLanguages, resolveImportLanguages, resolveSourceLanguageName } = useDirectusLanguages();
   const { fetchContentWithHashesByCollection } = useTranslatableCollections();
   const { fetchTranslationStrings } = useTranslationStringsContent();
   const { translatableCollections } = useCollectionsOrganizer();
@@ -147,12 +147,15 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
         },
       });
 
+      const sourceLanguageName = await resolveSourceLanguageName(settings.value);
+
       await runIncrementalExport(adapters, {
         mode,
         settings: settings.value,
         enabledFields: enabledFields.value,
         synchronizeTranslationStrings: synchronizeTranslationStrings.value,
         localazyProject: localazyProject.value,
+        sourceLanguageName,
       });
     } finally {
       loading.value = false;
