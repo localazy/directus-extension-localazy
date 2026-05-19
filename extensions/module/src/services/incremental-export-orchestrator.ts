@@ -6,10 +6,12 @@ import { TranslatableContent } from '../../../common/models/translatable-content
 import { UploadCursor } from '../../../common/models/collections-data/sync-state';
 import { cursorMatchesProject } from '../../../common/utilities/sync-cursor';
 import { createEmptyUploadCursor, filterItemsByUploadCursor, recordUploadEntry } from '../../../common/utilities/upload-cursor';
+import { formatLanguageOption } from '../../../common/utilities/language-display';
 import { ProgressSink, SyncLogWriter } from '../../../common/services/orchestrator/ports';
+import { LogHandle, makeLogHandle, makeNoopLogHandle } from '../../../common/services/orchestrator/log-handle';
 import { UploadTrackedItem } from '../composables/use-export-to-localazy';
 import { UploadedTriple } from '../models/upload-write-result';
-import { summarizeUploadContent } from '../utils/summarize-upload-content';
+import { summarizeUploadContent, UploadContentSummary } from '../utils/summarize-upload-content';
 
 export type SyncMode = 'incremental' | 'full';
 
@@ -110,6 +112,13 @@ export type IncrementalExportParams = {
   enabledFields: EnabledField[];
   synchronizeTranslationStrings: boolean;
   localazyProject: Project;
+  /**
+   * Display name of the source language, sourced from the user's Directus languages
+   * collection (e.g. "English" when `settings.source_language` is `"en"`). Surfaced in
+   * the changes-summary log line as "Name (code)" via `formatLanguageOption`. Optional —
+   * when null/undefined the message falls back to the bare code.
+   */
+  sourceLanguageName?: string | null;
 };
 
 export type IncrementalExportResult = {
@@ -123,6 +132,37 @@ export type IncrementalExportResult = {
 /** Mirrors the persisted column's free-string contract for the export side. */
 function eventTypeForMode(mode: SyncMode): string {
   return mode === 'full' ? 'upload-full' : 'upload-incremental';
+}
+
+/**
+ * Build the "Found N changed items..." headline emitted to both the progress modal and
+ * the sync-log entry. Names the source language inline (e.g. "in en") so the reader
+ * can match the figures against what they see on the Localazy dashboard without having
+ * to remember which language is the project source.
+ *
+ * When some leaf strings are empty (or whitespace-only), Localazy's `import.json` drops
+ * them server-side, so the non-empty subcount is the figure that ultimately materialises
+ * as keys in the project. We surface it inline only when it differs from the total —
+ * keeps the line tight for the common all-non-empty case.
+ *
+ * The "+ N translation entries" suffix is omitted entirely when `translationEntries`
+ * is zero. The user-visible setting toggles whether translations ship at all, so when
+ * that's off the suffix would always read "+ 0 translation entries" — noise that
+ * obscures the source-lang numbers the reader actually cares about.
+ */
+function formatChangesSummaryMessage(summary: UploadContentSummary, sourceLanguageCode: string, sourceLanguageName: string | null): string {
+  const sourceLabel = sourceLanguageCode ? formatLanguageOption(sourceLanguageCode, sourceLanguageName) : 'source language';
+  const sourcePart =
+    summary.nonEmptySourceLangEntries === summary.sourceLangEntries
+      ? `${summary.sourceLangEntries} entries in ${sourceLabel}`
+      : `${summary.sourceLangEntries} entries in ${sourceLabel} (${summary.nonEmptySourceLangEntries} non-empty)`;
+  const translationPart =
+    summary.translationEntries === 0
+      ? ''
+      : summary.nonEmptyTranslationEntries === summary.translationEntries
+        ? ` + ${summary.translationEntries} translation entries`
+        : ` + ${summary.translationEntries} translation entries (${summary.nonEmptyTranslationEntries} non-empty)`;
+  return `Found ${summary.items} changed ${summary.items === 1 ? 'item' : 'items'} across ${summary.collections} ${summary.collections === 1 ? 'collection' : 'collections'} — pushing ${sourcePart}${translationPart}`;
 }
 
 /**
@@ -143,22 +183,25 @@ function eventTypeForMode(mode: SyncMode): string {
  * No advisory lock today — export is user-click-only. If two users click Export
  * concurrently, both runs proceed; the cursor's merge-on-persist makes that benign.
  *
- * No per-step milestone logging on the Sync-log session today (only start + finish).
- * The download side emits per-collection counts via `appendEntry`; adding the same here
- * is a separate enhancement and would change observable behaviour on the Activity page.
+ * Milestone logging mirrors the import side: started, up-to-date, changes summary,
+ * per-collection counts (after the upload step settles), translation-strings count when
+ * non-zero, terminal completion line, and failure entries. The handle is a no-op when
+ * no `syncLogWriter` was wired so the orchestrator's body stays free of conditional
+ * checks at every milestone.
  */
 export async function runIncrementalExport(
   adapters: ExportOrchestratorAdapters,
   params: IncrementalExportParams,
 ): Promise<IncrementalExportResult> {
   const { uploadCursorStore, contentFetcher, exportExecutor, progress, syncLogWriter, syncLogInitiator } = adapters;
-  const { mode, settings, enabledFields, synchronizeTranslationStrings, localazyProject } = params;
+  const { mode, settings, enabledFields, synchronizeTranslationStrings, localazyProject, sourceLanguageName } = params;
 
   const startedAt = Date.now();
 
   // Best-effort session start. A failure here falls back to no logging for this run —
   // the export itself still proceeds. The `finalise` step below is gated on `sessionId !== null`.
   let sessionId: string | null = null;
+  let log: LogHandle = makeNoopLogHandle();
   if (syncLogWriter && syncLogInitiator) {
     try {
       sessionId = await syncLogWriter.startSession({
@@ -166,10 +209,16 @@ export async function runIncrementalExport(
         initiator: syncLogInitiator.initiator,
         initiatorUser: syncLogInitiator.initiatorUser,
       });
+      log = makeLogHandle(syncLogWriter, sessionId);
     } catch {
       // Swallow — the Activity page just won't show this run.
     }
   }
+
+  // Milestone log: "started" line. Mirrors the download side's first entry so the
+  // Activity reader sees a consistent opener regardless of direction. The line is
+  // intentionally light on numbers — counts aren't known until after the fetch.
+  log.appendInfo(`${mode === 'full' ? 'Full' : 'Incremental'} upload started`);
 
   // Mutated inside the body and the various exit paths; declared here so `finally` reads
   // them when finalising the Sync-log session. Every reachable path assigns `logStatus`
@@ -227,14 +276,16 @@ export async function runIncrementalExport(
 
     // Short-circuit when there's nothing to push AND no translation strings to refresh.
     if (totalTrackedItems === 0 && summary.sourceLangEntries === 0 && summary.translationEntries === 0) {
+      const upToDateMessage = 'Already up to date — no items have changed since the last upload';
       progress({
         id: ExportProgressIds.UPLOAD_UP_TO_DATE,
-        message: 'Already up to date — no items have changed since the last upload',
+        message: upToDateMessage,
       });
+      log.appendInfo(upToDateMessage);
       // Touch last_sync_at via merge-on-persist; on-disk cursor is preserved.
       await uploadCursorStore.persist(inMemoryUploadCursor);
       logStatus = 'skipped';
-      logSummary = 'Already up to date — no items have changed since the last upload';
+      logSummary = upToDateMessage;
       return {
         status: 'skipped',
         itemsProcessed: 0,
@@ -243,19 +294,32 @@ export async function runIncrementalExport(
       };
     }
 
+    const changesSummaryMessage = formatChangesSummaryMessage(summary, settings.source_language, sourceLanguageName ?? null);
     progress({
       id: ExportProgressIds.UPLOAD_CHANGES_SUMMARY,
-      message: `Found ${summary.items} changed ${summary.items === 1 ? 'item' : 'items'} across ${summary.collections} ${summary.collections === 1 ? 'collection' : 'collections'} — pushing ${summary.sourceLangEntries} source-lang + ${summary.translationEntries} translation entries`,
+      message: changesSummaryMessage,
     });
+    log.appendInfo(changesSummaryMessage);
 
     // Throttled flush: persist every `flushEvery` items completed (capped at 10% of total
     // work, minimum 50). Final flush below is unconditional.
     const flushEvery = Math.max(50, Math.ceil(totalTrackedItems / 10));
     let sinceLastFlush = 0;
+    // Per-collection sets of uploaded item ids. We use a Set so callbacks that fire
+    // multiple times for the same (collection, itemId) — e.g. once per language chunk —
+    // are deduped before we emit the per-collection log entry. Mirrors how the
+    // changes-summary line counts items.
+    const uploadedItemsByCollection = new Map<string, Set<string>>();
 
     const onWritten = (uploads: UploadedTriple[]) => {
       uploads.forEach((u) => {
         recordUploadEntry(inMemoryUploadCursor, u.collection, u.itemId, u.hash);
+        let set = uploadedItemsByCollection.get(u.collection);
+        if (!set) {
+          set = new Set<string>();
+          uploadedItemsByCollection.set(u.collection, set);
+        }
+        set.add(u.itemId);
       });
       sinceLastFlush += uploads.length;
       writtenSinceStart += uploads.length;
@@ -280,6 +344,19 @@ export async function runIncrementalExport(
       await uploadCursorStore.persist(inMemoryUploadCursor);
     }
 
+    // Milestone log: per-collection counts. Emitted after the upload step so the numbers
+    // reflect items that actually landed (counted via `onWritten`). Translation strings
+    // bypass the cursor entirely and aren't reflected in `uploadedItemsByCollection`;
+    // they get their own line below derived from the pre-flight summary.
+    uploadedItemsByCollection.forEach((items, collectionName) => {
+      log.appendInfo(`${collectionName}: ${items.size} ${items.size === 1 ? 'item' : 'items'} uploaded`);
+    });
+    if (summary.translationEntries > 0) {
+      log.appendInfo(
+        `Translation strings: ${summary.translationEntries} ${summary.translationEntries === 1 ? 'entry' : 'entries'} uploaded`,
+      );
+    }
+
     const elapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
     // `writtenSinceStart` counts only collection-content items confirmed via the cursor —
     // translation strings always full re-push and aren't tracked. When only translation
@@ -293,6 +370,7 @@ export async function runIncrementalExport(
       id: ExportProgressIds.UPLOAD_FINISHED,
       message: finalMessage,
     });
+    log.appendInfo(finalMessage);
     logSummary = finalMessage;
 
     return {
@@ -303,7 +381,9 @@ export async function runIncrementalExport(
     };
   } catch (err) {
     logStatus = 'failed';
-    logSummary = `Upload failed: ${err instanceof Error ? err.message : String(err)}`;
+    const failureMessage = `Upload failed: ${err instanceof Error ? err.message : String(err)}`;
+    log.appendError(failureMessage);
+    logSummary = failureMessage;
     throw err;
   } finally {
     // Finalise the sync-log row even on throw. Swallow finalisation errors — a

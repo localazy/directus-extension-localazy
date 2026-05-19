@@ -21,9 +21,10 @@ import type { ProgressSink, SyncLogWriter } from '../../../common/services/orche
 /* -------------------------------------------------------------------------- */
 
 function emptySettings(): Settings {
-  // The orchestrator only threads settings through to the fetcher + executor; no fields
-  // are read directly. A minimal object satisfies the type without dragging real fixtures.
-  return {} as Settings;
+  // The orchestrator threads settings through to the fetcher + executor; the only field
+  // it reads directly is `source_language`, which feeds the changes-summary headline.
+  // Default to 'en' so message assertions can match an actual language code.
+  return { source_language: 'en' } as Settings;
 }
 
 function fakeProject(id = 'proj-1'): Project {
@@ -100,11 +101,13 @@ function makeExecutorFake(opts: { emitWrites?: UploadedTriple[]; throwOnExport?:
 type SyncLogWriterFake = {
   writer: SyncLogWriter;
   starts: Array<Parameters<SyncLogWriter['startSession']>[0]>;
+  entries: Array<{ sessionId: string; entry: Parameters<SyncLogWriter['appendEntry']>[1] }>;
   finishes: Array<{ id: string; params: Parameters<SyncLogWriter['finish']>[1] }>;
 };
 
 function makeSyncLogWriterFake(): SyncLogWriterFake {
   const starts: Array<Parameters<SyncLogWriter['startSession']>[0]> = [];
+  const entries: Array<{ sessionId: string; entry: Parameters<SyncLogWriter['appendEntry']>[1] }> = [];
   const finishes: Array<{ id: string; params: Parameters<SyncLogWriter['finish']>[1] }> = [];
   let counter = 0;
   const writer: SyncLogWriter = {
@@ -112,14 +115,14 @@ function makeSyncLogWriterFake(): SyncLogWriterFake {
       starts.push(params);
       return `sess-${++counter}`;
     },
-    async appendEntry() {
-      // Orchestrator doesn't append today; tests would notice if it did.
+    async appendEntry(sessionId, entry) {
+      entries.push({ sessionId, entry });
     },
     async finish(id, params) {
       finishes.push({ id, params });
     },
   };
-  return { writer, starts, finishes };
+  return { writer, starts, entries, finishes };
 }
 
 function buildAdapters(overrides: Partial<ExportOrchestratorAdapters> = {}): ExportOrchestratorAdapters {
@@ -140,6 +143,7 @@ function buildParams(overrides: Partial<IncrementalExportParams> = {}): Incremen
     enabledFields: overrides.enabledFields ?? [],
     synchronizeTranslationStrings: overrides.synchronizeTranslationStrings ?? false,
     localazyProject: overrides.localazyProject ?? fakeProject(),
+    sourceLanguageName: overrides.sourceLanguageName,
   };
 }
 
@@ -436,6 +440,180 @@ describe('runIncrementalExport', () => {
       const writerFake = makeSyncLogWriterFake();
       await runIncrementalExport(buildAdapters({ syncLogWriter: writerFake.writer }), buildParams());
       expect(writerFake.starts).toHaveLength(0);
+    });
+  });
+
+  describe('sync-log milestone entries', () => {
+    it('writes started → changes-summary → per-collection → upload-finished entries on a happy path', async () => {
+      const writerFake = makeSyncLogWriterFake();
+      const fetcher = makeFetcherFake({
+        perCollectionWithHashes: [
+          {
+            collection: 'posts',
+            items: [
+              { id: '1', hash: 'h1', content: { sourceLanguage: { en: { title: 'a' } }, otherLanguages: {} } },
+              { id: '2', hash: 'h2', content: { sourceLanguage: { en: { body: 'b' } }, otherLanguages: {} } },
+            ],
+          },
+        ],
+      });
+      const executor = makeExecutorFake({
+        emitWrites: [
+          { collection: 'posts', itemId: '1', hash: 'h1' },
+          { collection: 'posts', itemId: '2', hash: 'h2' },
+        ],
+      });
+
+      await runIncrementalExport(
+        buildAdapters({
+          contentFetcher: fetcher.fetcher,
+          exportExecutor: executor.executor,
+          syncLogWriter: writerFake.writer,
+          syncLogInitiator: { initiator: 'user-7', initiatorUser: 'user-7' },
+        }),
+        buildParams(),
+      );
+
+      const messages = writerFake.entries.map((e) => e.entry.message);
+      expect(messages.some((m) => m.startsWith('Incremental upload started'))).toBe(true);
+      expect(messages.some((m) => m.startsWith('Found '))).toBe(true);
+      expect(messages.some((m) => m === 'posts: 2 items uploaded')).toBe(true);
+      expect(messages.some((m) => m.startsWith('Uploaded 2 items in'))).toBe(true);
+    });
+
+    it('writes a started + up-to-date entry when the empty short-circuit fires', async () => {
+      const writerFake = makeSyncLogWriterFake();
+      await runIncrementalExport(
+        buildAdapters({
+          syncLogWriter: writerFake.writer,
+          syncLogInitiator: { initiator: 'u', initiatorUser: 'u' },
+        }),
+        buildParams(),
+      );
+      const messages = writerFake.entries.map((e) => e.entry.message);
+      expect(messages).toContainEqual(expect.stringMatching(/^Incremental upload started/));
+      expect(messages).toContainEqual(expect.stringMatching(/^Already up to date/));
+    });
+
+    it('writes a Full upload started line when mode is full', async () => {
+      const writerFake = makeSyncLogWriterFake();
+      await runIncrementalExport(
+        buildAdapters({
+          syncLogWriter: writerFake.writer,
+          syncLogInitiator: { initiator: 'u', initiatorUser: 'u' },
+        }),
+        buildParams({ mode: 'full' }),
+      );
+      const messages = writerFake.entries.map((e) => e.entry.message);
+      expect(messages[0]).toBe('Full upload started');
+    });
+
+    it('writes an error-level entry when the upload step throws', async () => {
+      const writerFake = makeSyncLogWriterFake();
+      const fetcher = makeFetcherFake({
+        perCollectionWithHashes: [
+          {
+            collection: 'posts',
+            items: [{ id: '1', hash: 'h1', content: { sourceLanguage: { en: { title: 'Hi' } }, otherLanguages: {} } }],
+          },
+        ],
+      });
+      const executor = makeExecutorFake({ throwOnExport: new Error('boom') });
+
+      await expect(
+        runIncrementalExport(
+          buildAdapters({
+            contentFetcher: fetcher.fetcher,
+            exportExecutor: executor.executor,
+            syncLogWriter: writerFake.writer,
+            syncLogInitiator: { initiator: 'u', initiatorUser: 'u' },
+          }),
+          buildParams(),
+        ),
+      ).rejects.toThrow('boom');
+
+      const errorEntry = writerFake.entries.find((e) => e.entry.level === 'error');
+      expect(errorEntry?.entry.message).toMatch(/Upload failed: boom/);
+    });
+
+    it('surfaces the non-empty subcount in the changes-summary entry when some strings are blank', async () => {
+      const writerFake = makeSyncLogWriterFake();
+      const fetcher = makeFetcherFake({
+        perCollectionWithHashes: [
+          {
+            collection: 'posts',
+            items: [
+              {
+                id: '1',
+                hash: 'h1',
+                content: { sourceLanguage: { en: { title: 'Hi', body: '', cta: '   ' } }, otherLanguages: {} },
+              },
+            ],
+          },
+        ],
+      });
+      const executor = makeExecutorFake({ emitWrites: [{ collection: 'posts', itemId: '1', hash: 'h1' }] });
+
+      await runIncrementalExport(
+        buildAdapters({
+          contentFetcher: fetcher.fetcher,
+          exportExecutor: executor.executor,
+          syncLogWriter: writerFake.writer,
+          syncLogInitiator: { initiator: 'u', initiatorUser: 'u' },
+        }),
+        buildParams(),
+      );
+
+      const summaryEntry = writerFake.entries.find((e) => e.entry.message.startsWith('Found '));
+      expect(summaryEntry?.entry.message).toMatch(/3 entries in en \(1 non-empty\)/);
+    });
+
+    it('renders the source language as "Name (code)" when sourceLanguageName is provided', async () => {
+      const writerFake = makeSyncLogWriterFake();
+      const fetcher = makeFetcherFake({
+        perCollectionWithHashes: [
+          {
+            collection: 'posts',
+            items: [{ id: '1', hash: 'h1', content: { sourceLanguage: { en: { title: 'Hi' } }, otherLanguages: {} } }],
+          },
+        ],
+      });
+      const executor = makeExecutorFake({ emitWrites: [{ collection: 'posts', itemId: '1', hash: 'h1' }] });
+
+      await runIncrementalExport(
+        buildAdapters({
+          contentFetcher: fetcher.fetcher,
+          exportExecutor: executor.executor,
+          syncLogWriter: writerFake.writer,
+          syncLogInitiator: { initiator: 'u', initiatorUser: 'u' },
+        }),
+        buildParams({ sourceLanguageName: 'English' }),
+      );
+
+      const summaryEntry = writerFake.entries.find((e) => e.entry.message.startsWith('Found '));
+      expect(summaryEntry?.entry.message).toContain('entries in English (en)');
+    });
+
+    it('writes a translation-strings line when translation entries are present', async () => {
+      const writerFake = makeSyncLogWriterFake();
+      const fetcher = makeFetcherFake({
+        translationStrings: {
+          sourceLanguage: { translation_string: { key1: 'Hello' } },
+          otherLanguages: { fr: { translation_string: { key1: 'Salut' } } },
+        },
+      });
+
+      await runIncrementalExport(
+        buildAdapters({
+          contentFetcher: fetcher.fetcher,
+          syncLogWriter: writerFake.writer,
+          syncLogInitiator: { initiator: 'u', initiatorUser: 'u' },
+        }),
+        buildParams({ synchronizeTranslationStrings: true }),
+      );
+
+      const messages = writerFake.entries.map((e) => e.entry.message);
+      expect(messages).toContainEqual(expect.stringMatching(/^Translation strings: 1 entry uploaded/));
     });
   });
 });

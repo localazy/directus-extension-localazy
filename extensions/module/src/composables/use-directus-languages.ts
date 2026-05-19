@@ -54,9 +54,31 @@ export function useDirectusLanguages() {
     }
   }
 
+  /**
+   * Look up the human-readable name of the source language from the user's Directus
+   * languages collection. Returns `null` when no name can be derived — the caller is
+   * expected to fall back to the bare language code. Errors are surfaced via the errors
+   * store and resolve to `null` so a log-line lookup never derails the export click.
+   */
+  async function resolveSourceLanguageName(settings: Settings): Promise<string | null> {
+    if (!settings.source_language) return null;
+    try {
+      const rows = await synchronizationLanguagesService.fetchDirectusLanguageRows(
+        settings.language_collection,
+        settings.language_code_field,
+      );
+      const match = rows.find((row) => row.code === settings.source_language);
+      return match?.name ?? null;
+    } catch (e: unknown) {
+      addDirectusError(e);
+      return null;
+    }
+  }
+
   return {
     resolveExportLanguages,
     resolveImportLanguages,
+    resolveSourceLanguageName,
     fetchDirectusLanguages,
     fetchDirectusLanguageRows,
   };
