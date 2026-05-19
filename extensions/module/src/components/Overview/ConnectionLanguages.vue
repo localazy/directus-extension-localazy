@@ -2,8 +2,8 @@
   <div v-if="languageRows.length > 0" class="languages-table">
     <div class="row header-row">
       <div class="cell header">Language</div>
-      <div class="cell header">Present in Localazy</div>
       <div class="cell header">Present in Directus</div>
+      <div class="cell header">Present in Localazy</div>
     </div>
 
     <div v-for="(data, index) in languageRows" :key="index" class="row">
@@ -11,51 +11,53 @@
         <span class="locale">{{ data.locale }}</span>
         <span v-if="data.directusName" class="english-name">({{ data.directusName }})</span>
         <span v-else-if="data.englishName" class="english-name">({{ data.englishName }})</span>
-        <span v-if="data.customMapping" class="mapping-chip" :title="mappingTooltip(data.customMapping)">
-          <v-icon small name="swap_horiz" />
-          <span class="mapping-codes">
-            <code>{{ data.customMapping.directusCode }}</code>
-            <span class="mapping-arrow">↔</span>
-            <code>{{ data.customMapping.localazyCode }}</code>
-          </span>
+        <template v-if="data.customMapping">
+          <span v-tooltip="mappingArrowTooltip(data)" class="mapping-arrow-inline">→</span>
+          <code v-tooltip="mappingArrowTooltip(data)" class="mapping-counterpart">{{ mappingCounterpart(data) }}</code>
+          <span v-if="data.englishName" v-tooltip="mappingArrowTooltip(data)" class="english-name">({{ data.englishName }})</span>
+        </template>
+      </div>
+      <div class="cell">
+        <v-icon
+          v-if="data.directus.present || data.directus.presentMapped"
+          v-tooltip="'This language has been added in your Directus project'"
+          name="check"
+          color="var(--theme--success)"
+        />
+        <v-icon v-else v-tooltip="'This language has not been added in your Directus project'" name="clear" color="var(--theme--danger)" />
+
+        <span
+          v-if="data.directus.presentMapped && !data.directus.present"
+          v-tooltip="'This language is defined in a different form in Directus'"
+        >
+          Mapped to {{ data.directus.mappedTo }}
+          <v-icon small name="help_outline" />
         </span>
       </div>
       <div class="cell">
         <v-icon
           v-if="!data.directus.recognizedInLocalazy"
+          v-tooltip="'Localazy does not recognize this language'"
           name="error"
-          color="var(--danger)"
-          title="Localazy does not recognize this language"
+          color="var(--theme--danger)"
         />
-        <v-icon v-else-if="data.localazy.hidden" name="visibility_off" title="This language is disabled in your Localazy project" />
+        <v-icon v-else-if="data.localazy.hidden" v-tooltip="'This language is disabled in your Localazy project'" name="visibility_off" />
         <v-icon
           v-else-if="data.localazy.present || data.localazy.presentMapped"
+          v-tooltip="'This language has been added in your Localazy project'"
           name="check"
-          color="var(--success)"
-          title="This language has been added in your Localazy project"
+          color="var(--theme--success)"
         />
-        <v-icon v-else name="clear" color="var(--danger)" title="This language has not been added in your Localazy project" />
+        <v-icon v-else v-tooltip="'This language has not been added in your Localazy project'" name="clear" color="var(--theme--danger)" />
 
-        <span v-if="!data.directus.recognizedInLocalazy"> Unknown Localazy language </span>
-        <span v-else-if="data.localazy.hidden"> Disabled </span>
-        <span v-else-if="data.localazy.presentMapped && !data.localazy.present">
-          Mapped to {{ data.localazy.mappedTo }}
-          <v-icon small name="help_outline" title="This language is defined in a different form in Localazy" />
-        </span>
-      </div>
-      <div class="cell">
-        <v-icon
-          v-if="data.directus.present || data.directus.presentMapped"
-          name="check"
-          color="var(--success)"
-          title="This language has been added in your Directus project"
-        />
-        <v-icon v-else name="clear" color="var(--danger)" title="This language has not been added in your Directus project" />
-
-        <span v-if="data.directus.presentMapped && !data.directus.present">
-          Mapped to {{ data.directus.mappedTo }}
-          <v-icon small name="help_outline" title="This language is defined in a different form in Directus" />
-        </span>
+        <router-link
+          v-if="!data.directus.recognizedInLocalazy && !data.customMapping"
+          to="/localazy/additional-settings"
+          class="define-mapping-link"
+        >
+          Define mapping
+        </router-link>
+        <span v-else-if="data.localazy.hidden" class="hidden-language"> Disabled </span>
       </div>
     </div>
   </div>
@@ -68,7 +70,6 @@ import { findLocalazyLanguageByLocale } from '@localazy/languages';
 import { uniqWith } from 'lodash';
 import { useLocalazyStore } from '../../stores/localazy-store';
 import { useDirectusLanguages } from '../../composables/use-directus-languages';
-import { DirectusLocalazyAdapter } from '../../../../common/services/directus-localazy-adapter';
 import { Settings } from '../../../../common/models/collections-data/settings';
 import { LanguageMapping, LanguageMappings } from '../../../../common/models/language-mapping';
 
@@ -146,18 +147,38 @@ function findCustomMapping(locale: string, directusFormLocale: string, localazyF
   );
 }
 
-function mappingTooltip(m: LanguageMapping): string {
-  const base = `Custom mapping: Directus "${m.directusCode}" ↔ Localazy "${m.localazyCode}"`;
-  return m.description ? `${base} — ${m.description}` : base;
+function mappingCounterpart(data: Row): string | null {
+  if (!data.customMapping) return null;
+  return data.customMapping.directusCode === data.locale ? data.customMapping.localazyCode : data.customMapping.directusCode;
+}
+
+function mappingArrowTooltip(data: Row): string {
+  if (!data.customMapping) return '';
+  const fromDirectus = data.customMapping.directusCode === data.locale;
+  const base = fromDirectus
+    ? `Custom mapping: this Directus language maps to "${data.customMapping.localazyCode}" in Localazy`
+    : `Custom mapping: this Localazy language maps to "${data.customMapping.directusCode}" in Directus`;
+  return data.customMapping.description ? `${base} — ${data.customMapping.description}` : base;
 }
 
 const languageRows = computed((): Row[] => {
+  const mappings = customMappings.value;
+  const directusToLocalazyMap = new Map<string, string>();
+  const localazyToDirectusMap = new Map<string, string>();
+  mappings.forEach((m) => {
+    directusToLocalazyMap.set(m.directusCode, m.localazyCode);
+    localazyToDirectusMap.set(m.localazyCode, m.directusCode);
+  });
+
+  const toLocalazyForm = (code: string) => directusToLocalazyMap.get(code) ?? code.replace('-', '_');
+  const toDirectusForm = (code: string) => localazyToDirectusMap.get(code) ?? code.replace('_', '-');
+
   const localazyLanguages = localazyProject.value?.languages || [];
   const localazyLocales = localazyLanguages.map((l) => l.code);
 
   const allLanguages = [...directusLanguages.value, ...localazyLocales].map((locale) => {
-    const directusFormLocale = DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(locale);
-    const localazyFormLocale = DirectusLocalazyAdapter.transformDirectusToLocalazyLanguage(locale);
+    const directusFormLocale = toDirectusForm(locale);
+    const localazyFormLocale = toLocalazyForm(locale);
     const localazyLanguage = findLocalazyLanguageByLocale(localazyFormLocale);
     const projectLanguage = localazyLanguages.find((l) => l.code === localazyFormLocale);
 
@@ -184,15 +205,13 @@ const languageRows = computed((): Row[] => {
 
   return uniqWith(allLanguages, (arrVal, othVal) => {
     if (arrVal.directus.present !== othVal.directus.present) {
-      return (
-        DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(arrVal.locale) ===
-        DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(othVal.locale)
-      );
+      return toDirectusForm(arrVal.locale) === toDirectusForm(othVal.locale);
     }
     return arrVal.locale === othVal.locale;
   }).sort((a, b) => {
-    const isASourceLanguage = a.localazyId === localazyProject.value?.sourceLanguage;
-    const isBSourceLanguage = b.localazyId === localazyProject.value?.sourceLanguage;
+    const directusSourceLanguage = props.settings?.source_language;
+    const isASourceLanguage = !!directusSourceLanguage && a.locale === directusSourceLanguage;
+    const isBSourceLanguage = !!directusSourceLanguage && b.locale === directusSourceLanguage;
     if (isASourceLanguage && !isBSourceLanguage) {
       return -1;
     }
@@ -280,40 +299,32 @@ $mono: var(--family-monospace, var(--theme--family-monospace, ui-monospace, SFMo
   color: $fg-subdued;
 }
 
-.mapping-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  padding: 2px 8px;
-  background: $bg-subdued;
-  border: 1px solid $divider-color;
-  border-radius: $radius;
-  font-size: 12px;
-  color: $fg-normal;
+.mapping-arrow-inline {
+  color: $fg-subdued;
+}
 
-  code {
-    background: transparent;
-    font-family: $mono;
-    font-size: 12px;
+.mapping-counterpart {
+  background: transparent;
+  font-family: $mono;
+  font-size: 13px;
+  color: $fg-normal;
+}
+
+.define-mapping-link {
+  margin-left: 4px;
+  color: var(--theme--primary);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
   }
 }
 
-.mapping-codes {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.mapping-arrow {
-  color: var(--foreground-subdued);
-}
-
 .unknown-language {
-  color: var(--danger);
+  color: var(--theme--danger);
 }
 
 .hidden-language {
-  color: var(--info);
+  color: var(--theme--foreground-subdued);
 }
 </style>

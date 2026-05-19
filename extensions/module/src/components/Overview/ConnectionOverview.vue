@@ -8,7 +8,17 @@
             <span class="status-dot" />
             {{ statusLabel }}
           </span>
-          <span v-if="isConnected" class="project-name">{{ localazyProject?.name }}</span>
+          <a
+            v-if="isConnected && localazyProject?.url"
+            :href="localazyProject.url"
+            target="_blank"
+            rel="noopener"
+            class="project-name project-name--link"
+            title="Open Localazy project in a new tab"
+          >
+            {{ localazyProject?.name }}
+          </a>
+          <span v-else-if="isConnected" class="project-name">{{ localazyProject?.name }}</span>
         </div>
       </div>
 
@@ -23,17 +33,6 @@
         >
           <v-icon name="sync" />
         </button>
-
-        <component
-          :is="isConnected ? 'a' : 'span'"
-          :href="localazyProject?.url || undefined"
-          target="_blank"
-          class="header-action"
-          :class="{ 'header-action--disabled': !isConnected }"
-          title="Open Localazy project in a new tab"
-        >
-          <v-icon name="open_in_new" />
-        </component>
       </div>
     </div>
 
@@ -187,12 +186,12 @@ $fg-accent: var(--foreground-accent, var(--theme--foreground-accent, var(--theme
 
 .status-pill--success {
   background: var(--success-25, rgba(46, 184, 124, 0.12));
-  color: var(--success);
+  color: var(--theme--success);
 }
 
 .status-pill--warning {
   background: var(--warning-25, rgba(255, 167, 38, 0.15));
-  color: var(--warning);
+  color: var(--theme--warning);
 
   .status-dot {
     animation: pulse 1.6s ease-in-out infinite;
@@ -201,7 +200,7 @@ $fg-accent: var(--foreground-accent, var(--theme--foreground-accent, var(--theme
 
 .status-pill--danger {
   background: var(--danger-25, rgba(231, 76, 60, 0.12));
-  color: var(--danger);
+  color: var(--theme--danger);
 }
 
 @keyframes pulse {
@@ -221,6 +220,15 @@ $fg-accent: var(--foreground-accent, var(--theme--foreground-accent, var(--theme
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.project-name--link {
+  text-decoration: none;
+
+  &:hover {
+    color: var(--theme--primary);
+    text-decoration: underline;
+  }
 }
 
 .header-actions {
@@ -245,7 +253,7 @@ $fg-accent: var(--foreground-accent, var(--theme--foreground-accent, var(--theme
   text-decoration: none;
 
   &:hover {
-    background-color: var(--background-subdued);
+    background-color: var(--theme--background-subdued);
   }
 
   &--disabled,
@@ -276,7 +284,7 @@ $fg-accent: var(--foreground-accent, var(--theme--foreground-accent, var(--theme
   flex-direction: column;
   gap: 4px;
   padding: 12px 14px;
-  background: var(--background-subdued);
+  background: var(--theme--background-subdued);
   border-radius: $radius;
   min-width: 0;
 }
@@ -305,6 +313,6 @@ $fg-accent: var(--foreground-accent, var(--theme--foreground-accent, var(--theme
 }
 
 .over-key-limit {
-  color: var(--danger);
+  color: var(--theme--danger);
 }
 </style>
