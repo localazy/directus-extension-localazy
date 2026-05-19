@@ -1,4 +1,4 @@
-import { isEmpty } from 'lodash';
+import { isEmpty, size } from 'lodash';
 import { Project } from '@localazy/api-client';
 import { Settings } from '../../models/collections-data/settings';
 import { ContentTransferSetupDatabase } from '../../models/collections-data/content-transfer-setup';
@@ -66,7 +66,8 @@ export type AutomatedExportContentDispatcher = (input: AutomatedExportContentDis
  *   - `no-project`        → loadProject returned null (token missing or no projects)
  *   - `payment-disabled`  → payment-status gate blocked the run
  *   - `nothing-to-export` → source language has no content (fetcher returned empty)
- *   - `exported`          → dispatch was invoked
+ *   - `exported`          → dispatch was invoked; `itemsProcessed` is the count of
+ *                            distinct source-language keys that flowed through dispatch
  *   - `failed`            → any helper threw; the original error is preserved
  *
  * Behaviour change from the legacy services: `automated_upload` is now gated at the
@@ -75,7 +76,7 @@ export type AutomatedExportContentDispatcher = (input: AutomatedExportContentDis
  * call and language resolution still ran on disabled installs.
  */
 export type AutomatedExportOutcome =
-  | { kind: 'exported' }
+  | { kind: 'exported'; itemsProcessed: number }
   | { kind: 'nothing-to-export' }
   | { kind: 'missing-context' }
   | { kind: 'export-disabled' }
@@ -125,7 +126,10 @@ export async function runAutomatedExportPipeline(opts: AutomatedExportPipelineOp
     }
 
     await opts.dispatchContent({ content, context, localazyProject });
-    return { kind: 'exported' };
+    // The count of distinct source-language keys is what landed in Localazy as keys;
+    // surfaced so the burst coordinator can roll it into the persisted Sync-log row's
+    // `items_processed` column. `isEmpty` above guarantees this is >= 1 on this branch.
+    return { kind: 'exported', itemsProcessed: size(content.sourceLanguage) };
   } catch (error) {
     return { kind: 'failed', error };
   }

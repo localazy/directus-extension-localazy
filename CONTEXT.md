@@ -47,12 +47,18 @@ The closed orchestration in `extensions/common/services/orchestrator/automated-e
 **Automated deprecation pipeline**:
 Sibling module to the Automated export pipeline, in the same directory. Owns deprecation orchestration: load context → master + deprecation toggle gate → load project → payment-status gate → fetch source-language import content → project Localazy key IDs from deleted Directus item IDs → call deprecate. Returns a discriminated outcome.
 
+**Automated export burst**:
+A coalesced Sync-log session covering a contiguous window of hook-triggered Automated export and Automated deprecation activity. Opens on the first actionable pipeline outcome, extends on each subsequent one within a 30 s idle window, closes after 30 s of inactivity. Persisted as `event_type='upload-automated'`, `initiator='hook'`, `initiator_user=null`. Per-entry user attribution lives inside each entry's `data.user`, not on the session row. Exists so the 100-row retention cap stays meaningful in the face of bulk Directus operations (which would otherwise flood the table with one row per item event).
+_Avoid_: "automated upload burst" (the user-facing term is "Automated export"; `upload-` survives only as the column prefix per the resolved upload/export ambiguity).
+
 ## Relationships
 
 - **Automated export** is a property of the **Sync-hook bundle**; it cannot run when the bundle is not installed.
 - **Automated import** also requires the **Sync-hook bundle** (to handle the inbound webhook) and additionally requires a configured **Webhook user**.
 - **Deprecation** is a sub-behavior of **Automated export** (today gated by an independent `automated_deprecation` flag; surfaced to users as a sub-setting under "Automated export").
+- An **Automated export burst** spans both Automated export and Automated deprecation events — they share one Sync-log session within a 30 s window. The split between the two appears only at per-entry granularity.
 
 ## Flagged ambiguities
 
 - "upload" vs "export" was used inconsistently across code and UI. **Resolved (2026-05-15)**: user-facing copy says "export"; code/field names keep "upload" for now to avoid a migration. Future contributors should not "fix" this inconsistency without a coordinated rename.
+  - **Activity-page application (2026-05-19)**: The Activity page completes the user-facing application of this resolution — the tab is "Export" (not "Upload"); `formatEventType` returns "Incremental export" / "Full export" / "Automated export"; persisted `event_type` values keep the `upload-*` prefix (`upload-incremental`, `upload-full`, `upload-automated`).

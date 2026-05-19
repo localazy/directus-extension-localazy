@@ -33,7 +33,7 @@ describe('reportAutomatedExportOutcome', () => {
     const logger = makeLogger();
 
     reportAutomatedExportOutcome({
-      outcome: { kind: 'exported' },
+      outcome: { kind: 'exported', itemsProcessed: 1 },
       logger,
       label: 'translation strings',
       trackingLabel: 'exportTranslationString',
@@ -138,7 +138,7 @@ describe('reportAutomatedDeprecationOutcome', () => {
     const logger = makeLogger();
 
     reportAutomatedDeprecationOutcome({
-      outcome: { kind: 'deprecated', keysCount: 3 },
+      outcome: { kind: 'deprecated', keysCount: 3, itemsProcessed: 3 },
       logger,
       label: 'collection articles',
       trackingLabel: 'deprecateDeletedCollectionItems',
@@ -153,7 +153,7 @@ describe('reportAutomatedDeprecationOutcome', () => {
     const logger = makeLogger();
 
     reportAutomatedDeprecationOutcome({
-      outcome: { kind: 'deprecated', keysCount: 0 },
+      outcome: { kind: 'deprecated', keysCount: 0, itemsProcessed: 0 },
       logger,
       label: 'collection articles',
       trackingLabel: 'deprecateDeletedCollectionItems',

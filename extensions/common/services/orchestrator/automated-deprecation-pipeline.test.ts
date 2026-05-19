@@ -155,12 +155,15 @@ describe('runAutomatedDeprecationPipeline', () => {
       projectDeprecationKeys: projector,
     });
 
-    expect(outcome).toEqual({ kind: 'deprecated', keysCount: 3 });
+    // `itemsProcessed` mirrors `keysCount`; surfaced separately so the burst coordinator
+    // (PR 64+) can roll a single counter across both pipelines without case-splitting on
+    // `kind`.
+    expect(outcome).toEqual({ kind: 'deprecated', keysCount: 3, itemsProcessed: 3 });
     expect(projector).toHaveBeenCalledWith({ importContent: okImportContent, itemIds: ['d1', 'd2'] });
     expect(helperMocks.deprecateLocalazyKeys).toHaveBeenCalledWith('tok', 'p1', ['lk-a', 'lk-b', 'lk-c']);
   });
 
-  it("still reaches 'deprecated' (with keysCount 0) when the projector produces nothing", async () => {
+  it("still reaches 'deprecated' (with keysCount + itemsProcessed 0) when the projector produces nothing", async () => {
     helperMocks.loadLocalazyProject.mockResolvedValue(okProject);
 
     const outcome = await runAutomatedDeprecationPipeline({
@@ -170,7 +173,7 @@ describe('runAutomatedDeprecationPipeline', () => {
       projectDeprecationKeys: () => [],
     });
 
-    expect(outcome).toEqual({ kind: 'deprecated', keysCount: 0 });
+    expect(outcome).toEqual({ kind: 'deprecated', keysCount: 0, itemsProcessed: 0 });
     // deprecateLocalazyKeys is called even with empty array; the helper itself short-circuits.
     expect(helperMocks.deprecateLocalazyKeys).toHaveBeenCalledWith('tok', 'p1', []);
   });

@@ -53,11 +53,17 @@ export type DeprecationKeyProjector = (input: DeprecationKeyProjectorInput) => s
  *   - `could-not-fetch-import-content` → the import fetch returned `{ success: false }`
  *   - `deprecated`                  → deprecate-keys was invoked; `keysCount` carries
  *                                      the number of Localazy keys that were marked
- *                                      deprecated (may be 0 when nothing matched)
+ *                                      deprecated (may be 0 when nothing matched);
+ *                                      `itemsProcessed` mirrors `keysCount` (each
+ *                                      deprecated Localazy key is one logical item from
+ *                                      the burst coordinator's perspective) — surfaced
+ *                                      separately so the coordinator can roll a single
+ *                                      counter across both export and deprecation
+ *                                      pipelines without case-splitting on `kind`.
  *   - `failed`                      → any helper threw; original error preserved
  */
 export type AutomatedDeprecationOutcome =
-  | { kind: 'deprecated'; keysCount: number }
+  | { kind: 'deprecated'; keysCount: number; itemsProcessed: number }
   | { kind: 'missing-context' }
   | { kind: 'deprecation-disabled' }
   | { kind: 'no-project' }
@@ -106,7 +112,7 @@ export async function runAutomatedDeprecationPipeline(opts: AutomatedDeprecation
     const keyIds = opts.projectDeprecationKeys({ importContent: result.content, itemIds: opts.itemIds });
 
     await deprecateLocalazyKeys(context.localazyData.access_token, localazyProject.id, keyIds);
-    return { kind: 'deprecated', keysCount: keyIds.length };
+    return { kind: 'deprecated', keysCount: keyIds.length, itemsProcessed: keyIds.length };
   } catch (error) {
     return { kind: 'failed', error };
   }
