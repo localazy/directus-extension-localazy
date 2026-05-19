@@ -58,6 +58,7 @@
         :show-untranslatable-field="showUntranslatableField"
         :show-untranslatable-collections="showUntranslatableCollections"
         :normalized-query="normalizedQuery"
+        :in-matched-subtree="childInMatchedSubtree"
         @update:selections="$emit('update:selections', $event)"
       />
     </div>
@@ -72,10 +73,10 @@ import { useGetFieldsForTranslationRelation } from '../../composables/use-get-fi
 import { EnabledField } from '../../../../common/models/collections-data/content-transfer-setup';
 import { FieldsUtilsService } from '../../../../common/utilities/fields-utils-service';
 import {
+  descendantsInMatchedSubtree,
   getNestedCollections as visibilityGetNested,
   isCollectionShown,
   renderedFieldsFor,
-  subtreeHasMatch,
   visibleFieldsForCollection,
   visibleTranslatableFieldsFor,
   VisibilityContext,
@@ -110,6 +111,14 @@ const props = defineProps({
   normalizedQuery: {
     type: String,
     required: true,
+  },
+  // Set by the parent CollectionItem when this node is being rendered as a
+  // descendant of a name-matched ancestor (Q3 / ADR-0003). When `true`, the
+  // lens is effectively off for this node — every nested collection and field
+  // is shown unfiltered, so a search like "deals" reveals the whole subtree.
+  inMatchedSubtree: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -164,27 +173,43 @@ const localSelections = computed({
 const selectionsForCollection = computed(() => props.selections.find((selection) => selection.collection === props.collection.collection));
 const otherSelections = computed(() => props.selections.filter((selection) => selection.collection !== props.collection.collection));
 
-const nestedCollections = computed(() =>
-  visibilityGetNested(props.collection, visibilityContext.value).filter((c) => isCollectionShown(c, visibilityContext.value)),
+// `inMatchedSubtree` propagates to this collection's children if either (a)
+// this node is itself a descendant of a matched ancestor, or (b) this node's
+// own name matches the active lens. Children render unfiltered in either case.
+const childInMatchedSubtree = computed(() =>
+  descendantsInMatchedSubtree(props.collection, visibilityContext.value, props.inMatchedSubtree),
 );
 
-// Fields actually rendered under the lens: a collection-name match shows all
-// (lens-unrelated) rendered fields; otherwise only fields whose own names match.
+const nestedCollections = computed(() =>
+  visibilityGetNested(props.collection, visibilityContext.value).filter((c) =>
+    isCollectionShown(c, visibilityContext.value, childInMatchedSubtree.value),
+  ),
+);
+
+// Fields actually rendered under the lens: an ancestor's name match (or this
+// collection's own) shows all rendered fields; otherwise only fields whose
+// own names match.
 const allRenderedFields = computed<Field[]>(() => renderedFieldsFor(props.collection, visibilityContext.value));
-const renderedFields = computed<Field[]>(() => visibleFieldsForCollection(props.collection, visibilityContext.value));
+const renderedFields = computed<Field[]>(() =>
+  visibleFieldsForCollection(props.collection, visibilityContext.value, props.inMatchedSubtree),
+);
 
 // `shouldRender` collapses three predicates: legacy visibility rules from
 // CollectionItem.vue plus the lens. Delegated to `isCollectionShown` so the
 // page-level scope-additive selection sees the same answer.
-const shouldRender = computed(() => isCollectionShown(props.collection, visibilityContext.value));
+const shouldRender = computed(() => isCollectionShown(props.collection, visibilityContext.value, props.inMatchedSubtree));
 const isExpandable = computed(() => nestedCollections.value.length > 0 || renderedFields.value.length > 0);
 
 // Visible translatable fields — the scope the per-collection checkbox operates
 // on under an active lens; falls back to the full rendered list otherwise so
 // the legacy "translatable only" rule still drives unfiltered selection.
-const visibleTranslatableFields = computed<Field[]>(() => visibleTranslatableFieldsFor(props.collection, visibilityContext.value));
+// Inside a name-matched subtree the lens is effectively off, so the scope
+// becomes the full translatable set (same as unfiltered behaviour).
+const visibleTranslatableFields = computed<Field[]>(() =>
+  visibleTranslatableFieldsFor(props.collection, visibilityContext.value, props.inMatchedSubtree),
+);
 const translatableFieldsForToggle = computed<Field[]>(() =>
-  lensActive.value ? visibleTranslatableFields.value : allRenderedFields.value.filter(isTranslatableField),
+  lensActive.value && !props.inMatchedSubtree ? visibleTranslatableFields.value : allRenderedFields.value.filter(isTranslatableField),
 );
 
 const enabledFieldNames = computed<string[]>(() => selectionsForCollection.value?.fields ?? []);
@@ -238,11 +263,13 @@ function onUpdateCollectionSelection() {
 
 // Expansion state: the lens drives it while active (Q12 / ADR-0003). When the
 // lens flips off, restore the user's pre-lens expansion. `preLensExpanded`
-// remembers what `isExpanded` was the moment the lens turned on.
+// remembers what `isExpanded` was the moment the lens turned on. Any node
+// that survives `shouldRender` under an active lens is auto-expanded — both
+// "I matched" nodes and "I'm inside a matched subtree" nodes need their body
+// visible for the user to actually act on the result.
 const userExpanded = ref(allRenderedFields.value.length === 0);
 const preLensExpanded = ref<boolean | null>(null);
-const lensExpansion = computed<boolean>(() => lensActive.value && subtreeHasMatch(props.collection, visibilityContext.value));
-const isExpanded = computed(() => (lensActive.value ? lensExpansion.value : userExpanded.value));
+const isExpanded = computed(() => (lensActive.value ? true : userExpanded.value));
 
 watch(lensActive, (active, wasActive) => {
   if (active && !wasActive) {
