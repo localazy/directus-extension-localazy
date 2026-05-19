@@ -125,7 +125,7 @@ describe('reportAutomatedExportOutcome', () => {
 
     expect(logger.info).toHaveBeenCalledWith('Localazy: Exporting translation strings failed');
     expect(logger.error).toHaveBeenCalledWith(error);
-    expect(trackMocks.trackDirectusError).toHaveBeenCalledExactlyOnceWith(error, 'exportTranslationString');
+    expect(trackMocks.trackDirectusError).toHaveBeenCalledExactlyOnceWith(logger, error, 'exportTranslationString');
   });
 });
 
@@ -220,6 +220,6 @@ describe('reportAutomatedDeprecationOutcome', () => {
 
     expect(logger.error).toHaveBeenCalledWith('Localazy: Deprecating deleted collection articles failed');
     expect(logger.error).toHaveBeenCalledWith(error);
-    expect(trackMocks.trackDirectusError).toHaveBeenCalledExactlyOnceWith(error, 'deprecateDeletedCollectionItems');
+    expect(trackMocks.trackDirectusError).toHaveBeenCalledExactlyOnceWith(logger, error, 'deprecateDeletedCollectionItems');
   });
 });

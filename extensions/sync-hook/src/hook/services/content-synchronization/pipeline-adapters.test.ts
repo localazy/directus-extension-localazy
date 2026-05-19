@@ -6,7 +6,9 @@ import { ContentTransferSetupDatabase } from '../../../../../common/models/colle
 import { LocalazyData } from '../../../../../common/models/collections-data/localazy-data';
 import { LocalazyContent } from '../../../../../common/models/localazy-content';
 import { TranslatableContent } from '../../../../../common/models/translatable-content';
-import type { FieldsServiceCtor, ItemsServiceCtor } from '../../types/directus-services';
+import type { DirectusLogger, FieldsServiceCtor, ItemsServiceCtor } from '../../types/directus-services';
+
+const fakeLogger = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() } as unknown as DirectusLogger;
 
 const trackMocks = vi.hoisted(() => ({
   trackLocalazyError: vi.fn(),
@@ -53,9 +55,9 @@ vi.mock('../directus-service', () => ({
 }));
 
 import {
-  dispatchToLocalazy,
   makeBundleLocalazyContextLoader,
   makeCollectionContentFetcher,
+  makeDispatchToLocalazy,
   makeSourceLanguageImportContentFetcher,
   makeTranslationStringsFetcher,
 } from './pipeline-adapters';
@@ -107,7 +109,7 @@ describe('makeBundleLocalazyContextLoader', () => {
 
   it('returns null when localazy_settings collection is missing from the schema', async () => {
     const ItemsService = makeItemsServiceCtor({});
-    const loader = makeBundleLocalazyContextLoader({ ItemsService, schema: emptySchema });
+    const loader = makeBundleLocalazyContextLoader({ ItemsService, schema: emptySchema, logger: fakeLogger });
 
     const result = await loader();
 
@@ -120,7 +122,7 @@ describe('makeBundleLocalazyContextLoader', () => {
     const partialSchema = { collections: { localazy_settings: {} } } as unknown as SchemaOverview;
     const ItemsService = makeItemsServiceCtor({});
 
-    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: partialSchema })();
+    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: partialSchema, logger: fakeLogger })();
 
     expect(result).toBeNull();
     expect(ItemsService).not.toHaveBeenCalled();
@@ -137,7 +139,7 @@ describe('makeBundleLocalazyContextLoader', () => {
     } as unknown as SchemaOverview;
     const ItemsService = makeItemsServiceCtor({});
 
-    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: partialSchema })();
+    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: partialSchema, logger: fakeLogger })();
 
     expect(result).toBeNull();
     expect(ItemsService).not.toHaveBeenCalled();
@@ -149,7 +151,7 @@ describe('makeBundleLocalazyContextLoader', () => {
       localazy_config_data: sampleLocalazyData,
     });
 
-    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: schemaWithLocalazyCollections })();
+    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: schemaWithLocalazyCollections, logger: fakeLogger })();
 
     expect(result).toBeNull();
   });
@@ -160,7 +162,7 @@ describe('makeBundleLocalazyContextLoader', () => {
       localazy_config_data: sampleLocalazyData,
     });
 
-    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: schemaWithLocalazyCollections })();
+    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: schemaWithLocalazyCollections, logger: fakeLogger })();
 
     expect(result).toBeNull();
   });
@@ -171,7 +173,7 @@ describe('makeBundleLocalazyContextLoader', () => {
       localazy_content_transfer_setup: sampleTransferSetup,
     });
 
-    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: schemaWithLocalazyCollections })();
+    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: schemaWithLocalazyCollections, logger: fakeLogger })();
 
     expect(result).toBeNull();
   });
@@ -186,11 +188,12 @@ describe('makeBundleLocalazyContextLoader', () => {
       { throwOnCollection: 'localazy_config_data' },
     );
 
-    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: schemaWithLocalazyCollections })();
+    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: schemaWithLocalazyCollections, logger: fakeLogger })();
 
     expect(result).toBeNull();
     expect(trackMocks.trackLocalazyError).toHaveBeenCalledOnce();
-    expect(trackMocks.trackLocalazyError.mock.calls[0]![1]).toBe('loadBundleLocalazyContext');
+    expect(trackMocks.trackLocalazyError.mock.calls[0]![0]).toBe(fakeLogger);
+    expect(trackMocks.trackLocalazyError.mock.calls[0]![2]).toBe('loadBundleLocalazyContext');
   });
 
   it('reads all three Localazy collections with accountability=null and returns the resolved context', async () => {
@@ -200,7 +203,7 @@ describe('makeBundleLocalazyContextLoader', () => {
       localazy_config_data: sampleLocalazyData,
     });
 
-    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: schemaWithLocalazyCollections })();
+    const result = await makeBundleLocalazyContextLoader({ ItemsService, schema: schemaWithLocalazyCollections, logger: fakeLogger })();
 
     expect(result).toEqual({
       settings: sampleSettings,
@@ -236,6 +239,7 @@ describe('makeCollectionContentFetcher', () => {
       schema: schemaWithLocalazyCollections,
       keys: ['a1', 'a2'],
       collection: 'articles',
+      logger: fakeLogger,
     });
     const result = await fetcher({ context: ctx, localazyProject: sampleProject, exportLanguages: ['en', 'de'] });
 
@@ -260,6 +264,7 @@ describe('makeTranslationStringsFetcher', () => {
     const fetcher = makeTranslationStringsFetcher({
       ItemsService: vi.fn() as unknown as ItemsServiceCtor,
       schema: schemaWithLocalazyCollections,
+      logger: fakeLogger,
     });
     const ctx = { settings: sampleSettings, contentTransferSetup: sampleTransferSetup, localazyData: sampleLocalazyData };
     const result = await fetcher({ context: ctx, localazyProject: sampleProject, exportLanguages: ['en'] });
@@ -281,16 +286,17 @@ describe('makeTranslationStringsFetcher', () => {
     const fetcher = makeTranslationStringsFetcher({
       ItemsService: vi.fn() as unknown as ItemsServiceCtor,
       schema: schemaWithLocalazyCollections,
+      logger: fakeLogger,
     });
     const ctx = { settings: sampleSettings, contentTransferSetup: sampleTransferSetup, localazyData: sampleLocalazyData };
     const result = await fetcher({ context: ctx, localazyProject: sampleProject, exportLanguages: ['en'] });
 
     expect(result).toEqual({ sourceLanguage: {}, otherLanguages: {} });
-    expect(trackMocks.trackDirectusError).toHaveBeenCalledExactlyOnceWith(fetchError, 'fetchTranslationStrings');
+    expect(trackMocks.trackDirectusError).toHaveBeenCalledExactlyOnceWith(fakeLogger, fetchError, 'fetchTranslationStrings');
   });
 });
 
-describe('dispatchToLocalazy', () => {
+describe('makeDispatchToLocalazy', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -298,7 +304,7 @@ describe('dispatchToLocalazy', () => {
   it('unpacks context into settings + localazyData and forwards content + localazyProject', async () => {
     const ctx = { settings: sampleSettings, contentTransferSetup: sampleTransferSetup, localazyData: sampleLocalazyData };
 
-    await dispatchToLocalazy({ content: okContent, context: ctx, localazyProject: sampleProject });
+    await makeDispatchToLocalazy(fakeLogger)({ content: okContent, context: ctx, localazyProject: sampleProject });
 
     expect(serviceMocks.exportContentToLocalazy).toHaveBeenCalledExactlyOnceWith({
       content: okContent,
@@ -327,11 +333,12 @@ describe('makeSourceLanguageImportContentFetcher', () => {
       } as ContentTransferSetupDatabase,
       localazyData: sampleLocalazyData,
     };
-    const result = await makeSourceLanguageImportContentFetcher()({ context: ctx, localazyProject: sampleProject });
+    const result = await makeSourceLanguageImportContentFetcher(fakeLogger)({ context: ctx, localazyProject: sampleProject });
 
     expect(result).toEqual({ success: true, content: importContent });
     expect(serviceMocks.resolveLocalazyLanguageId).toHaveBeenCalledWith(sampleProject.sourceLanguage);
     expect(serviceMocks.importContentFromLocalazy).toHaveBeenCalledExactlyOnceWith({
+      logger: fakeLogger,
       languages: [{ originalForm: 'en', localazyForm: 'en', directusForm: '' }],
       localazyData: sampleLocalazyData,
       localazyProject: sampleProject,
@@ -345,7 +352,7 @@ describe('makeSourceLanguageImportContentFetcher', () => {
     serviceMocks.importContentFromLocalazy.mockResolvedValue({ success: false });
 
     const ctx = { settings: sampleSettings, contentTransferSetup: sampleTransferSetup, localazyData: sampleLocalazyData };
-    await makeSourceLanguageImportContentFetcher()({ context: ctx, localazyProject: sampleProject });
+    await makeSourceLanguageImportContentFetcher(fakeLogger)({ context: ctx, localazyProject: sampleProject });
 
     expect(serviceMocks.importContentFromLocalazy.mock.calls[0]![0].languages).toEqual([
       { originalForm: '', localazyForm: '', directusForm: '' },

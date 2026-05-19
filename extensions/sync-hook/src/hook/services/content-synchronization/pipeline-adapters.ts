@@ -17,7 +17,7 @@ import { importFromLocalazyService } from '../import-from-localazy-service';
 import { TranslationStringsService } from '../../../../../common/services/translation-strings-service';
 import { DirectusApiService } from '../directus-service';
 import { LOCALAZY_COLLECTIONS } from '../../../../../common/models/collections-data/collection-names';
-import type { FieldsServiceCtor, ItemsServiceCtor } from '../../types/directus-services';
+import type { DirectusLogger, FieldsServiceCtor, ItemsServiceCtor } from '../../types/directus-services';
 
 /**
  * Builds the `loadContext` adapter for the Automated export / deprecation pipelines.
@@ -38,9 +38,10 @@ import type { FieldsServiceCtor, ItemsServiceCtor } from '../../types/directus-s
 export function makeBundleLocalazyContextLoader(deps: {
   ItemsService: ItemsServiceCtor;
   schema: SchemaOverview;
+  logger: DirectusLogger;
 }): AutomatedExportLocalazyContextLoader {
   return async () => {
-    const { ItemsService, schema } = deps;
+    const { ItemsService, schema, logger } = deps;
     if (
       !schema.collections?.[LOCALAZY_COLLECTIONS.settings] ||
       !schema.collections?.[LOCALAZY_COLLECTIONS.contentTransferSetup] ||
@@ -65,7 +66,7 @@ export function makeBundleLocalazyContextLoader(deps: {
       }
       return { settings, contentTransferSetup, localazyData };
     } catch (e: unknown) {
-      trackLocalazyError(e, 'loadBundleLocalazyContext');
+      trackLocalazyError(logger, e, 'loadBundleLocalazyContext');
       return null;
     }
   };
@@ -85,9 +86,10 @@ export function makeCollectionContentFetcher(deps: {
   schema: SchemaOverview;
   keys: string[];
   collection: string;
+  logger: DirectusLogger;
 }): AutomatedExportContentFetcher {
   return async ({ context, exportLanguages }) => {
-    const service = new ApiTranslatableCollectionsService(deps.ItemsService, deps.schema, deps.FieldsService);
+    const service = new ApiTranslatableCollectionsService(deps.ItemsService, deps.schema, deps.FieldsService, deps.logger);
     return service.fetchContentFromTranslatableCollections({
       translatableCollections: [{ collection: deps.collection, itemIds: deps.keys }],
       languages: exportLanguages,
@@ -106,6 +108,7 @@ export function makeCollectionContentFetcher(deps: {
 export function makeTranslationStringsFetcher(deps: {
   ItemsService: ItemsServiceCtor;
   schema: SchemaOverview;
+  logger: DirectusLogger;
 }): AutomatedExportContentFetcher {
   return async ({ context, exportLanguages }) => {
     const translationStringsService = new TranslationStringsService(new DirectusApiService(deps.ItemsService, deps.schema));
@@ -116,26 +119,29 @@ export function makeTranslationStringsFetcher(deps: {
         synchronizeTranslationStrings: context.contentTransferSetup.translation_strings,
       });
     } catch (e: unknown) {
-      trackDirectusError(e, 'fetchTranslationStrings');
+      trackDirectusError(deps.logger, e, 'fetchTranslationStrings');
       return { sourceLanguage: {}, otherLanguages: {} };
     }
   };
 }
 
 /**
- * Dispatch adapter for the Automated export pipeline. Wraps the existing
+ * Builds the dispatch adapter for the Automated export pipeline. Wraps the existing
  * `ExportToLocalazyService` so the pipeline doesn't need to know its constructor or
- * payload shape.
+ * payload shape. Closes over the bundle's logger so dispatch-time failures surface at
+ * `error` severity via Directus' Pino logger.
  */
-export const dispatchToLocalazy: AutomatedExportContentDispatcher = async ({ content, context, localazyProject }) => {
-  const exportToLocalazyService = new ExportToLocalazyService();
-  await exportToLocalazyService.exportContentToLocalazy({
-    content,
-    settings: context.settings,
-    localazyData: context.localazyData,
-    localazyProject,
-  });
-};
+export function makeDispatchToLocalazy(logger: DirectusLogger): AutomatedExportContentDispatcher {
+  return async ({ content, context, localazyProject }) => {
+    const exportToLocalazyService = new ExportToLocalazyService(logger);
+    await exportToLocalazyService.exportContentToLocalazy({
+      content,
+      settings: context.settings,
+      localazyData: context.localazyData,
+      localazyProject,
+    });
+  };
+}
 
 /**
  * Builds the deprecation-pipeline `fetchSourceLanguageImportContent` adapter. Requests
@@ -143,19 +149,20 @@ export const dispatchToLocalazy: AutomatedExportContentDispatcher = async ({ con
  * deleted Directus item ids to per-language key ids using `translationString.localazyKeys`
  * / `collectionItem.localazyKey`, so we don't need to fetch other languages here.
  */
-export function makeSourceLanguageImportContentFetcher(): SourceLanguageImportContentFetcher {
+export function makeSourceLanguageImportContentFetcher(logger: DirectusLogger): SourceLanguageImportContentFetcher {
   return async ({ context, localazyProject }) => {
     const sourceLocale = DirectusLocalazyAdapter.resolveLocalazyLanguageId(localazyProject.sourceLanguage);
     const sourceLanguageCode = sourceLocale?.locale || '';
     return importFromLocalazyService.importContentFromLocalazy({
+      logger,
       languages: [{ originalForm: sourceLanguageCode, localazyForm: sourceLanguageCode, directusForm: '' }],
       localazyData: context.localazyData,
       localazyProject,
       enabledFields: EnabledFieldsService.parseFromDatabase(context.contentTransferSetup.enabled_fields),
       progressCallbacks: {
-        nothingToImport: () => trackLocalazyError(new Error('Nothing to import'), 'fetchSourceLanguageImportContent'),
+        nothingToImport: () => trackLocalazyError(logger, new Error('Nothing to import'), 'fetchSourceLanguageImportContent'),
         couldNotFetchContent: (language) =>
-          trackLocalazyError(new Error(`Couldn't fetch content for ${language}`), 'fetchSourceLanguageImportContent'),
+          trackLocalazyError(logger, new Error(`Couldn't fetch content for ${language}`), 'fetchSourceLanguageImportContent'),
       },
     });
   };

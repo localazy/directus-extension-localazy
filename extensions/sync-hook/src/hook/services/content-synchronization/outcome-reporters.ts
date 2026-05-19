@@ -48,7 +48,7 @@ export function reportAutomatedExportOutcome(input: {
     case 'failed':
       logger.info(`Localazy: Exporting ${label} failed`);
       logger.error(outcome.error);
-      trackDirectusError(outcome.error, trackingLabel);
+      trackDirectusError(logger, outcome.error, trackingLabel);
       return;
     default:
       assertNever(outcome);
@@ -92,7 +92,7 @@ export function reportAutomatedDeprecationOutcome(input: {
     case 'failed':
       logger.error(`Localazy: Deprecating deleted ${label} failed`);
       logger.error(outcome.error);
-      trackDirectusError(outcome.error, trackingLabel);
+      trackDirectusError(logger, outcome.error, trackingLabel);
       return;
     default:
       assertNever(outcome);

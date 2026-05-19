@@ -8,6 +8,7 @@ import { DirectusLocalazyAdapter } from '../../../../common/services/directus-lo
 import { trackLocalazyError } from '../functions/track-error';
 import { ExportToLocalazyCommonService } from '../../../../common/services/export-to-localazy-common-service';
 import { LocalazyData } from '../../../../common/models/collections-data/localazy-data';
+import type { DirectusLogger } from '../types/directus-services';
 
 type ExportContentToLocalazy = {
   content: TranslatableContent;
@@ -36,6 +37,8 @@ type CreateExportPromisesForLanguage = {
  * The original defensive early-return covering these has been removed; trust the pipeline.
  */
 export class ExportToLocalazyService {
+  constructor(private readonly logger: DirectusLogger) {}
+
   private createExportPromisesForLanguage(options: CreateExportPromisesForLanguage) {
     const { content, language, access_token, projectId } = options;
     const contentChunks = ContentFromCollections.splitContentIntoChunks(content);
@@ -79,7 +82,7 @@ export class ExportToLocalazyService {
 
       await execute({ delayBetween: 150 });
     } catch (e: unknown) {
-      trackLocalazyError(e, 'export');
+      trackLocalazyError(this.logger, e, 'export');
     }
   }
 }
