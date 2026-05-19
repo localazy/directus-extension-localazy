@@ -64,35 +64,50 @@ function onUpdateCollectionSelection() {
   display: flex;
   justify-content: space-between;
   padding: 16px 4px;
-  border-top: 2px solid #f0f4f9;
-  border-bottom: 2px solid #f0f4f9;
+  border-top: 2px solid var(--theme--border-color-subdued);
+  border-bottom: 2px solid var(--theme--border-color-subdued);
   width: 100%;
 
   & .v-icon {
-    --v-icon-color: var(--theme--foreground-subdued);
+    --v-icon-color: var(--theme--foreground);
+    --v-icon-color-hover: var(--theme--primary);
   }
 
   .checkbox-button {
     &::v-deep(.v-icon) {
-      color: var(--theme--foreground-subdued);
+      color: var(--theme--foreground);
     }
 
     &:hover {
       ::v-deep(.checkbox) {
-        color: var(--theme--foreground-subdued);
+        color: var(--theme--primary);
+      }
+      .button-label {
+        color: var(--theme--primary);
       }
     }
   }
 
   & .button-label {
-    color: var(--theme--foreground-subdued);
+    color: var(--theme--foreground);
     font-weight: 500;
+    transition: color var(--fast) var(--transition);
   }
 
   & .button {
     display: flex;
+    align-items: center;
     gap: 4px;
     cursor: pointer;
+
+    &:hover {
+      .button-label {
+        color: var(--theme--primary);
+      }
+      ::v-deep(.v-icon) {
+        --v-icon-color: var(--theme--primary);
+      }
+    }
   }
 }
 </style>
