@@ -33,6 +33,7 @@
                 <v-icon :name="iconForLevel(entry.level)" small class="entry-icon" />
                 <span class="entry-timestamp">{{ formatTime(entry.timestamp) }}</span>
                 <span class="entry-message">{{ entry.message }}</span>
+                <span v-if="entryUser(entry)" class="entry-user">by {{ entryUser(entry) }}</span>
               </div>
               <pre v-if="entry.data" class="entry-data">{{ JSON.stringify(entry.data, null, 2) }}</pre>
             </div>
@@ -51,7 +52,8 @@ import SessionMetadata from './components/Activity/SessionMetadata.vue';
 import { useLocalazySyncLogStore } from './stores/localazy-sync-log-store';
 import { useLocalazyBoot } from './composables/use-localazy-boot';
 import { useSyncLogEntries } from './composables/use-sync-log-entries';
-import type { SyncLogSession } from '../../common/models/collections-data/sync-log';
+import { useSyncLogUserNames } from './composables/use-sync-log-user-names';
+import type { SyncLogEntry, SyncLogSession } from '../../common/models/collections-data/sync-log';
 
 const route = useRoute();
 const sessionId = computed(() => String(route.params.sessionId || ''));
@@ -68,6 +70,19 @@ const breadcrumb = computed(() => [
 ]);
 
 const { entries, formatTime, iconForLevel } = useSyncLogEntries(session);
+
+// Feed the single loaded session into the user-name resolver so per-entry `data.user`
+// ids get batch-fetched alongside the session-level `initiator_user`. The resolver
+// returns `null` until the fetch settles; the template guards on a non-null result so
+// the "by …" suffix only renders once we have something useful to show.
+const sessionsForResolver = computed<SyncLogSession[]>(() => (session.value ? [session.value] : []));
+const { lookupUserName } = useSyncLogUserNames(sessionsForResolver);
+
+function entryUser(entry: SyncLogEntry): string | null {
+  const candidate = entry.data?.user;
+  if (typeof candidate !== 'string' || candidate.length === 0) return null;
+  return lookupUserName(candidate);
+}
 
 onBeforeMount(async () => {
   await boot();
@@ -162,6 +177,13 @@ onBeforeMount(async () => {
 .entry-message {
   font-size: 13px;
   color: var(--theme--foreground);
+}
+
+.entry-user {
+  font-size: 12px;
+  color: var(--theme--foreground-subdued);
+  font-style: italic;
+  margin-left: 4px;
 }
 
 .entry-info .entry-icon {

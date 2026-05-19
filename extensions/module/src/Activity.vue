@@ -48,7 +48,7 @@
 
       <div class="sessions-tabs">
         <v-tabs v-model="activeTabModel">
-          <v-tab value="upload">Upload</v-tab>
+          <v-tab value="upload">Export</v-tab>
           <v-tab value="download">Download</v-tab>
           <v-tab value="webhook">Webhooks</v-tab>
         </v-tabs>
