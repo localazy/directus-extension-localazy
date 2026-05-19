@@ -48,6 +48,7 @@
 
       <LanguageMappingsEditor
         v-model="localEdits.language_mappings"
+        v-model:valid="mappingsValid"
         :language-collection="localEdits.language_collection"
         :language-code-field="localEdits.language_code_field"
       />
@@ -63,6 +64,7 @@ import { CreateMissingLanguagesInDirectus } from '../../../../common/enums/creat
 import LanguageMappingsEditor from './LanguageMappingsEditor.vue';
 
 const localEdits = defineModel<Settings>('edits', { required: true });
+const mappingsValid = defineModel<boolean>('mappingsValid', { default: true });
 
 defineProps({
   collection: {
@@ -154,7 +156,7 @@ const directusMissingLanguagesOptions = ref<Item[]>([
   font-style: italic;
   font-size: 13px;
   line-height: 18px;
-  color: var(--foreground-normal);
+  color: var(--theme--foreground);
 
   & a {
     text-decoration: underline;
