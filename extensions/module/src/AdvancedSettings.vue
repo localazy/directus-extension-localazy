@@ -5,7 +5,12 @@
     </template>
 
     <template #actions>
-      <v-button class="panel-button" :disabled="!changesExist" :loading="hydrating || saving" @click="onSaveChanges"
+      <v-button
+        v-tooltip="!mappingsValid ? 'Fix invalid custom language mappings before saving' : null"
+        class="panel-button"
+        :disabled="!changesExist || !mappingsValid"
+        :loading="hydrating || saving"
+        @click="onSaveChanges"
         >Save changes
       </v-button>
     </template>
@@ -16,7 +21,7 @@
     <div v-if="hydrated && installed" class="panel page">
       <errors-notice class="errors-notice" :localazy-data="localazyData" />
 
-      <advanced-settings-form v-model:edits="settingsEdits" :collection="settingsCollectionName" />
+      <advanced-settings-form v-model:edits="settingsEdits" v-model:mappings-valid="mappingsValid" :collection="settingsCollectionName" />
 
       <div v-if="syncLookStuck" class="operator-tools">
         <h3 class="operator-tools-title">Operator tools</h3>
@@ -91,6 +96,7 @@ const { data: syncStateData } = storeToRefs(syncStateStore);
 
 const showClearConfirmDialog = ref(false);
 const clearing = ref(false);
+const mappingsValid = ref(true);
 
 // Reactive `Date.now()` tick — without this the staleness `computed` below stays stuck on
 // whatever value it captured the last time another tracked dep changed, so an observer
