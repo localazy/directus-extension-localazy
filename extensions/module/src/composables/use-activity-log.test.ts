@@ -33,6 +33,7 @@ describe('tabForEventType', () => {
   it('routes upload-* to upload', () => {
     expect(tabForEventType('upload-incremental')).toBe('upload');
     expect(tabForEventType('upload-full')).toBe('upload');
+    expect(tabForEventType('upload-automated')).toBe('upload');
   });
 
   it('routes download-* to download', () => {
@@ -194,8 +195,11 @@ describe('formatEventType', () => {
   it('maps each known event type to a human-readable label', () => {
     expect(formatEventType('download-incremental')).toBe('Incremental download');
     expect(formatEventType('download-full')).toBe('Full download');
-    expect(formatEventType('upload-incremental')).toBe('Incremental upload');
-    expect(formatEventType('upload-full')).toBe('Full upload');
+    // user-facing copy says "export" per CONTEXT.md's resolved upload/export ambiguity;
+    // the persisted column keeps `upload-*` to avoid a coordinated migration.
+    expect(formatEventType('upload-incremental')).toBe('Incremental export');
+    expect(formatEventType('upload-full')).toBe('Full export');
+    expect(formatEventType('upload-automated')).toBe('Automated export');
     expect(formatEventType('webhook')).toBe('Webhook');
   });
 

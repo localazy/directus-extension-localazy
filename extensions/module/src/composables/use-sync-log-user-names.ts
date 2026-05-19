@@ -1,6 +1,6 @@
 import { ref, watch, type Ref } from 'vue';
 import { useApi } from '@directus/extensions-sdk';
-import type { SyncLogSession } from '../../../common/models/collections-data/sync-log';
+import type { SyncLogEntry, SyncLogSession } from '../../../common/models/collections-data/sync-log';
 
 /**
  * Subset of Directus' `directus_users` row we read here. The columns are intentionally
@@ -21,10 +21,40 @@ function pickName(user: UserRow): string | null {
 }
 
 /**
- * Resolves the human name behind each `localazy_sync_log.initiator` id referenced in the
- * supplied sessions. Watches the sessions ref, batches one `/users?filter[id][_in]=...`
- * fetch per fresh set of unmapped ids, and caches the result so subsequent reloads
- * don't re-fetch users already known.
+ * Walk a single session row's `entries` JSON and collect every per-entry
+ * `data.user` id. The burst coordinator (PR 64) writes one entry per pipeline run with a
+ * structured `data: { user, event, collection, keys, outcome }`; this helper extracts
+ * the user ids so they participate in the same batched fetch the session-level
+ * `initiator_user` already drives.
+ *
+ * Tolerant of malformed rows: a JSON-parse failure, a non-array payload, or an entry
+ * missing the `data` envelope returns no ids rather than crashing the resolver.
+ */
+export function collectEntryUserIds(entriesJson: string | null | undefined, sink: Set<string>): void {
+  if (!entriesJson) return;
+  try {
+    const parsed: unknown = JSON.parse(entriesJson);
+    if (!Array.isArray(parsed)) return;
+    for (const entry of parsed as SyncLogEntry[]) {
+      const data = entry.data;
+      if (!data) continue;
+      const candidate = data.user;
+      if (typeof candidate === 'string' && candidate.length > 0) {
+        sink.add(candidate);
+      }
+    }
+  } catch {
+    // Malformed entries column — fall through. The detail view's own parse will hit
+    // the same error and render the empty-state.
+  }
+}
+
+/**
+ * Resolves the human name behind each Directus user id referenced in the supplied
+ * sessions — both the session-level `initiator` / `initiator_user` and every per-entry
+ * `data.user` inside `entries`. Watches the sessions ref, batches one
+ * `/users?filter[id][_in]=...` fetch per fresh set of unmapped ids, and caches the
+ * result so subsequent reloads don't re-fetch users already known.
  *
  * Failures are absorbed: any id that can't be resolved (request failed, user deleted,
  * permissions blocked) is recorded as `null` in the cache so we don't loop and
@@ -50,6 +80,14 @@ export function useSyncLogUserNames(sessions: Ref<SyncLogSession[]>) {
         if (candidate && !(candidate in namesById.value)) {
           idsToFetch.add(candidate);
         }
+        // Per-entry user ids from burst sessions (`upload-automated`) or any future
+        // event_type that writes them. Filtered against the cache so a row whose entry
+        // ids are already resolved doesn't enqueue them again.
+        const entryIds = new Set<string>();
+        collectEntryUserIds(row.entries, entryIds);
+        entryIds.forEach((id) => {
+          if (!(id in namesById.value)) idsToFetch.add(id);
+        });
       }
       if (idsToFetch.size === 0) return;
       // Optimistically claim the ids so a second `watch` tick (e.g. concurrent reload)

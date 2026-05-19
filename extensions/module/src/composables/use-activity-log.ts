@@ -33,8 +33,14 @@ export function tabForEventType(eventType: string): ActivityTab {
 /**
  * Free-string `event_type` → human-readable label. Mirrors the values the orchestrator
  * + webhook flow persist (`download-incremental`, `download-full`, `upload-incremental`,
- * `upload-full`, `webhook`). Unknown values pass through verbatim so a future
- * `event_type` doesn't disappear from the UI before we've taught the mapping. Pure.
+ * `upload-full`, `upload-automated`, `webhook`). Unknown values pass through verbatim so
+ * a future `event_type` doesn't disappear from the UI before we've taught the mapping.
+ *
+ * Note: user-facing copy says "export" per CONTEXT.md's resolved upload/export
+ * ambiguity; the column values keep `upload-*` because the rename is column-coordinated
+ * (out of scope here).
+ *
+ * Pure.
  */
 export function formatEventType(eventType: string): string {
   switch (eventType) {
@@ -43,9 +49,11 @@ export function formatEventType(eventType: string): string {
     case 'download-full':
       return 'Full download';
     case 'upload-incremental':
-      return 'Incremental upload';
+      return 'Incremental export';
     case 'upload-full':
-      return 'Full upload';
+      return 'Full export';
+    case 'upload-automated':
+      return 'Automated export';
     case 'webhook':
       return 'Webhook';
     default:
