@@ -34,6 +34,10 @@
           <label class="filter-label">Status</label>
           <v-select v-model="statusFilter" :items="STATUS_OPTIONS" multiple placeholder="All statuses" />
         </div>
+        <div class="filter-field initiator-field">
+          <label class="filter-label">Triggered by</label>
+          <v-select v-model="initiatorFilter" :items="INITIATOR_OPTIONS" multiple placeholder="All triggers" />
+        </div>
         <div class="date-range">
           <div class="filter-field">
             <label class="filter-label">From</label>
@@ -49,8 +53,7 @@
       <div class="sessions-tabs">
         <v-tabs v-model="activeTabModel">
           <v-tab value="upload">Export</v-tab>
-          <v-tab value="download">Download</v-tab>
-          <v-tab value="webhook">Webhooks</v-tab>
+          <v-tab value="download">Import</v-tab>
         </v-tabs>
       </div>
 
@@ -129,12 +132,23 @@ function onSortPreferencesChange(next: SortPreferences) {
   }, 600);
 }
 
-const { activeTab, statusFilter, dateFrom, dateTo, page, totalPages, currentSort, setSort, filteredSessions, paginatedSessions } =
-  useActivityLog({
-    sessions,
-    initialSortPreferences,
-    onSortPreferencesChange,
-  });
+const {
+  activeTab,
+  statusFilter,
+  initiatorFilter,
+  dateFrom,
+  dateTo,
+  page,
+  totalPages,
+  currentSort,
+  setSort,
+  filteredSessions,
+  paginatedSessions,
+} = useActivityLog({
+  sessions,
+  initialSortPreferences,
+  onSortPreferencesChange,
+});
 
 // `<v-select :items>` shape: `{ text, value }`. The statuses mirror StatusLabel.vue's
 // known set; an unknown status read from disk still passes through the filter (the
@@ -146,6 +160,17 @@ const STATUS_OPTIONS = [
   { text: 'Aborted', value: 'aborted' },
   { text: 'Skipped', value: 'skipped' },
   { text: 'In progress', value: 'in_progress' },
+];
+
+// Two-way classification — see `classifyInitiator` in use-activity-log.ts. "Automation"
+// covers hook bursts (`initiator='hook'`) and inbound webhooks (`initiator='webhook'`);
+// "User" covers UI-triggered runs (Directus user-id initiators). Option text uses
+// nouns rather than adjectives so the "Triggered by: <option>" phrasing reads
+// naturally in the dropdown context. The persisted `InitiatorKind` value
+// ('automated'/'manual') stays unchanged.
+const INITIATOR_OPTIONS = [
+  { text: 'Automation', value: 'automated' },
+  { text: 'User', value: 'manual' },
 ];
 
 // Directus' `<v-tabs>` is declared as a single-select group (`multiple: false`) but
@@ -278,6 +303,12 @@ onBeforeMount(() => {
   min-width: 240px;
   /* Match the date picker's 40px activator height — Directus form components
      pick this variable up from the surrounding scope. */
+  --theme--form--field--input--height: 40px;
+}
+
+.initiator-field {
+  flex: 0 0 200px;
+  min-width: 200px;
   --theme--form--field--input--height: 40px;
 }
 

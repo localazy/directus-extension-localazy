@@ -17,7 +17,7 @@
       <div class="metadata-value">{{ formatDuration(session) }}</div>
     </div>
     <div class="metadata-cell">
-      <div class="metadata-label">Initiated by</div>
+      <div class="metadata-label">Triggered by</div>
       <div class="metadata-value">{{ session.initiator }}</div>
     </div>
     <div class="metadata-cell">

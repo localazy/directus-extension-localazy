@@ -1,8 +1,20 @@
 import { computed, ref, watch, type Ref } from 'vue';
 import type { SyncLogSession } from '../../../common/models/collections-data/sync-log';
 
-/** Tabs surfaced on the Activity page. Mirrors Strapi's three-tab grouping. */
-export type ActivityTab = 'upload' | 'download' | 'webhook';
+/**
+ * Tabs surfaced on the Activity page. Two-axis simplification: the tab dimension is
+ * pure direction (outbound = Export, inbound = Import). Trigger source (automated vs
+ * manual) lives in the "Triggered by" filter + the per-row "Triggered by" column.
+ */
+export type ActivityTab = 'upload' | 'download';
+
+/**
+ * Coarse classification of `localazy_sync_log.initiator` for the new "Triggered by"
+ * filter. The persisted column carries free strings (`'hook'`, `'webhook'`, a Directus
+ * user UUID, …); this classifier reduces them to "automated" (system-driven via hook
+ * bursts or inbound webhooks) vs "manual" (user-triggered from the module UI).
+ */
+export type InitiatorKind = 'automated' | 'manual';
 
 export type SortKey = 'status' | 'started_at' | 'duration' | 'initiator' | 'summary';
 export type SortDirection = 'asc' | 'desc';
@@ -17,17 +29,40 @@ const DEFAULT_SORT: SortPreference = { key: 'started_at', direction: 'desc' };
 
 /**
  * Maps a `localazy_sync_log.event_type` value to the Activity tab it belongs to.
- * The mapping is intentionally permissive — anything starting with `upload-` lands in
- * Upload, `download-` in Download, the literal `webhook` in Webhooks, and every
- * unknown value is bucketed into Webhooks too (defensive — future event types
- * shouldn't disappear from the UI just because we haven't taught the mapping yet).
+ * - `upload-*` (`upload-incremental`, `upload-full`, `upload-automated`) → Export tab
+ * - `download-*` (`download-incremental`, `download-full`) → Import tab
+ * - `webhook` (inbound Localazy → Directus) → Import tab; semantically a download,
+ *   just system-triggered. The "Triggered by" column / filter is where users
+ *   distinguish webhook-driven runs from UI-driven ones.
+ * - Anything else → Import tab as a safe fallback (future event types remain visible
+ *   while we teach the mapping).
  *
  * Pure helper so the tab-routing logic stays testable.
  */
 export function tabForEventType(eventType: string): ActivityTab {
   if (eventType.startsWith('upload')) return 'upload';
-  if (eventType.startsWith('download')) return 'download';
-  return 'webhook';
+  return 'download';
+}
+
+/**
+ * Reserved `initiator` markers that flag a system-driven session. Everything else is a
+ * Directus user UUID and counts as manual. Centralised so the filter classifier and
+ * `formatInitiator` / `useSyncLogUserNames` share one source of truth.
+ */
+const AUTOMATED_INITIATORS: ReadonlySet<string> = new Set(['hook', 'webhook']);
+
+/**
+ * Classify a session row's `initiator` column into the coarse "automated vs manual"
+ * dimension the new filter exposes. Pure helper. Unknown markers (anything the future
+ * may add that isn't a UUID) default to `'automated'` so a new system-driven event
+ * type doesn't quietly mis-classify as user activity.
+ */
+export function classifyInitiator(initiator: string): InitiatorKind {
+  if (AUTOMATED_INITIATORS.has(initiator)) return 'automated';
+  // Heuristic: real Directus user ids are UUIDs (36 chars with dashes); a raw string
+  // that isn't a UUID and isn't in the reserved set is most likely a future marker.
+  const isLikelyUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(initiator);
+  return isLikelyUuid ? 'manual' : 'automated';
 }
 
 /**
@@ -118,25 +153,30 @@ export function formatStartedAt(session: SyncLogSession): string {
 }
 
 /**
- * Pure: filters a session list by the current tab, status set, and date range.
- * Extracted so the filter behaviour is testable without mounting the Vue component.
+ * Pure: filters a session list by the current tab, status set, initiator-kind set,
+ * and date range. Extracted so the filter behaviour is testable without mounting the
+ * Vue component.
  *
- * `statuses` is an OR set — an empty (or omitted) array means "no status filter,
- * show all". Mirrors the multi-select interface in the Activity page header.
+ * `statuses` and `initiators` are OR sets — an empty (or omitted) array means
+ * "no filter on this dimension, show all". Mirrors the multi-select interface in the
+ * Activity page header.
  */
 export function filterSessions(
   sessions: SyncLogSession[],
   opts: {
     tab: ActivityTab;
     statuses?: string[];
+    initiators?: InitiatorKind[];
     dateFrom?: Date;
     dateTo?: Date;
   },
 ): SyncLogSession[] {
   const statusSet = opts.statuses && opts.statuses.length > 0 ? new Set(opts.statuses) : null;
+  const initiatorSet = opts.initiators && opts.initiators.length > 0 ? new Set(opts.initiators) : null;
   return sessions.filter((session) => {
     if (tabForEventType(session.event_type) !== opts.tab) return false;
     if (statusSet && !statusSet.has(session.status)) return false;
+    if (initiatorSet && !initiatorSet.has(classifyInitiator(session.initiator))) return false;
 
     const startedMs = Date.parse(session.started_at);
     // Cutoffs are interpreted as UTC midnight to match `session.started_at`'s UTC ISO
@@ -226,6 +266,7 @@ export function useActivityLog(input: {
 }) {
   const activeTab = ref<ActivityTab>('upload');
   const statusFilter = ref<string[]>([]);
+  const initiatorFilter = ref<InitiatorKind[]>([]);
   // Default range mirrors Strapi: From = 30 days ago, To = today. UTC midnight on both
   // ends so the cutoffs line up with `filterSessions`' UTC-based comparison.
   const today = new Date();
@@ -245,7 +286,7 @@ export function useActivityLog(input: {
 
   // Whenever the filter inputs change, reset to page 1 — otherwise a 5-page result
   // suddenly collapsing to 1 page would leave the user on a non-existent page 4.
-  watch([statusFilter, dateFrom, dateTo, activeTab], () => {
+  watch([statusFilter, initiatorFilter, dateFrom, dateTo, activeTab], () => {
     page.value = 1;
   });
 
@@ -264,6 +305,7 @@ export function useActivityLog(input: {
     filterSessions(input.sessions.value, {
       tab: activeTab.value,
       statuses: statusFilter.value,
+      initiators: initiatorFilter.value,
       dateFrom: dateFrom.value,
       dateTo: dateTo.value,
     }),
@@ -277,6 +319,7 @@ export function useActivityLog(input: {
   return {
     activeTab,
     statusFilter,
+    initiatorFilter,
     dateFrom,
     dateTo,
     page,

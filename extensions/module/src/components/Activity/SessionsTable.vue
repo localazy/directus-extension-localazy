@@ -79,12 +79,12 @@ const emit = defineEmits<{
   (event: 'update:page', page: number): void;
 }>();
 
-// Order matches Strapi's layout: Status / Started at / Duration / Initiator / Summary.
+// Order matches Strapi's layout: Status / Started at / Duration / Triggered by / Summary.
 const columns: Array<{ key: SortKey; label: string }> = [
   { key: 'status', label: 'Status' },
   { key: 'started_at', label: 'Started at' },
   { key: 'duration', label: 'Duration' },
-  { key: 'initiator', label: 'Initiated by' },
+  { key: 'initiator', label: 'Triggered by' },
   { key: 'summary', label: 'Summary' },
 ];
 </script>
