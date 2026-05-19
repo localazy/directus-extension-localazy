@@ -351,16 +351,24 @@ function deselectAll() {
 
   .search-input {
     width: 100%;
+    /* Directus' v-input reads its border from --v-input-border-color and the
+       hover / focus variants below. Without these, the input renders borderless
+       in both modes. Resting uses the theme's regular border (not the subdued
+       one — it needs to read as an interactive field, not a panel divider);
+       hover bumps it to accent; focus picks up the brand colour. */
+    --v-input-border-color: var(--theme--border-color);
+    --v-input-border-color-hover: var(--theme--border-color-accent);
+    --v-input-border-color-focus: var(--theme--primary);
   }
 
   .search-icon {
-    color: var(--theme--foreground-subdued);
+    color: var(--theme--foreground);
   }
 
   .clear-icon {
-    color: var(--theme--foreground-subdued);
+    color: var(--theme--foreground);
     &:hover {
-      color: var(--theme--foreground);
+      color: var(--theme--primary);
     }
   }
 }
@@ -371,7 +379,7 @@ function deselectAll() {
   background-color: var(--theme--background-subdued);
   border: 1px dashed var(--theme--border-color-subdued);
   border-radius: var(--theme--border-radius);
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   font-size: 13px;
 
   .empty-results-title {
@@ -402,7 +410,7 @@ function deselectAll() {
   border-radius: var(--theme--border-radius);
   cursor: pointer;
   font-size: 13px;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   transition: background-color var(--fast) var(--transition);
 
   &:hover,

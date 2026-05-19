@@ -106,7 +106,7 @@ onBeforeMount(async () => {
 .empty-state {
   padding: 48px;
   text-align: center;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
 }
 
 .metadata-section {
@@ -126,7 +126,7 @@ onBeforeMount(async () => {
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   letter-spacing: 0.5px;
   margin-bottom: 4px;
 }
@@ -168,7 +168,7 @@ onBeforeMount(async () => {
 }
 
 .entry-timestamp {
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   font-size: 12px;
   white-space: nowrap;
   min-width: 80px;
@@ -181,7 +181,7 @@ onBeforeMount(async () => {
 
 .entry-user {
   font-size: 12px;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   font-style: italic;
   margin-left: 4px;
 }
@@ -202,7 +202,7 @@ onBeforeMount(async () => {
   background-color: var(--theme--background-subdued);
   border-radius: var(--theme--border-radius);
   font-size: 12px;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   white-space: pre-wrap;
   word-break: break-all;
 }

@@ -142,7 +142,7 @@ onBeforeMount(() => {
   align-items: center;
   gap: 8px;
   margin-top: 24px;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   font-size: 14px;
 }
 
@@ -152,7 +152,7 @@ onBeforeMount(() => {
 
 .bundle-version {
   font-size: 12px;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   margin-top: 16px;
   margin-bottom: 16px;
 

@@ -298,6 +298,6 @@ onMounted(() => {
 
 .hint {
   margin-top: 6px;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
 }
 </style>

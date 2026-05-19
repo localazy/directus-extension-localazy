@@ -104,7 +104,7 @@ const columns: Array<{ key: SortKey; label: string }> = [
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   letter-spacing: 0.5px;
 
   &.active {
@@ -143,7 +143,7 @@ const columns: Array<{ key: SortKey; label: string }> = [
 .empty-state {
   padding: 56px 32px;
   text-align: center;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   font-size: 14px;
 }
 </style>

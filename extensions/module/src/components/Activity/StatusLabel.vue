@@ -83,6 +83,6 @@ const statusClass = computed(() => {
 
 .status-neutral {
   background: var(--theme--background-subdued);
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
 }
 </style>

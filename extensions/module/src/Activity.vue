@@ -290,7 +290,7 @@ onBeforeMount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   font-size: 13px;
   margin-bottom: 16px;
 }
@@ -331,7 +331,7 @@ onBeforeMount(() => {
 .filter-label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }

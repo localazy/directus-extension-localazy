@@ -6,7 +6,7 @@
         <div v-for="(progress, idx) in progressTracker" :key="idx">
           <v-icon v-if="progress.type === 'error'" name="clear" color="var(--theme--danger)" />
           <v-icon v-else-if="idx + 1 < progressTracker.length || !loading" name="check" color="var(--theme--success)" />
-          <v-icon v-else name="arrow_right_alt" color="var(--theme--foreground-subdued)" />
+          <v-icon v-else name="arrow_right_alt" color="var(--theme--foreground)" />
           <span>
             {{ progress.message }}
           </span>

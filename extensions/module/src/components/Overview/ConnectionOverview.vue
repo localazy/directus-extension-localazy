@@ -148,7 +148,7 @@ async function onReconnect() {
 $divider-color: var(--border-normal, var(--theme--border-color-accent));
 $radius: var(--border-radius, var(--theme--border-radius));
 $fg-normal: var(--foreground-normal, var(--theme--foreground));
-$fg-subdued: var(--foreground-subdued, var(--theme--foreground-subdued));
+$fg-subdued: var(--foreground-subdued, var(--theme--foreground));
 $fg-accent: var(--foreground-accent, var(--theme--foreground-accent, var(--theme--foreground)));
 
 .connection-label {

@@ -60,7 +60,7 @@ defineProps<{
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--theme--foreground-subdued);
+  color: var(--theme--foreground);
   letter-spacing: 0.5px;
 }
 
