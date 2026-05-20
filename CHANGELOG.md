@@ -1,3 +1,29 @@
+# 2.0.0 (2026-05-20)
+### 🔀 Pull Requests
+
+- [bundle README images instead of hot-linking from Directus host #99](https://github.com/localazy/directus-extension-localazy/pull/99)
+- [bump sync-hook axios to ^1.15.2 (covers 9 CVEs) #98](https://github.com/localazy/directus-extension-localazy/pull/98)
+- [make .husky/pre-commit executable #97](https://github.com/localazy/directus-extension-localazy/pull/97)
+- [bump deprecated v4 actions to v6 + lint cleanup #95](https://github.com/localazy/directus-extension-localazy/pull/95)
+- [next → main (75 PRs since v1.0.10 / v1.1.0) #93](https://github.com/localazy/directus-extension-localazy/pull/93)
+- [backfill 2.0.0 release section in CHANGELOG #100](https://github.com/localazy/directus-extension-localazy/pull/100)
+
+### 💥 Breaking Changes
+
+- bundle README images instead of hot-linking from Directus host ([a539dd5](https://github.com/localazy/directus-extension-localazy/commit/a539dd5)) ([#99](https://github.com/localazy/directus-extension-localazy/pull/99))
+
+### 📚 Documentation
+
+- backfill 2.0.0 release section in CHANGELOG ([f899020](https://github.com/localazy/directus-extension-localazy/commit/f899020)) ([#100](https://github.com/localazy/directus-extension-localazy/pull/100))
+
+### 🧰 Other Commits
+
+- **deps:** bump sync-hook axios to ^1.15.2 (covers 9 CVEs) ([058e99f](https://github.com/localazy/directus-extension-localazy/commit/058e99f)) ([#98](https://github.com/localazy/directus-extension-localazy/pull/98))
+- make .husky/pre-commit executable ([e5bf945](https://github.com/localazy/directus-extension-localazy/commit/e5bf945)) ([#97](https://github.com/localazy/directus-extension-localazy/pull/97))
+- bump deprecated v4 actions to v6 + lint cleanup ([5c254bd](https://github.com/localazy/directus-extension-localazy/commit/5c254bd)) ([#95](https://github.com/localazy/directus-extension-localazy/pull/95))
+- add CLAUDE.md for AI assistants ([b539f49](https://github.com/localazy/directus-extension-localazy/commit/b539f49)) ([#93](https://github.com/localazy/directus-extension-localazy/pull/93))
+- module / build:hook drop --no-minify; new build:{module,hook}:dev keep it for the dev watch loop. qa.yml now runs the minified production build, matching what release publishes. ([b539f49](https://github.com/localazy/directus-extension-localazy/commit/b539f49)) ([#93](https://github.com/localazy/directus-extension-localazy/pull/93))
+
 ## 2.0.0 (2026-05-20)
 
 Top-to-bottom modernization of the repo and a large feature push around server-driven sync, plus the UX work to drive it. Bundles 75 PRs landed on `next` since v1.0.10 / v1.1.0 ([#93](https://github.com/localazy/directus-extension-localazy/pull/93)), plus three follow-ups merged directly to `main`.
