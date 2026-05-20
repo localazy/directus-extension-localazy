@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "@localazy/api-client": "^2.1.5",
-    "axios": "^1.13.0",
+    "axios": "^1.15.2",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
