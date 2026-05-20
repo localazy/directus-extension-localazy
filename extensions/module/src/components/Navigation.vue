@@ -18,10 +18,22 @@
         <v-text-overflow text="Project Setup" />
       </v-list-item-content>
     </v-list-item>
+    <v-list-item to="/localazy/automation">
+      <v-list-item-icon><v-icon name="cloud_sync" /></v-list-item-icon>
+      <v-list-item-content>
+        <v-text-overflow text="Automation" />
+      </v-list-item-content>
+    </v-list-item>
     <v-list-item to="/localazy/additional-settings">
       <v-list-item-icon><v-icon name="settings" /></v-list-item-icon>
       <v-list-item-content>
         <v-text-overflow text="Additional Settings" />
+      </v-list-item-content>
+    </v-list-item>
+    <v-list-item to="/localazy/activity">
+      <v-list-item-icon><v-icon name="history" /></v-list-item-icon>
+      <v-list-item-content>
+        <v-text-overflow text="Activity" />
       </v-list-item-content>
     </v-list-item>
     <v-list-item to="/localazy/about">
@@ -40,21 +52,18 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
 import packageJson from '../../package.json';
 
-const version = ref<string>(packageJson.version);
-const versionLabel = ref<string>(`Version ${version.value}`);
+const versionLabel = `Version ${packageJson.version}`;
 </script>
 
 <style lang="scss" scoped>
-
 .version {
-  color: var(--foreground-subdued);
+  color: var(--theme--foreground-subdued);
   transition: color var(--fast) var(--transition);
 
   &::v-deep(.v-icon) {
-    color: var(--foreground-subdued);
+    color: var(--theme--foreground-subdued);
     transition: color var(--fast) var(--transition);
   }
 }

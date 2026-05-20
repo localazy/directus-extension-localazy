@@ -1,35 +1,19 @@
 <template>
   <div>
-    <v-divider :inline-title="false" large>
-      Localazy project
-    </v-divider>
+    <v-divider :inline-title="false" large> Localazy project </v-divider>
 
     <div class="form grid">
       <div class="full">
-        <logout-button
-          v-if="isLoggedIn"
-          :localazy-data="localazyData"
-          :localazy-data-collection="localazyDataCollection"
-          @update:localazy-data="emit('update:localazyData', $event)" />
-        <login-button
-          v-else
-          :localazy-data="localazyData"
-          :localazy-data-collection="localazyDataCollection"
-          @update:localazy-data="emit('update:localazyData', $event)" />
+        <logout-button v-if="isLoggedIn" />
+        <login-button v-else />
       </div>
     </div>
 
-    <v-divider :inline-title="false" large>
-      Directus project
-    </v-divider>
+    <v-divider :inline-title="false" large> Directus project </v-divider>
     <div class="form">
       <div class="half">
         <p class="type-label">Languages collection</p>
-        <v-select
-          v-model="localEdits.language_collection"
-          :items="possibleLanguageCollections"
-          :disabled="isDemo"
-        />
+        <v-select v-model="localEdits.language_collection" :items="possibleLanguageCollections" :disabled="isDemo" />
         <p class="note input-note">
           Read an <a href="https://docs.directus.io/guides/headless-cms/content-translations.html" target="_blank">official guide</a>
           how to prepare Directus for content translation
@@ -40,8 +24,8 @@
       <div class="half">
         <p class="type-label">Language code field</p>
         <v-select
-          :disabled="!localEdits.language_collection || isDemo"
           v-model="localEdits.language_code_field"
+          :disabled="!localEdits.language_collection || isDemo"
           :items="possibleLanguageCodeFields"
         />
         <p class="note input-note">
@@ -54,30 +38,25 @@
       <div class="half">
         <p class="type-label">Source language</p>
         <v-select
-          :disabled="!localEdits.language_code_field || isDemo"
           v-model="localEdits.source_language"
+          :disabled="!localEdits.language_code_field || isDemo"
           :items="languageSelectOptions"
           :class="{ 'input-error': !localEdits.language_code_field || isNotRecognizedLocalazyLanguage }"
         />
-        <p class="note input-note input-note-error" v-if="isNotRecognizedLocalazyLanguage">
+        <p v-if="isNotRecognizedLocalazyLanguage" class="note input-note input-note-error">
           Selected language doesn't match any <a href="https://www.iso.org/iso-639-language-codes.html" target="_blank">ISO 639</a>
           language code recognized by Localazy.
         </p>
-        <p class="note input-note" v-else>
-          Main language of your content
-        </p>
+        <p v-else class="note input-note">Main language of your content</p>
       </div>
       <div class="half-right" />
-
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { useItems, useStores } from '@directus/extensions-sdk';
-import {
-  PropType, Ref, computed, ref, watch, watchEffect,
-} from 'vue';
+import { useItems } from '@directus/extensions-sdk';
+import { Ref, computed, ref, watch, watchEffect } from 'vue';
 import { AppCollection, Field, Item } from '@directus/types';
 import { storeToRefs } from 'pinia';
 import { getLocalazyLanguages } from '@localazy/languages';
@@ -85,44 +64,27 @@ import { SelectItem } from '../../models/directus/internals/select-item';
 import { Settings } from '../../../../common/models/collections-data/settings';
 import { getConfig } from '../../../../common/config/get-config';
 import { DirectusLocalazyAdapter } from '../../../../common/services/directus-localazy-adapter';
+import { formatLanguageOption, pickLanguageName } from '../../../../common/utilities/language-display';
 import LoginButton from './LoginButton.vue';
 import LogoutButton from './LogoutButton.vue';
-import { LocalazyData } from '../../../../common/models/collections-data/localazy-data';
+import { useDirectusCollectionsStoreRefs, useDirectusFieldsStore } from '../../composables/use-directus-stores';
+import { useLocalazyConfigStore } from '../../stores/localazy-config-store';
 
-type Collection = AppCollection | null;
+const localEdits = defineModel<Settings>('edits', { required: true });
 
-const props = defineProps({
-  edits: {
-    type: Object as PropType<Settings>,
-    required: true,
-  },
+defineProps({
   collection: {
     type: String,
     required: true,
   },
-  localazyData: {
-    type: Object as PropType<LocalazyData | null>,
-    required: true,
-  },
-  localazyDataCollection: {
-    type: Object as PropType<Collection | null>,
-    required: true,
-  },
 });
 
-const emit = defineEmits(['update:edits', 'update:localazyData']);
+const { data: localazyData } = storeToRefs(useLocalazyConfigStore());
 
 const isDemo = computed(() => getConfig().APP_MODE === 'demo');
-const localEdits = computed<Settings>({
-  get: () => props.edits,
-  set: (value) => {
-    emit('update:edits', value);
-  },
-});
 
-const { useCollectionsStore, useFieldsStore } = useStores();
-const { collections } = storeToRefs(useCollectionsStore());
-const { getFieldsForCollectionSorted } = useFieldsStore();
+const { collections } = useDirectusCollectionsStoreRefs();
+const { getFieldsForCollectionSorted } = useDirectusFieldsStore();
 const languageCollectionName = computed(() => localEdits.value.language_collection);
 
 const languagesMap = computed(() => {
@@ -133,7 +95,7 @@ const languagesMap = computed(() => {
   });
   return map;
 });
-const isLoggedIn = computed(() => !!props.localazyData?.access_token);
+const isLoggedIn = computed(() => !!localazyData.value.access_token);
 
 const isNotRecognizedLocalazyLanguage = computed(() => {
   const directusSourceLanguage = localEdits.value.source_language;
@@ -164,8 +126,8 @@ const possibleLanguageCollections = (collections?.value as AppCollection[])
   });
 
 const possibleLanguageCodeFields = computed((): SelectItem[] => {
-  const fields = props.edits.language_collection
-    ? getFieldsForCollectionSorted(props.edits.language_collection) as Field[]
+  const fields = localEdits.value.language_collection
+    ? (getFieldsForCollectionSorted(localEdits.value.language_collection) as Field[])
     : [];
 
   return fields
@@ -180,28 +142,26 @@ const possibleLanguageCodeFields = computed((): SelectItem[] => {
 });
 
 const languages: Ref<Item[]> = ref([]);
-const languageSelectOptions = computed(() => languages.value.map((item) => {
-  const option: SelectItem = {
-    text: item[localEdits.value.language_code_field],
-    value: item[localEdits.value.language_code_field],
-  };
-  return option;
-}));
+const languageSelectOptions = computed(() =>
+  languages.value.map((item) => {
+    const code = item[localEdits.value.language_code_field] as string;
+    const name = pickLanguageName(item as Record<string, unknown>);
+    const option: SelectItem = {
+      text: formatLanguageOption(code, name),
+      value: code,
+    };
+    return option;
+  }),
+);
 
-watchEffect(() => {
-  const lookupLanguageCollection = possibleLanguageCollections.find((col) => col.value.toLocaleLowerCase() === 'languages');
-  if (lookupLanguageCollection) {
-    localEdits.value.language_collection = lookupLanguageCollection.value;
-  }
-});
-
-watchEffect(() => {
-  const lookupLanguageCodeField = possibleLanguageCodeFields.value.find((col) => col.value.toLocaleLowerCase() === 'code');
-  if (lookupLanguageCodeField) {
-    localEdits.value.language_code_field = lookupLanguageCodeField.value;
-  }
-});
-
+// When the user picks a new language collection from the dropdown, the watcher below
+// clears `language_code_field`. This effect then re-runs (it depends on
+// `possibleLanguageCodeFields`, which is keyed off `language_collection`) and re-fills
+// the field with `code` if the new collection has one. The initial mount case — where
+// `language_collection` was seeded by the installer and `language_code_field` already
+// matches — short-circuits to a no-op write that Vue's reactive setter ignores, so
+// `changesExist` stays false. (The on-mount seed itself happens in the installer; see
+// `localazy-installer-store.ts`.)
 watchEffect(() => {
   const lookupLanguageCodeField = possibleLanguageCodeFields.value.find((col) => col.value.toLocaleLowerCase() === 'code');
   if (lookupLanguageCodeField) {
@@ -228,11 +188,10 @@ watch(
     localEdits.value.source_language = '';
   },
 );
-
 </script>
 
 <style lang="scss" scoped>
-@import '../../styles/mixins/form-grid';
+@use '../../styles/mixins/form-grid' as *;
 .form {
   @include form-grid;
   max-width: 1300px;
@@ -264,14 +223,14 @@ watch(
 }
 
 .input-note-error {
-  color: var(--danger)!important;
+  color: var(--theme--danger) !important;
 }
 
 .note {
   font-style: italic;
   font-size: 13px;
   line-height: 18px;
-  color: var(--foreground-normal);
+  color: var(--theme--foreground);
 
   & a {
     text-decoration: underline;
@@ -280,7 +239,7 @@ watch(
 
 .input-error {
   & ::v-deep(.input) {
-    border-color: var(--danger);
+    border-color: var(--theme--danger);
   }
 }
 </style>

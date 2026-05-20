@@ -132,6 +132,7 @@ dist
 # IDE / Editor
 .idea
 .vscode
+.claude
 
 # Build dir
 dist
@@ -140,7 +141,8 @@ dist
 typedoc
 
 development/data
-development/mysql
+development/extensions
+development/uploads
 
 extensions/common/config/config.json
 extensions/common/config/config.development.json

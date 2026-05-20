@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { AxiosError } from 'axios';
 import { LocalazyError } from '../../../common/models/localazy-error';
 import { AnalyticsService } from '../../../common/services/analytics-service';
 
@@ -10,8 +9,8 @@ type Errors = {
     file: LocalazyError[];
     import: LocalazyError[];
     export: LocalazyError[];
-  }
-  directus: string[]
+  };
+  directus: string[];
 };
 
 type CommonParams = {
@@ -19,7 +18,7 @@ type CommonParams = {
   orgId: string;
 };
 
-type AddLocalazyError = CommonParams & {type: keyof Errors['localazy'] };
+type AddLocalazyError = CommonParams & { type: keyof Errors['localazy'] };
 
 export const useErrorsStore = defineStore('errorsStore', () => {
   const errors = ref<Errors>({
@@ -32,24 +31,39 @@ export const useErrorsStore = defineStore('errorsStore', () => {
     directus: [],
   });
 
-  function addLocalazyError(error: LocalazyError, data: AddLocalazyError) {
-    errors.value.localazy[data.type].push(error);
-    AnalyticsService.trackError({
+  function addLocalazyError(error: unknown, data: AddLocalazyError) {
+    const normalised =
+      error instanceof LocalazyError ? error : new LocalazyError('unknown', error instanceof Error ? error.message : String(error), 0);
+    errors.value.localazy[data.type].push(normalised);
+    // Analytics is fire-and-forget; error tracking shouldn't itself fail and block the flow.
+    void AnalyticsService.trackError({
       userId: data.userId,
       orgId: data.orgId,
-      message: error.message,
+      message: normalised.message,
       origin: 'Localazy',
       type: data.type,
-      errorData: JSON.stringify(error, null, 2),
+      errorData: JSON.stringify(normalised, null, 2),
     });
   }
 
-  function addDirectusError(error: AxiosError) {
-    const e: any = error;
-    if (e.response?.data?.errors?.length) {
-      errors.value.directus.push(e.response.data.errors[0].message);
-    } else {
+  type DirectusErrorPayload = {
+    response?: {
+      data?: {
+        errors?: Array<{ message: string }>;
+      };
+    };
+    message?: string;
+  };
+
+  function addDirectusError(error: unknown) {
+    const e = error as DirectusErrorPayload;
+    const firstApiError = e.response?.data?.errors?.[0];
+    if (firstApiError?.message) {
+      errors.value.directus.push(firstApiError.message);
+    } else if (e.message) {
       errors.value.directus.push(e.message);
+    } else {
+      errors.value.directus.push('Unknown error');
     }
   }
 
@@ -70,9 +84,7 @@ export const useErrorsStore = defineStore('errorsStore', () => {
   const directusErrors = computed(() => errors.value.directus);
 
   const hasLocalazyErrors = computed(() => {
-    const {
-      project, file, import: importErrors, export: exportErrors,
-    } = errors.value.localazy;
+    const { project, file, import: importErrors, export: exportErrors } = errors.value.localazy;
     return project.length > 0 || file.length > 0 || importErrors.length > 0 || exportErrors.length > 0;
   });
 

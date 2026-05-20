@@ -23,6 +23,9 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
       readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
+    schema: {
+      default_value: '',
+    },
   },
   {
     field: 'user_id',
@@ -31,6 +34,9 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
       interface: 'input',
       readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: '',
     },
   },
   {
@@ -41,6 +47,9 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
       readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
+    schema: {
+      default_value: '',
+    },
   },
   {
     field: 'project_id',
@@ -49,6 +58,9 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
       interface: 'input',
       readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: '',
     },
   },
   {
@@ -59,6 +71,9 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
       readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
+    schema: {
+      default_value: '',
+    },
   },
   {
     field: 'project_name',
@@ -68,6 +83,9 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
       readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
     },
+    schema: {
+      default_value: '',
+    },
   },
   {
     field: 'org_id',
@@ -76,6 +94,9 @@ export const createLocalazyDataFields = (): Array<DeepPartial<Field>> => [
       interface: 'input',
       readonly: getConfig().APP_MODE === 'production',
       hidden: getConfig().APP_MODE === 'production',
+    },
+    schema: {
+      default_value: '',
     },
   },
 ];

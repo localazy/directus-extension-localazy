@@ -1,24 +1,32 @@
+import { useApi } from '@directus/extensions-sdk';
 import { TranslationStringsService } from '../../../common/services/translation-strings-service';
 import { Settings } from '../../../common/models/collections-data/settings';
 import { TranslatableContent } from '../../../common/models/translatable-content';
 import { useErrorsStore } from '../stores/errors-store';
-import { LocalazyTranslationStringBlock } from '../../../common/models/localazy-content';
-import { useDirectusApi } from './use-directus-api';
+import { DirectusModuleApi } from '../services/directus-module-api';
+import { useDirectusCollectionsStore } from './use-directus-stores';
 
 type FetchTranslationStrings = {
   languages: string[];
-  synchronizeTranslationStrings: boolean
+  synchronizeTranslationStrings: boolean;
   settings: Settings;
 };
 
+/**
+ * Module-side wrapper around translation-string fetch — the only piece still consumed by
+ * the upload flow (`onExport`). The download-flow upsert moved to
+ * `extensions/common/services/orchestrator/upsert-localazy-content.ts` so the same logic
+ * runs from the future server-side import path.
+ */
 export const useTranslationStringsContent = () => {
   const { addDirectusError } = useErrorsStore();
-  const translationStringsService = new TranslationStringsService(useDirectusApi());
+  const directusApi = new DirectusModuleApi(useApi(), useDirectusCollectionsStore());
+  const translationStringsService = new TranslationStringsService(directusApi);
 
   async function fetchTranslationStrings(options: FetchTranslationStrings): Promise<TranslatableContent> {
     try {
       return translationStringsService.fetchTranslationStrings(options);
-    } catch (e: any) {
+    } catch (e: unknown) {
       addDirectusError(e);
       return {
         sourceLanguage: {},
@@ -27,16 +35,7 @@ export const useTranslationStringsContent = () => {
     }
   }
 
-  async function upsertTranslationStrings(data: LocalazyTranslationStringBlock[]) {
-    try {
-      await translationStringsService.upsertTranslationStrings(data);
-    } catch (e: any) {
-      addDirectusError(e);
-    }
-  }
-
   return {
     fetchTranslationStrings,
-    upsertTranslationStrings,
   };
 };

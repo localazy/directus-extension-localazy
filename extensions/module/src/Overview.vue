@@ -1,62 +1,50 @@
 <template>
-  <private-view>
-    <template #title-outer:prepend>
-      <v-button class="header-icon" rounded disabled icon secondary>
-        <v-icon name="home" />
-      </v-button>
-    </template>
-
+  <private-view title="Overview" icon="home">
     <template #headline>
       <v-breadcrumb :items="[{ name: 'Localazy', to: '/localazy' }]" />
-    </template>
-
-    <template #title>
-      <h1 class="type-title">Overview</h1>
     </template>
 
     <template #navigation>
       <Navigation />
     </template>
-    <div class="panel page" v-if="hydrated && hydratedDirectusData">
+    <div v-if="hydrated && installed" class="panel page">
       <config-notice class="notice" :has-incomplete-configuration="hasIncompleteConfiguration" />
       <errors-notice class="notice" :localazy-data="localazyData" />
 
       <connection-overview class="overview-block" :localazy-data="localazyData" :settings="settings" />
-      <connection-languages class="overview-block mt-8" :settings="settings" />
-
+      <connection-languages class="mt-8" :settings="settings" />
     </div>
 
     <div v-else class="hydrating">
       <v-progress-circular indeterminate lar />
     </div>
-
   </private-view>
 </template>
 
 <script lang="ts" setup>
+import { onBeforeMount } from 'vue';
 import { storeToRefs } from 'pinia';
 import Navigation from './components/Navigation.vue';
-import { useLocalazyStore } from './stores/localazy-store';
 import ErrorsNotice from './components/ErrorsNotice.vue';
 import ConfigNotice from './components/ConfigNotice.vue';
 import ConnectionOverview from './components/Overview/ConnectionOverview.vue';
 import ConnectionLanguages from './components/Overview/ConnectionLanguages.vue';
-import { useHydrate } from './composables/use-hydrate';
+import { useLocalazySettingsStore } from './stores/localazy-settings-store';
+import { useLocalazyConfigurationStatus } from './composables/use-localazy-configuration-status';
+import { useLocalazyBoot } from './composables/use-localazy-boot';
 
-const {
-  hydrateDirectusData, localazyData, hasIncompleteConfiguration, settings, hydratedDirectusData,
-} = useHydrate();
-const localazyStore = useLocalazyStore();
-const { hydrated } = storeToRefs(localazyStore);
+const { data: settings } = storeToRefs(useLocalazySettingsStore());
+const { hasIncompleteConfiguration } = useLocalazyConfigurationStatus();
+const { installed, hydrated, localazyData, boot } = useLocalazyBoot();
 
-hydrateDirectusData().then(() => {
-  localazyStore.hydrateLocalazyData({ localazyData });
+onBeforeMount(() => {
+  // Errors land in the errors store inside `boot()`; no need to await or handle here.
+  void boot();
 });
-
 </script>
 
 <style lang="scss" scoped>
-@import './styles/mixins/page';
+@use './styles/mixins/page' as *;
 
 .page {
   @include page;
@@ -76,9 +64,11 @@ hydrateDirectusData().then(() => {
   margin-bottom: 16px;
 }
 
-.overview-block{
-  background-color: var(--background-normal);
-  padding: 1rem;
+.overview-block {
+  background-color: var(--background-normal, var(--theme--background-normal, var(--theme--background)));
+  border: 1px solid var(--border-normal, var(--theme--border-color-accent));
+  border-radius: var(--border-radius, var(--theme--border-radius));
+  padding: 20px;
 }
 
 .notice {
@@ -87,7 +77,7 @@ hydrateDirectusData().then(() => {
 }
 
 .mt-8 {
-  margin-top: 1rem;
+  margin-top: 1.25rem;
 }
 
 .hydrating {

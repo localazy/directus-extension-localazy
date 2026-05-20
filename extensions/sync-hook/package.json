@@ -1,12 +1,12 @@
 {
   "name": "@localazy/directus-extension-localazy-automation",
-  "description": "The official Localazy hook extension for Directus to automate synchronization of content",
+  "description": "The official Localazy server-side bundle for Directus that automates synchronization of content",
   "icon": "cloud_sync",
-  "version": "1.0.10",
+  "version": "1.1.0",
   "keywords": [
     "directus",
     "directus-extension",
-    "directus-extension-hook",
+    "directus-extension-bundle",
     "localazy"
   ],
   "repository": {
@@ -23,24 +23,38 @@
     "dist"
   ],
   "directus:extension": {
-    "type": "hook",
-    "path": "dist/index.js",
-    "source": "src/index.ts",
-    "host": "^10.10.0"
+    "type": "bundle",
+    "path": {
+      "app": "dist/app.js",
+      "api": "dist/api.js"
+    },
+    "entries": [
+      {
+        "type": "hook",
+        "name": "localazy-automation-hook",
+        "source": "src/hook/index.ts"
+      },
+      {
+        "type": "endpoint",
+        "name": "localazy-automation",
+        "source": "src/endpoint/index.ts"
+      }
+    ],
+    "host": "^11.0.0"
   },
   "scripts": {
-    "build": "directus-extension build",
-    "lint": "eslint --ext .ts,.vue src"
+    "build": "directus-extension build"
   },
   "dependencies": {
     "@localazy/api-client": "^2.1.5",
-    "@localazy/languages": "^1.0.0",
+    "axios": "^1.13.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@directus/extensions-sdk": "^12.1.4",
+    "@directus/extensions-sdk": "^17.1.4",
+    "@directus/types": "^15.0.0",
     "@types/lodash": "^4.17.1",
-    "@types/node": "^20.12.11",
-    "typescript": "^5.4.5"
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
   }
 }

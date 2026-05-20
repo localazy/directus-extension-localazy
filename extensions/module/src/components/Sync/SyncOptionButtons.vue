@@ -6,15 +6,13 @@
       :model-value="allTranslatableFieldsChecked"
       @update:model-value="onUpdateCollectionSelection"
     >
-      <span class="button-label" v-if="allTranslatableFieldsChecked">Deselect all</span>
-      <span class="button-label" v-else>Select all</span>
+      <span v-if="allTranslatableFieldsChecked" class="button-label">Deselect all</span>
+      <span v-else class="button-label">Select all</span>
     </v-checkbox>
 
     <v-menu show-arrow>
       <template #activator="{ toggle }">
-        <div
-          @click="toggle"
-          class="button">
+        <div class="button" @click="toggle">
           <v-icon name="visibility" />
           <span class="button-label">Options</span>
         </div>
@@ -22,17 +20,13 @@
 
       <v-list>
         <v-list-item>
-          <v-checkbox v-model="localShowUntranslatableField">
-            Show untranslatable fields
-          </v-checkbox>
+          <v-checkbox v-model="localShowUntranslatableField"> Show untranslatable fields </v-checkbox>
         </v-list-item>
       </v-list>
 
       <v-list>
         <v-list-item>
-          <v-checkbox v-model="localShowUntranslatableCollections">
-            Show collections without translatable fields
-          </v-checkbox>
+          <v-checkbox v-model="localShowUntranslatableCollections"> Show collections without translatable fields </v-checkbox>
         </v-list-item>
       </v-list>
     </v-menu>
@@ -40,17 +34,10 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
+const localShowUntranslatableField = defineModel<boolean>('showUntranslatableField', { required: true });
+const localShowUntranslatableCollections = defineModel<boolean>('showUntranslatableCollections', { required: true });
 
 const props = defineProps({
-  showUntranslatableField: {
-    type: Boolean,
-    required: true,
-  },
-  showUntranslatableCollections: {
-    type: Boolean,
-    required: true,
-  },
   allTranslatableFieldsChecked: {
     type: Boolean,
     required: true,
@@ -61,17 +48,7 @@ const props = defineProps({
   },
 });
 
-const emits = defineEmits(['select-all', 'deselect-all', 'update:showUntranslatableField', 'update:showUntranslatableCollections']);
-
-const localShowUntranslatableField = computed({
-  get: () => props.showUntranslatableField,
-  set: (value: boolean) => emits('update:showUntranslatableField', value),
-});
-
-const localShowUntranslatableCollections = computed({
-  get: () => props.showUntranslatableCollections,
-  set: (value: boolean) => emits('update:showUntranslatableCollections', value),
-});
+const emits = defineEmits(['select-all', 'deselect-all']);
 
 function onUpdateCollectionSelection() {
   if (props.allTranslatableFieldsChecked) {
@@ -87,35 +64,50 @@ function onUpdateCollectionSelection() {
   display: flex;
   justify-content: space-between;
   padding: 16px 4px;
-  border-top: 2px solid #F0F4F9;
-  border-bottom: 2px solid #F0F4F9;
+  border-top: 2px solid var(--theme--border-color-subdued);
+  border-bottom: 2px solid var(--theme--border-color-subdued);
   width: 100%;
 
   & .v-icon {
-    --v-icon-color: var(--foreground-subdued);
+    --v-icon-color: var(--theme--foreground);
+    --v-icon-color-hover: var(--theme--primary);
   }
 
   .checkbox-button {
     &::v-deep(.v-icon) {
-        color: var(--foreground-subdued);
-      }
+      color: var(--theme--foreground);
+    }
 
     &:hover {
       ::v-deep(.checkbox) {
-        color: var(--foreground-subdued);
+        color: var(--theme--primary);
+      }
+      .button-label {
+        color: var(--theme--primary);
       }
     }
   }
 
   & .button-label {
-    color: var(--foreground-subdued);
+    color: var(--theme--foreground);
     font-weight: 500;
+    transition: color var(--fast) var(--transition);
   }
 
   & .button {
     display: flex;
+    align-items: center;
     gap: 4px;
     cursor: pointer;
+
+    &:hover {
+      .button-label {
+        color: var(--theme--primary);
+      }
+      ::v-deep(.v-icon) {
+        --v-icon-color: var(--theme--primary);
+      }
+    }
   }
 }
 </style>

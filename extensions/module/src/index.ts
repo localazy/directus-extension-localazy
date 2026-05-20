@@ -1,10 +1,12 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { defineModule } from '@directus/extensions-sdk';
 import AdvancedSettings from './AdvancedSettings.vue';
 import ProjectSetup from './ProjectSetup.vue';
 import Sync from './Sync.vue';
 import Overview from './Overview.vue';
 import About from './About.vue';
+import Activity from './Activity.vue';
+import ActivityDetail from './ActivityDetail.vue';
+import Automation from './Automation.vue';
 import { getConfig } from '../../common/config/get-config';
 
 export default defineModule({
@@ -26,6 +28,18 @@ export default defineModule({
       component: Sync,
     },
     {
+      path: 'activity',
+      component: Activity,
+    },
+    {
+      path: 'activity/:sessionId',
+      component: ActivityDetail,
+    },
+    {
+      path: 'automation',
+      component: Automation,
+    },
+    {
       path: 'additional-settings',
       component: AdvancedSettings,
     },
@@ -42,17 +56,6 @@ export default defineModule({
     if (getConfig().APP_MODE === 'demo') {
       return true;
     }
-    if ('admin_access' in user) {
-      return user.admin_access === true;
-    }
-    if ('role' in user) {
-      /** In older version of Directus, admin_access exists in role attribute */
-      // @ts-expect-error
-      if ('admin_access' in user.role) {
-        // @ts-expect-error
-        return user.role.admin_access === true;
-      }
-    }
-    return false;
+    return user.admin_access === true;
   },
 });

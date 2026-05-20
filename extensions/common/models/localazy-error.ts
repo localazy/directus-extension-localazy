@@ -1,3 +1,7 @@
+type ErrorWithCaptureStackTrace = ErrorConstructor & {
+  captureStackTrace?: (target: object, ctor: new (...args: never[]) => unknown) => void;
+};
+
 export class LocalazyError extends Error {
   public code!: number;
 
@@ -9,10 +13,11 @@ export class LocalazyError extends Error {
     this.error = error;
     this.code = code;
 
-    if ((LocalazyError as any).captureStackTrace) {
-      (LocalazyError as any).captureStackTrace(this, this.constructor);
+    const errorCtor = LocalazyError as unknown as ErrorWithCaptureStackTrace;
+    if (errorCtor.captureStackTrace) {
+      errorCtor.captureStackTrace(this, this.constructor);
     } else {
-      this.stack = (new Error()).stack;
+      this.stack = new Error().stack;
     }
   }
 }

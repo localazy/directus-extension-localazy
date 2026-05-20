@@ -1,7 +1,12 @@
-/* eslint-disable max-classes-per-file */
-/* eslint-disable no-await-in-loop */
 import {
-  FileListKeysRequest, FilesListRequest, ImportJsonRequest, KeyUpdateRequest, ProjectsListRequest,
+  FileListKeysRequest,
+  FilesListRequest,
+  ImportJsonRequest,
+  KeyUpdateRequest,
+  ProjectsListRequest,
+  WebhooksGetSecretRequest,
+  WebhooksListRequest,
+  WebhooksUpdateRequest,
 } from '@localazy/api-client';
 import { sleep } from '../utilities/sleep';
 import { getLocalazyApi } from '../api/localazy-api';
@@ -24,7 +29,7 @@ class LocalazyRequestProcessor {
   private lastMinuteTimestamp: number = Date.now();
 
   async addRequest<T>(request: () => Promise<T>): Promise<T> {
-    return new Promise<any>((resolve, reject) => {
+    return new Promise<T>((resolve, reject) => {
       this.requests.push(async () => {
         try {
           const response = await request();
@@ -34,7 +39,9 @@ class LocalazyRequestProcessor {
         }
       });
 
-      this.processRequests();
+      // Intentionally fire-and-forget: addRequest returns a Promise that resolves when
+      // the queued request completes; the processor loop runs concurrently.
+      void this.processRequests();
     });
   }
 
@@ -85,24 +92,24 @@ class LocalazyRequestProcessor {
 
     this.processing = false;
 
-    // Process any queued requests
+    // Process any queued requests. Recursive fire-and-forget continues the loop.
     if (this.requests.length > 0) {
-      this.processRequests();
+      void this.processRequests();
     }
   }
 
-  private createResolveFunction(): (value?: any) => void {
-    let resolveFn: (value?: any) => void;
-    const promise = new Promise<any>((resolve) => {
+  private createResolveFunction(): (value?: unknown) => void {
+    let resolveFn: (value?: unknown) => void;
+    const promise = new Promise<unknown>((resolve) => {
       resolveFn = resolve;
     });
     promise.catch(() => {}); // Ignore unhandled promise rejection warnings
     return resolveFn!;
   }
 
-  private createRejectFunction(): (reason?: any) => void {
-    let rejectFn: (reason?: any) => void;
-    const promise = new Promise<any>((_, reject) => {
+  private createRejectFunction(): (reason?: unknown) => void {
+    let rejectFn: (reason?: unknown) => void;
+    const promise = new Promise<unknown>((_, reject) => {
       rejectFn = reject;
     });
     promise.catch(() => {}); // Ignore unhandled promise rejection warnings
@@ -138,5 +145,20 @@ export class LocalazyApiThrottleService {
   static async updateKey(token: string, options: KeyUpdateRequest) {
     this.localazyApi = getLocalazyApi(token);
     return localazyRequestProcessor.addRequest(() => this.localazyApi.keys.update(options));
+  }
+
+  static async listWebhooks(token: string, options: WebhooksListRequest) {
+    this.localazyApi = getLocalazyApi(token);
+    return localazyRequestProcessor.addRequest(() => this.localazyApi.webhooks.list(options));
+  }
+
+  static async updateWebhooks(token: string, options: WebhooksUpdateRequest) {
+    this.localazyApi = getLocalazyApi(token);
+    return localazyRequestProcessor.addRequest(() => this.localazyApi.webhooks.update(options));
+  }
+
+  static async getWebhookSecret(token: string, options: WebhooksGetSecretRequest) {
+    this.localazyApi = getLocalazyApi(token);
+    return localazyRequestProcessor.addRequest(() => this.localazyApi.webhooks.getSecret(options));
   }
 }

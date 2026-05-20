@@ -36,14 +36,11 @@ export class ExportToLocalazyCommonService {
   }
 
   static getDirectusSourceLanguageAsLocalazyLanguage(data: GetDirectusSourceLanguageAsLocalazyLanguage) {
-    return DirectusLocalazyAdapter
-      .mapDirectusToLocalazySourceLanguage(data.localazySourceLanguage, data.directusSourceLanguage);
+    return DirectusLocalazyAdapter.mapDirectusToLocalazySourceLanguage(data.localazySourceLanguage, data.directusSourceLanguage);
   }
 
   static getPayloadForUploadAnalytics(payload: TrackUploadToLocalazy) {
-    const {
-      localazyProject, settings, languages, orgId,
-    } = payload;
+    const { localazyProject, settings, languages, orgId } = payload;
     return {
       orgId,
       userId: payload.userId,

@@ -10,19 +10,28 @@
   <br>
 </p>
 
-# 📦 
+# 📦 Directus Extension Localazy
 
 > Turn translation of your Directus project into a seamless experience.
 
 ![](https://directus9.localazy.com/assets/c3b607ba-e8bb-4ab1-9bda-f51e2b03fed1)
 
 ## 📄 Prerequisites
-- Directus `^10.10.0`+
+
+- Directus 11+ (see compatibility table below).
 - [Your project is set up for translations](https://docs.directus.io/guides/headless-cms/content-translations.html)
+
+## 🧭 Compatibility
+
+| Extension version | Directus   | Notes                                                                                                      |
+| ----------------- | ---------- | ---------------------------------------------------------------------------------------------------------- |
+| `2.x`             | `^11.0.0`  | Current.                                                                                                   |
+| `1.x`             | `^10.10.0` | Frozen. Pin with `npm install @localazy/directus-extension-localazy@^1` if you can't upgrade Directus yet. |
 
 ## 🔧 Install
 
 ### Via Marketplace
+
 Visit Directus's [Marketplace](https://docs.directus.io/extensions/marketplace/publishing.html) in your instance and search for _Localazy_.
 
 ### Manually
@@ -44,6 +53,7 @@ npm install @localazy/directus-extension-localazy
 - [Articles about the Localazy API](https://localazy.com/tags/api) -->
 
 ## Automatically Upload Content
+
 To automatically synchronize your content from Directus to Localazy, see [Directus Extension Localazy Automation](https://github.com/localazy/directus-extension-localazy/blob/main/extensions/sync-hook)
 
 ## 🛟 Support
@@ -58,10 +68,10 @@ team@localazy.com.
 Check out other npm packages from Localazy:
 
 | NPM package                                                                      | Description                                  |
-|:--------------------------------------------------------------------------------------|----------------------------------------------|
+| :------------------------------------------------------------------------------- | -------------------------------------------- |
 | [@localazy/cli](https://www.npmjs.com/package/@localazy/cli)                     | Localazy CLI tool.                           |
-| [@localazy/api-client](https://www.npmjs.com/package/@localazy/api-client)           | Localazy API client.                         |
+| [@localazy/api-client](https://www.npmjs.com/package/@localazy/api-client)       | Localazy API client.                         |
 | [@localazy/languages](https://www.npmjs.com/package/@localazy/languages)         | List of all languages supported by Localazy. |
-[@localazy/strapi-plugin](https://www.npmjs.com/package/@localazy/strapi-plugin) | The official Localazy Strapi plugin.         |
+| [@localazy/strapi-plugin](https://www.npmjs.com/package/@localazy/strapi-plugin) | The official Localazy Strapi plugin.         |
 
 Discover all available [integration options and localization examples](https://github.com/localazy).

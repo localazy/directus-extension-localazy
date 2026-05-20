@@ -1,0 +1,88 @@
+<template>
+  <span class="status-label" :class="statusClass">
+    {{ label }}
+  </span>
+</template>
+
+<script lang="ts" setup>
+import { computed } from 'vue';
+
+const props = defineProps<{ status: string }>();
+
+/**
+ * Maps the persisted status string (free string by design — see
+ * `common/models/collections-data/sync-log.ts`) to a colour + label.
+ * Unknown statuses fall through to the neutral style so a future status
+ * doesn't render blank.
+ */
+const label = computed(() => {
+  switch (props.status) {
+    case 'in_progress':
+      return 'In progress';
+    case 'completed':
+      return 'Completed';
+    case 'failed':
+      return 'Failed';
+    case 'partial':
+      return 'Completed (errors)';
+    case 'aborted':
+      return 'Aborted';
+    case 'skipped':
+      return 'Skipped';
+    default:
+      return props.status;
+  }
+});
+
+const statusClass = computed(() => {
+  switch (props.status) {
+    case 'in_progress':
+      return 'status-warning';
+    case 'completed':
+      return 'status-success';
+    case 'failed':
+      return 'status-danger';
+    case 'partial':
+      return 'status-warning';
+    case 'aborted':
+      // Pre-write abort (e.g. fetch from Localazy failed before the upsert step). Read
+      // visually as "didn't complete" — same danger styling as `failed`, distinct label.
+      return 'status-danger';
+    case 'skipped':
+      return 'status-neutral';
+    default:
+      return 'status-neutral';
+  }
+});
+</script>
+
+<style lang="scss" scoped>
+.status-label {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--theme--border-radius);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.status-success {
+  background: var(--success-25, rgba(46, 184, 124, 0.12));
+  color: var(--theme--success);
+}
+
+.status-warning {
+  background: var(--warning-25, rgba(255, 167, 38, 0.15));
+  color: var(--theme--warning);
+}
+
+.status-danger {
+  background: var(--danger-25, rgba(231, 76, 60, 0.12));
+  color: var(--theme--danger);
+}
+
+.status-neutral {
+  background: var(--theme--background-subdued);
+  color: var(--theme--foreground);
+}
+</style>

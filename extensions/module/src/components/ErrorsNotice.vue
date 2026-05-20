@@ -1,21 +1,16 @@
 <template>
   <div>
-    <v-notice type="danger" v-if="hasLocalazyErrors">
+    <v-notice v-if="hasLocalazyErrors" type="danger">
       <div class="message">
         <div>
           <h2>{{ title }}</h2>
           <div>{{ helpMessage }}</div>
         </div>
 
-        <v-button
-          v-if="currentError.type === 'project'"
-          small
-          @click="onReconnect"
-          :loading="hydrating">Reconnect to Localazy
-        </v-button>
+        <v-button v-if="currentError.type === 'project'" small :loading="hydrating" @click="onReconnect">Reconnect to Localazy </v-button>
       </div>
     </v-notice>
-    <v-notice type="danger" v-if="hasDirectusErrors">
+    <v-notice v-if="hasDirectusErrors" type="danger">
       <div class="messages">
         <div v-for="(directusError, index) in directusErrors" :key="index" class="message">
           <div>
@@ -42,17 +37,13 @@ const props = defineProps({
   },
 });
 
-const {
-  localazyErrors, directusErrors, hasLocalazyErrors, hasDirectusErrors,
-} = storeToRefs(useErrorsStore());
+const { localazyErrors, directusErrors, hasLocalazyErrors, hasDirectusErrors } = storeToRefs(useErrorsStore());
 const { clearDirectusError } = useErrorsStore();
 const { hydrateLocalazyData } = useLocalazyStore();
 const { hydrating } = storeToRefs(useLocalazyStore());
 
 const currentError = computed(() => {
-  const {
-    project, file, import: importErrors, export: exportErrors,
-  } = localazyErrors.value;
+  const { project, file, import: importErrors, export: exportErrors } = localazyErrors.value;
 
   if (project.length > 0) {
     return {
@@ -111,22 +102,20 @@ const helpMessage = computed(() => {
 async function onReconnect() {
   await hydrateLocalazyData({ force: true, localazyData: props.localazyData });
 }
-
 </script>
 
 <style scoped lang="scss">
-  .messages {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    gap: 8px;
-  }
+.messages {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 8px;
+}
 
-  .message {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-  }
-
+.message {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
 </style>

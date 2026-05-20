@@ -8,7 +8,7 @@
     flex-direction: column;
   }
 
-  .items-center{
+  .items-center {
     align-items: center;
   }
 
@@ -16,12 +16,11 @@
     justify-content: space-between;
   }
 
-
   // Font
   .font-normal {
     font-weight: 400;
   }
-  
+
   .font-medium {
     font-weight: 500;
   }
@@ -33,20 +32,20 @@
 
   // Background
   .bg-success {
-    background-color: var(--success);
+    background-color: var(--theme--success);
   }
 
   .bg-danger {
-    background-color: var(--danger);
+    background-color: var(--theme--danger);
   }
 
   .bg-warning {
-    background-color: var(--warning);
+    background-color: var(--theme--warning);
   }
 
-  // Colors 
+  // Colors
   .text-foreground-normal {
-    color: var(--foreground-normal);
+    color: var(--theme--foreground);
   }
 
   // Width
@@ -67,7 +66,7 @@
     height: 1rem;
   }
 
-  // margins 
+  // margins
   .mr-4 {
     margin-right: 1rem;
   }

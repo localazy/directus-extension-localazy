@@ -26,25 +26,25 @@
     "type": "module",
     "path": "dist/index.js",
     "source": "src/index.ts",
-    "host": "^10.10.0"
+    "host": "^11.0.0"
   },
   "scripts": {
-    "build": "directus-extension build",
-    "lint": "eslint --ext .ts,.vue src"
+    "build": "directus-extension build"
   },
   "dependencies": {
     "@localazy/api-client": "^2.1.5",
-    "@localazy/generic-connector-client": "^0.2.3",
-    "@localazy/languages": "^1.0.0",
-    "@vueuse/core": "^10.2.1",
-    "pinia": "^2.1.4"
+    "@localazy/generic-connector-client": "^0.4.0",
+    "@localazy/languages": "^2.0.0",
+    "lodash": "^4.17.21",
+    "pinia": "^2.3.1"
   },
   "devDependencies": {
-    "@directus/constants": "^12.0.1",
-    "@directus/extensions-sdk": "^12.1.4",
+    "@directus/extensions-sdk": "^17.1.4",
+    "@directus/types": "^15.0.0",
     "@types/lodash": "^4.14.195",
     "sass": "^1.63.6",
-    "typescript": "^5.4.5",
-    "vue": "^3.4.27"
+    "typescript": "^5.9.3",
+    "vue": "^3.5.0",
+    "vue-router": "^4.4.0"
   }
 }

@@ -1,4 +1,3 @@
-/* eslint-disable class-methods-use-this */
 import { Item } from '@directus/types';
 import { TranslationString } from '../models/translation-string';
 import { Settings } from '../models/collections-data/settings';
@@ -70,11 +69,11 @@ export class TranslationStringsService {
       try {
         const result = await this.directusApi.fetchTranslationStrings();
         translationStrings = this.normalizeDirectus10TranslationStrings(result as Directus10TranslationApiResult[]);
-      } catch (e: any) {
+      } catch (_e: unknown) {
         try {
           translationStrings = await this.fetchTranslationStringsFromSettings();
           return translationStrings;
-        } catch (e2: any) {
+        } catch (_e2: unknown) {
           return [];
         }
       }
@@ -88,14 +87,12 @@ export class TranslationStringsService {
   async upsertLegacyTranslationStrings(data: LocalazyTranslationStringBlock[]) {
     const result = await this.directusApi.fetchSettings();
     if (result) {
-      const translationStrings: TranslationString[] = Array.isArray(result.translation_strings)
-        ? result.translation_strings
-        : [];
+      const translationStrings: TranslationString[] = Array.isArray(result.translation_strings) ? result.translation_strings : [];
 
       const payloadMap = new Map();
 
       translationStrings.forEach((item) => {
-        const existingKey: Omit<LocalazyTranslationStringBlock, 'localazyKey'> = payloadMap.get(item.key) || {
+        const existingKey: Omit<LocalazyTranslationStringBlock, 'localazyKeys' | 'directusId'> = payloadMap.get(item.key) || {
           key: item.key,
           translations: {},
         };
@@ -134,9 +131,7 @@ export class TranslationStringsService {
   async upsertNewTranslationStrings(data: LocalazyTranslationStringBlock[]) {
     const result = await this.directusApi.fetchTranslationStrings();
 
-    const translationStrings: Directus10TranslationApiResult[] = Array.isArray(result)
-      ? result as Directus10TranslationApiResult[]
-      : [];
+    const translationStrings: Directus10TranslationApiResult[] = Array.isArray(result) ? (result as Directus10TranslationApiResult[]) : [];
 
     const existingStrings: Directus10TranslationApiResult[] = [];
     const newStrings: Omit<Directus10TranslationApiResult, 'id'>[] = [];

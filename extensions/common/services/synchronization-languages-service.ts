@@ -1,4 +1,3 @@
-/* eslint-disable class-methods-use-this */
 import { getLocalazyLanguages } from '@localazy/languages';
 import { Language, Project } from '@localazy/api-client';
 import { uniqWith } from 'lodash';
@@ -6,7 +5,13 @@ import { DirectusApi } from '../interfaces/directus-api';
 import { CreateMissingLanguagesInDirectus } from '../enums/create-missing-languages-in-directus';
 import { Settings } from '../models/collections-data/settings';
 import { DirectusLocalazyLanguage } from '../models/directus-localazy-language';
+import { pickLanguageName } from '../utilities/language-display';
 import { DirectusLocalazyAdapter } from './directus-localazy-adapter';
+
+export type DirectusLanguageRow = {
+  code: string;
+  name: string | null;
+};
 
 type GetDirectusSourceLanguageAsLocalazyLanguage = {
   localazySourceLanguage: number;
@@ -24,25 +29,42 @@ export class SynchronizationLanguagesService {
     const result = await this.directusApi.fetchDirectusItems(languageCollection, {
       fields: [languageCodeField],
     });
-    return result.map((item: any) => item[languageCodeField]);
+    return result.map((item) => item[languageCodeField] as string);
+  }
+
+  async fetchDirectusLanguageRows(languageCollection: string, languageCodeField: string): Promise<DirectusLanguageRow[]> {
+    const result = await this.directusApi.fetchDirectusItems(languageCollection, {
+      fields: ['*'],
+    });
+    return result
+      .map((item) => {
+        const code = item[languageCodeField];
+        if (typeof code !== 'string' || code.length === 0) return null;
+        return { code, name: pickLanguageName(item as Record<string, unknown>) };
+      })
+      .filter((row): row is DirectusLanguageRow => row !== null);
   }
 
   async createLanguages(settings: Settings, localazyLanguages: Language[]) {
     const { language_code_field, language_collection } = settings;
-    localazyLanguages.forEach(async (language) => {
+    // for...of awaits each creation properly (forEach(async ...) fires-and-forgets) and
+    // routes the Localazy code through the adapter so any custom mapping wins over the
+    // default `_` → `-` swap.
+    for (const language of localazyLanguages) {
+      const directusCode = DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(language.code);
       await this.directusApi.createDirectusItem(language_collection, {
-        [language_code_field]: language.code,
+        [language_code_field]: directusCode,
         name: language.name,
       });
-    });
+    }
   }
 
   async resolveImportLanguages(settings: Settings, localazyProject: Project): Promise<DirectusLocalazyLanguage[]> {
+    DirectusLocalazyAdapter.initializeMappings(settings.language_mappings || '[]');
     const { language_code_field, language_collection, import_source_language } = settings;
     const directusLanguages = await this.fetchDirectusLanguages(language_collection, language_code_field);
     const localazyLanguages = localazyProject.languages || [];
-    const localazySourceLanguage = getLocalazyLanguages()
-      .find((lang) => lang.localazyId === localazyProject.sourceLanguage)?.locale || '';
+    const localazySourceLanguage = getLocalazyLanguages().find((lang) => lang.localazyId === localazyProject.sourceLanguage)?.locale || '';
 
     const directusExpandedLangauges = directusLanguages.map((directusLanguage) => ({
       originalForm: directusLanguage,
@@ -67,16 +89,26 @@ export class SynchronizationLanguagesService {
     if (settings.create_missing_languages_in_directus !== CreateMissingLanguagesInDirectus.NO) {
       const localazyLanguagesNotInDirectus = localazyLanguages
         .filter((l) => !directusExpandedLangauges.some((directusLanguage) => directusLanguage.localazyForm === l.code))
-        .filter((l: any) => settings.create_missing_languages_in_directus === CreateMissingLanguagesInDirectus.ALL || l.enabled);
+        // Note: `enabled` isn't on @localazy/api-client's Language type. At runtime this
+        // access is always undefined, so the filter effectively only lets languages through
+        // when create_missing_languages_in_directus === ALL. Preserving existing behavior;
+        // the underlying "filter by enabled" logic was already inert.
+        .filter(
+          (l) =>
+            settings.create_missing_languages_in_directus === CreateMissingLanguagesInDirectus.ALL || (l as { enabled?: boolean }).enabled,
+        );
       await this.createLanguages(settings, localazyLanguagesNotInDirectus);
     }
 
     if (!import_source_language) {
-      importLanguages = importLanguages.filter((l) => DirectusLocalazyAdapter.mapLocalazyToDirectusSourceLanguage(
-        l.originalForm,
-        localazyProject.sourceLanguage,
-        settings.source_language,
-      ) !== settings.source_language);
+      importLanguages = importLanguages.filter(
+        (l) =>
+          DirectusLocalazyAdapter.mapLocalazyToDirectusSourceLanguage(
+            l.originalForm,
+            localazyProject.sourceLanguage,
+            settings.source_language,
+          ) !== settings.source_language,
+      );
     } else {
       importLanguages = importLanguages.map((l) => {
         if (l.localazyForm === localazySourceLanguage) {
@@ -94,9 +126,8 @@ export class SynchronizationLanguagesService {
   }
 
   async resolveExportLanguages(settings: Settings) {
-    const {
-      language_code_field, language_collection, source_language, upload_existing_translations,
-    } = settings;
+    DirectusLocalazyAdapter.initializeMappings(settings.language_mappings || '[]');
+    const { language_code_field, language_collection, source_language, upload_existing_translations } = settings;
     const exportLanguages = upload_existing_translations
       ? await this.fetchDirectusLanguages(language_collection, language_code_field)
       : [source_language];
@@ -105,7 +136,6 @@ export class SynchronizationLanguagesService {
   }
 
   static getDirectusSourceLanguageAsLocalazyLanguage(data: GetDirectusSourceLanguageAsLocalazyLanguage) {
-    return DirectusLocalazyAdapter
-      .mapDirectusToLocalazySourceLanguage(data.localazySourceLanguage, data.directusSourceLanguage);
+    return DirectusLocalazyAdapter.mapDirectusToLocalazySourceLanguage(data.localazySourceLanguage, data.directusSourceLanguage);
   }
 }

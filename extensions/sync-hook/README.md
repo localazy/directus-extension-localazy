@@ -14,10 +14,31 @@
 
 > Enhance your experience of [Directus Extension Localazy](https://github.com/localazy/directus-extension-localazy) by automating synchronization of your content whenever you make a change in Directus. No more manual uploading.
 
-## 📄 Prerequisites
-- Installed & enabled [Directus Extension Localazy](https://github.com/localazy/directus-extension-localazy/tree/main/extensions/module)
-- Directus `^10.10.0`+
+## ⚠️ Installation requirements
 
+This extension is a **non-sandboxed Directus bundle** (a hook child plus a small endpoint child the module pings to detect whether the bundle is installed) — it uses Directus' `ItemsService` and `FieldsService` directly to read and modify your translatable content. Non-sandboxed extensions are not installed via the Marketplace by default.
+
+**Before installing, set this in your Directus configuration:**
+
+```env
+MARKETPLACE_TRUST=all
+```
+
+Without it, the Marketplace install will fail silently. After setting it, restart Directus, then search the Marketplace for _Localazy_.
+
+If you prefer to install manually (via `npm install`), this flag is **not** required — manual installs bypass the Marketplace sandbox check entirely.
+
+## 📄 Prerequisites
+
+- Installed & enabled [Directus Extension Localazy](https://github.com/localazy/directus-extension-localazy/tree/main/extensions/module).
+- Directus 11+ (see compatibility table below).
+
+## 🧭 Compatibility
+
+| Extension version | Directus   | Notes                                                                                                                 |
+| ----------------- | ---------- | --------------------------------------------------------------------------------------------------------------------- |
+| `2.x`             | `^11.0.0`  | Current.                                                                                                              |
+| `1.x`             | `^10.10.0` | Frozen. Pin with `npm install @localazy/directus-extension-localazy-automation@^1` if you can't upgrade Directus yet. |
 
 ## 🔧 Install
 
@@ -29,9 +50,8 @@ npm install @localazy/directus-extension-localazy-automation
 ```
 
 ### Via Marketplace
-This hook extension needs to be able to add configuration collections, add and modify your translatable content. For this reason, it is considered to be a [Non-Sandboxed Extension](https://docs.directus.io/extensions/marketplace/publishing.html#extension-types) and thus is not listed in Directus' marketplace by default.
 
-In order to be able to activate the extension via Marketplace, you need to add `MARKETPLACE_TRUST: 'all'` to your [configuration](https://docs.directus.io/self-hosted/config-options.html). Afterwards you'll be able to find the extension in the Marketplace by searching for _Localazy_.
+See [Installation requirements](#%EF%B8%8F-installation-requirements) at the top of this README — `MARKETPLACE_TRUST=all` must be set in your Directus configuration before the Marketplace will show this extension. Then search for _Localazy_.
 
 ## 📚 Documentation
 
@@ -56,10 +76,10 @@ team@localazy.com.
 Check out other npm packages from Localazy:
 
 | NPM package                                                                      | Description                                  |
-|:--------------------------------------------------------------------------------------|----------------------------------------------|
+| :------------------------------------------------------------------------------- | -------------------------------------------- |
 | [@localazy/cli](https://www.npmjs.com/package/@localazy/cli)                     | Localazy CLI tool.                           |
-| [@localazy/api-client](https://www.npmjs.com/package/@localazy/api-client)           | Localazy API client.                         |
+| [@localazy/api-client](https://www.npmjs.com/package/@localazy/api-client)       | Localazy API client.                         |
 | [@localazy/languages](https://www.npmjs.com/package/@localazy/languages)         | List of all languages supported by Localazy. |
-[@localazy/strapi-plugin](https://www.npmjs.com/package/@localazy/strapi-plugin) | The official Localazy Strapi plugin.         |
+| [@localazy/strapi-plugin](https://www.npmjs.com/package/@localazy/strapi-plugin) | The official Localazy Strapi plugin.         |
 
 Discover all available [integration options and localization examples](https://github.com/localazy).

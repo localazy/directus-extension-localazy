@@ -1,8 +1,6 @@
-/* eslint-disable class-methods-use-this */
 import { uniqWith } from 'lodash';
-import { Locales, Project } from '@localazy/api-client';
+import { Key, Locales, Project } from '@localazy/api-client';
 import { LocalazyApiThrottleService } from '../../../common/services/localazy-api-throttle-service';
-// import { trackLocalazyError } from '../functions/track-error';
 import { DirectusLocalazyLanguage } from '../../../common/models/directus-localazy-language';
 import { ContentFromLocalazyService } from './content-from-localazy-service';
 import { EnabledField } from '../../../common/models/collections-data/content-transfer-setup';
@@ -15,6 +13,14 @@ type FetchContentInLanguage = {
   access_token: string;
 };
 
+/**
+ * Reduces a per-language keys list immediately after fetch, before the
+ * `ContentFromLocalazyService` parser runs. Used by the incremental-sync flow to drop
+ * keys that haven't changed since the last sync (cursor-filtered). When omitted the
+ * service behaves as before — pass-through everything.
+ */
+type FilterKeysForLanguage = (language: string, keys: Key[]) => Key[];
+
 type ImportContentFromLocalazy = {
   languages: DirectusLocalazyLanguage[];
   enabledFields: EnabledField[];
@@ -24,7 +30,13 @@ type ImportContentFromLocalazy = {
   progressCallbacks: {
     nothingToImport: () => void;
     couldNotFetchContent: (language: string) => void;
-  }
+  };
+
+  /**
+   * Optional. Called per language with the raw key list straight from Localazy; returns
+   * the subset that should reach the parser. The default (no filter) keeps every key.
+   */
+  filterKeysForLanguage?: FilterKeysForLanguage;
 };
 
 type ImportContentFromLocalazySuccessReturn = {
@@ -40,9 +52,7 @@ type ImportContentFromLocalazyReturn = ImportContentFromLocalazySuccessReturn | 
 
 class ImportFromLocalazyService {
   async importContentFromLocalazy(data: ImportContentFromLocalazy): Promise<ImportContentFromLocalazyReturn> {
-    const {
-      languages, enabledFields, progressCallbacks, localazyProject, localazyData,
-    } = data;
+    const { languages, enabledFields, progressCallbacks, localazyProject, localazyData, filterKeysForLanguage } = data;
 
     const uniqueLocalazyFormLanguages = uniqWith(languages, (a, b) => a.localazyForm === b.localazyForm);
     const directusFile = await this.loadFile(localazyData.access_token, localazyProject?.id || '');
@@ -53,18 +63,29 @@ class ImportFromLocalazyService {
     }
 
     if (localazyProject && directusFile) {
-      const sourceKeysPerLanguage = (await Promise.all(uniqueLocalazyFormLanguages
-        .map((lang) => this.fetchContentInLanguage({
-          lang,
-          directusFileId: directusFile.id,
-          localazyProject,
-          access_token: localazyData.access_token,
-        }, progressCallbacks))))
-        .flat();
+      const sourceKeysPerLanguage = await Promise.all(
+        uniqueLocalazyFormLanguages.map((lang) =>
+          this.fetchContentInLanguage(
+            {
+              lang,
+              directusFileId: directusFile.id,
+              localazyProject,
+              access_token: localazyData.access_token,
+            },
+            progressCallbacks,
+          ),
+        ),
+      );
+
+      // Apply the cursor filter (if any) immediately after fetch and before the parser —
+      // the parser shouldn't know or care about incremental sync.
+      const filtered = filterKeysForLanguage
+        ? sourceKeysPerLanguage.map(({ language, keys }) => ({ language, keys: filterKeysForLanguage(language, keys) }))
+        : sourceKeysPerLanguage;
 
       return {
         success: true,
-        content: ContentFromLocalazyService.parseLocalazyContent(sourceKeysPerLanguage, enabledFields),
+        content: ContentFromLocalazyService.parseLocalazyContent(filtered, enabledFields),
       };
     }
     return { success: false };
@@ -74,33 +95,30 @@ class ImportFromLocalazyService {
     if (!token) {
       return null;
     }
-
-    if (token) {
-      try {
-        const files = await LocalazyApiThrottleService.listFiles(token, {
-          project: projectId,
-        });
-        return files.find((file) => file.name === 'directus.json') || null;
-      } catch (e: any) {
-        // trackLocalazyError(e, 'loadFile');
-        return null;
-      }
-    } else {
+    try {
+      const files = await LocalazyApiThrottleService.listFiles(token, {
+        project: projectId,
+      });
+      return files.find((file) => file.name === 'directus.json') || null;
+    } catch {
       return null;
     }
   }
 
   private async fetchContentInLanguage(data: FetchContentInLanguage, progressCallbacks: ImportContentFromLocalazy['progressCallbacks']) {
-    const {
-      lang, directusFileId, localazyProject, access_token,
-    } = data;
+    const { lang, directusFileId, localazyProject, access_token } = data;
+    // `event: true` makes Localazy include the per-key modification `event` number on the
+    // response, which the cursor filter uses to drop already-synced keys. The API ignores
+    // the flag when the server doesn't support it, and the cursor's safe-mode rule
+    // (undefined event = always include) means we degrade gracefully.
     const keys = await LocalazyApiThrottleService.listAllKeysInFileForLanguage(access_token, {
       project: localazyProject.id,
       file: directusFileId,
       lang: lang.localazyForm as Locales,
+      event: true,
     }).catch((e) => {
       progressCallbacks.couldNotFetchContent(lang.directusForm);
-      throw (e);
+      throw e;
     });
     return {
       language: lang.directusForm,

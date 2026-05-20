@@ -2,122 +2,75 @@
   <div>
     <div class="form grid">
       <div class="half">
-        <p class="type-label">Automated upload to Localazy</p>
-        <v-select
-          v-model="localEdits.automated_upload"
-          :items="automatedUploadOptions"
-        />
-
-      </div>
-      <div class="half-right">
-        <p class="configuration-description note">
-          When enabled, content will be automatically uploaded to Localazy after its creation or update in Directus.
-        </p>
-      </div>
-
-      <div class="half">
-        <p class="type-label">Automated deprecation of Localazy source keys on deletion</p>
-        <v-select
-          v-model="localEdits.automated_deprecation"
-          :items="automatedDeprecationOptions"
-        />
-
-      </div>
-      <div class="half-right">
-        <p class="configuration-description note">
-          When enabled, Localazy source keys will be automatically set as
-          <a href="https://localazy.com/faq/localazy/what-is-the-difference-between-hidden-and-deprecated-source-keys" target="_blank">
-            deprecated
-          </a>
-          if an entry in source language is deleted in Directus.
-        </p>
-      </div>
-
-      <div class="half">
         <p class="type-label">Source language synchronization</p>
-        <v-select
-          v-model="localEdits.import_source_language"
-          :items="importSourceLanguageOptions"
-        />
-
+        <v-select v-model="localEdits.import_source_language" :items="importSourceLanguageOptions" />
       </div>
       <div class="half-right">
         <p class="configuration-description note">
-          When enabled, the import process will update the source language values in Directus. <br>
+          When enabled, the import process will update the source language values in Directus. <br />
           You can choose either Directus or Localazy as the "Source of Truth" for modifying existing values to avoid conflicts.
         </p>
       </div>
 
       <div class="half">
         <p class="type-label">Export translations from Directus</p>
-        <v-select
-          v-model="localEdits.upload_existing_translations"
-          :items="uploadExistingTranslationsOptions"
-        />
-
+        <v-select v-model="localEdits.upload_existing_translations" :items="uploadExistingTranslationsOptions" />
       </div>
       <div class="half-right">
         <p class="configuration-description note">
-          Enable the option to export all translation values from Directus,
-          including content in languages other than the source language.<br>
+          Enable the option to export all translation values from Directus, including content in languages other than the source
+          language.<br />
           It is recommended to turn this feature on only for the initial synchronization and then disable it to speed up the export process.
         </p>
       </div>
 
       <div class="half">
         <p class="type-label">Empty values</p>
-        <v-select
-          v-model="localEdits.skip_empty_strings"
-          :items="skipEmptyStringsOptions"
-        />
-
+        <v-select v-model="localEdits.skip_empty_strings" :items="skipEmptyStringsOptions" />
       </div>
       <div class="half-right">
         <p class="configuration-description note">
-          Choose whether to upload empty values. <br>
-          This is useful when <span class="bold">Source language synchronization</span> is turned on since
-          this allows you to finalize the source language content in Localazy.
+          Choose whether to upload empty values. <br />
+          This is useful when <span class="bold">Source language synchronization</span> is turned on since this allows you to finalize the
+          source language content in Localazy.
         </p>
       </div>
 
       <div class="half">
         <p class="type-label">Synchronize Localazy languages</p>
-        <v-select
-          v-model="localEdits.create_missing_languages_in_directus"
-          :items="directusMissingLanguagesOptions"
-        />
-
+        <v-select v-model="localEdits.create_missing_languages_in_directus" :items="directusMissingLanguagesOptions" />
       </div>
       <div class="half-right">
         <p class="configuration-description note">
           Automatically create missing languages in Directus when importing translations from Localazy.
         </p>
       </div>
+
+      <LanguageMappingsEditor
+        v-model="localEdits.language_mappings"
+        v-model:valid="mappingsValid"
+        :language-collection="localEdits.language_collection"
+        :language-code-field="localEdits.language_code_field"
+      />
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { PropType, computed, ref } from 'vue';
+import { ref } from 'vue';
 import { Item } from '@directus/types';
 import { Settings } from '../../../../common/models/collections-data/settings';
 import { CreateMissingLanguagesInDirectus } from '../../../../common/enums/create-missing-languages-in-directus';
+import LanguageMappingsEditor from './LanguageMappingsEditor.vue';
 
-const props = defineProps({
-  edits: {
-    type: Object as PropType<Settings>,
-    required: true,
-  },
+const localEdits = defineModel<Settings>('edits', { required: true });
+const mappingsValid = defineModel<boolean>('mappingsValid', { default: true });
+
+defineProps({
   collection: {
     type: String,
     required: true,
   },
-});
-
-const emit = defineEmits(['update:edits']);
-const localEdits = computed<Settings>({
-  get: () => props.edits,
-  set: (value) => emit('update:edits', value),
 });
 
 const importSourceLanguageOptions = ref<Item[]>([
@@ -167,33 +120,10 @@ const directusMissingLanguagesOptions = ref<Item[]>([
     value: CreateMissingLanguagesInDirectus.NO,
   },
 ]);
-
-const automatedUploadOptions = ref<Item[]>([
-  {
-    text: 'Allow automated upload',
-    value: true,
-  },
-  {
-    text: 'Disable automated upload',
-    value: false,
-  },
-]);
-
-const automatedDeprecationOptions = ref<Item[]>([
-  {
-    text: 'Allow automated deprecation',
-    value: true,
-  },
-  {
-    text: 'Disable automated deprecation',
-    value: false,
-  },
-]);
-
 </script>
 
 <style lang="scss" scoped>
-@import '../../styles/mixins/form-grid';
+@use '../../styles/mixins/form-grid' as *;
 .form {
   @include form-grid;
   max-width: 1300px;
@@ -226,7 +156,7 @@ const automatedDeprecationOptions = ref<Item[]>([
   font-style: italic;
   font-size: 13px;
   line-height: 18px;
-  color: var(--foreground-normal);
+  color: var(--theme--foreground);
 
   & a {
     text-decoration: underline;

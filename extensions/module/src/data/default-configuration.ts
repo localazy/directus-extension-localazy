@@ -1,4 +1,5 @@
 import { CreateMissingLanguagesInDirectus } from '../../../common/enums/create-missing-languages-in-directus';
+import { CURSOR_VERSION } from '../../../common/models/collections-data/sync-state';
 import { Configuration } from '../models/configuration';
 
 export const defaultConfiguration = (): Configuration => ({
@@ -13,6 +14,11 @@ export const defaultConfiguration = (): Configuration => ({
     import_source_language: false,
     skip_empty_strings: true,
     create_missing_languages_in_directus: CreateMissingLanguagesInDirectus.ONLY_NON_HIDDEN,
+    language_mappings: '[]',
+    activity_logs_sort: '{}',
+    automated_import: false,
+    automated_import_user: null,
+    automated_import_languages: '[]',
   },
   content_transfer_setup: {
     enabled_fields: '[]',
@@ -26,5 +32,19 @@ export const defaultConfiguration = (): Configuration => ({
     project_url: '',
     project_name: '',
     org_id: '',
+  },
+  sync_state: {
+    processed_keys: '{}',
+    uploaded_hashes: '{}',
+    cursor_project_id: '',
+    cursor_version: CURSOR_VERSION,
+    last_sync_at: null,
+    sync_in_progress: false,
+    sync_started_at: null,
+    sync_initiator: '',
+    sync_pending: false,
+    sync_items_processed: 0,
+    sync_last_heartbeat_at: null,
+    acquired_token: '',
   },
 });

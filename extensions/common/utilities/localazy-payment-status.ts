@@ -8,7 +8,7 @@ export class LocalazyPaymentStatus {
     return false;
   }
 
-  static lacksAccessToPlugin(localazyProject: Project| null) {
+  static lacksAccessToPlugin(localazyProject: Project | null) {
     if (localazyProject?.organization) {
       return !localazyProject.organization.figma;
     }

@@ -1,22 +1,19 @@
-/* eslint-disable no-use-before-define */
 import { sortBy, uniqWith } from 'lodash';
 import { computed } from 'vue';
 import { AppCollection } from '@directus/types';
-import { useStores } from '@directus/extensions-sdk';
-import { storeToRefs } from 'pinia';
 import { FieldsUtilsService } from '../../../common/utilities/fields-utils-service';
+import { useDirectusCollectionsStoreRefs, useDirectusFieldsStore } from './use-directus-stores';
 
 export const useCollectionsOrganizer = () => {
-  const { useCollectionsStore, useFieldsStore } = useStores();
-  const { allCollections } = storeToRefs(useCollectionsStore());
-  const { getFieldsForCollection } = useFieldsStore();
+  const { allCollections } = useDirectusCollectionsStoreRefs();
+  const { getFieldsForCollection } = useDirectusFieldsStore();
 
-  const collections = computed<AppCollection[]>(() => (
+  const collections = computed<AppCollection[]>(() =>
     sortBy(
       allCollections?.value.filter((c: AppCollection) => c.meta),
       ['meta.sort', 'collection'],
-    )
-  ));
+    ),
+  );
 
   const translatableCollections = computed(() => {
     const collectionsToTranslate: AppCollection[] = [];

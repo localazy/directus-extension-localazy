@@ -1,116 +1,60 @@
 <template>
-  <private-view>
-    <template #title-outer:prepend>
-      <v-button class="header-icon" rounded disabled icon secondary>
-        <v-icon name="lan" />
-      </v-button>
-    </template>
-
-    <template #title>
-      <h1 class="type-title">Project setup</h1>
-    </template>
-
+  <private-view title="Project setup" icon="lan">
     <template #headline>
       <v-breadcrumb :items="[{ name: 'Localazy', to: '/localazy' }]" />
     </template>
 
     <template #actions>
-      <v-button
-        class="panel-button"
-        @click="onSaveChanges"
-        :disabled="!changesExist"
-        :loading="hydrating || loading">Save changes
+      <v-button class="panel-button" :disabled="!changesExist" :loading="hydrating || saving" @click="onSaveChanges"
+        >Save changes
       </v-button>
     </template>
 
     <template #navigation>
       <Navigation />
     </template>
-    <div class="panel page" v-if="hydrated && hydratedDirectusData">
+    <div v-if="hydrated && installed" class="panel page">
       <errors-notice class="errors-notice" :localazy-data="localazyData" />
-      <project-setup-form
-        v-if="settingsCollection"
-        v-model:edits="settingsEdits"
-        v-model:localazy-data="localazyData"
-        :collection="settingsCollection.collection"
-        :localazy-data-collection="localazyDataCollection"
-      />
-
+      <project-setup-form v-model:edits="settingsEdits" :collection="settingsCollectionName" />
     </div>
-
   </private-view>
 </template>
 
 <script lang="ts" setup>
-import {
-  computed, ref, watch,
-} from 'vue';
-import {
-  cloneDeep, isEqual, merge,
-} from 'lodash';
-import { storeToRefs } from 'pinia';
-import { useStores } from '@directus/extensions-sdk';
-import { Settings } from '../../common/models/collections-data/settings';
+import { onBeforeMount } from 'vue';
 import ProjectSetupForm from './components/ProjectSetup/ProjectSetupForm.vue';
 import Navigation from './components/Navigation.vue';
-import { useLocalazyStore } from './stores/localazy-store';
-import { defaultConfiguration } from './data/default-configuration';
 import ErrorsNotice from './components/ErrorsNotice.vue';
-import { useDirectusApi } from './composables/use-directus-api';
-import { useHydrate } from './composables/use-hydrate';
+import { LOCALAZY_COLLECTIONS } from './stores/localazy-installer-store';
+import { useLocalazySettingsStore } from './stores/localazy-settings-store';
+import { useSingletonForm } from './composables/use-singleton-form';
+import { useLocalazyBoot } from './composables/use-localazy-boot';
+import { useDirectusNotificationsStore } from './composables/use-directus-stores';
+import { useUnsavedChangesGuard } from './composables/use-unsaved-changes-guard';
 
-type Configuration = {
-  settings: Settings;
-};
+const settingsCollectionName = LOCALAZY_COLLECTIONS.settings;
 
-const configuration = ref<Configuration>(defaultConfiguration());
-const settingsEdits = ref<Settings>(cloneDeep(configuration.value.settings));
-const loading = ref(false);
+const settingsStore = useLocalazySettingsStore();
+const { edits: settingsEdits, changesExist, save: saveSettings, loading: saving } = useSingletonForm(settingsStore);
 
-const { useNotificationsStore } = useStores();
-const notificationsStore = useNotificationsStore();
-const { upsertDirectusItem } = useDirectusApi();
-const localazyStore = useLocalazyStore();
-const {
-  hydrateLocalazyData,
-} = localazyStore;
-const {
-  hydrateDirectusData, localazyData, settings, settingsCollection, localazyDataCollection, hydratedDirectusData,
-} = useHydrate();
-const { hydrating, hydrated } = storeToRefs(localazyStore);
+useUnsavedChangesGuard(changesExist);
 
-watch(
-  settings,
-  (s) => {
-    configuration.value.settings = merge(configuration.value.settings, s);
-    settingsEdits.value = cloneDeep(configuration.value.settings);
-  },
-  { immediate: true, deep: true },
-);
+const notificationsStore = useDirectusNotificationsStore();
+const { installed, hydrating, hydrated, localazyData, boot } = useLocalazyBoot();
 
-hydrateDirectusData().then(() => {
-  hydrateLocalazyData({ localazyData });
+onBeforeMount(() => {
+  // Errors land in the errors store inside `boot()`; no need to await or handle here.
+  void boot();
 });
 
-const changesExist = computed(() => !isEqual(settingsEdits.value, configuration.value.settings));
-
 async function onSaveChanges() {
-  loading.value = true;
-  if (settingsCollection.value) {
-    await upsertDirectusItem(settingsCollection.value.collection, settings.value, settingsEdits.value, { ignoreEmpty: true });
-    configuration.value.settings = cloneDeep(settingsEdits.value);
-    notificationsStore.add({
-      title: 'Settings saved',
-    });
-    await hydrateDirectusData({ force: true });
-  }
-  loading.value = false;
+  await saveSettings();
+  notificationsStore.add({ title: 'Settings saved' });
 }
-
 </script>
 
 <style lang="scss" scoped>
-@import './styles/mixins/page';
+@use './styles/mixins/page' as *;
 
 .page {
   @include page;
