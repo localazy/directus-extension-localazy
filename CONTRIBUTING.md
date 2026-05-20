@@ -15,7 +15,6 @@ This is an npm-workspaces monorepo with three packages under `extensions/`:
 ## Prerequisites
 
 - Node 22 (see `.nvmrc`). With nvm: `nvm use`.
-- No Docker required — the dev loop uses a local Directus instance against SQLite.
 
 ## Install
 

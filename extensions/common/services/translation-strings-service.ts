@@ -63,25 +63,21 @@ export class TranslationStringsService {
     return Array.isArray(translationStrings) ? translationStrings : [];
   }
 
-  async resolveTranslationStrings() {
-    let translationStrings: TranslationString[] = [];
-    if (this.hasDedicatedTranslationsCollection()) {
-      try {
-        const result = await this.directusApi.fetchTranslationStrings();
-        translationStrings = this.normalizeDirectus10TranslationStrings(result as Directus10TranslationApiResult[]);
-      } catch (_e: unknown) {
-        try {
-          translationStrings = await this.fetchTranslationStringsFromSettings();
-          return translationStrings;
-        } catch (_e2: unknown) {
-          return [];
-        }
-      }
-    } else {
-      translationStrings = await this.fetchTranslationStringsFromSettings();
+  async resolveTranslationStrings(): Promise<TranslationString[]> {
+    if (!this.hasDedicatedTranslationsCollection()) {
+      return this.fetchTranslationStringsFromSettings();
     }
 
-    return Array.isArray(translationStrings) ? translationStrings : [];
+    try {
+      const result = await this.directusApi.fetchTranslationStrings();
+      return this.normalizeDirectus10TranslationStrings(result as Directus10TranslationApiResult[]);
+    } catch (_e: unknown) {
+      try {
+        return await this.fetchTranslationStringsFromSettings();
+      } catch (_e2: unknown) {
+        return [];
+      }
+    }
   }
 
   async upsertLegacyTranslationStrings(data: LocalazyTranslationStringBlock[]) {
