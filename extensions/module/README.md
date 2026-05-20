@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://localazy.com">
-    <img src="https://directus9.localazy.com/assets/9fc36b9c-81b7-4dbf-bd82-b64cd984090f" width="285" height="50" alt="Localazy" >
+    <img src="./assets/logo.svg" width="285" height="50" alt="Localazy" >
   </a>
 </p>
 <p align="center">
@@ -14,7 +14,11 @@
 
 > Turn translation of your Directus project into a seamless experience.
 
-![](https://directus9.localazy.com/assets/c3b607ba-e8bb-4ab1-9bda-f51e2b03fed1)
+![](./assets/banner.png)
+
+## 🌐 About
+
+The Directus localization extension by Localazy allows you to synchronize your content with [Localazy](https://localazy.com/docs/directus/directus-plugin-introduction-installation) and translate it with available tools. You can manage your language versions separately in Localazy and import new content for translation as you add it seamlessly without manual copypasting or file importing.
 
 ## 📄 Prerequisites
 
