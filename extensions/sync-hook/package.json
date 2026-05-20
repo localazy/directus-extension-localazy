@@ -2,7 +2,7 @@
   "name": "@localazy/directus-extension-localazy-automation",
   "description": "The official Localazy server-side bundle for Directus that automates synchronization of content",
   "icon": "cloud_sync",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "keywords": [
     "directus",
     "directus-extension",
