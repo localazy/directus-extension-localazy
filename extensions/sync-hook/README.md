@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://localazy.com">
-    <img src="https://directus9.localazy.com/assets/9fc36b9c-81b7-4dbf-bd82-b64cd984090f" width="285" height="50" alt="Localazy" >
+    <img src="./assets/logo.svg" width="285" height="50" alt="Localazy" >
   </a>
 </p>
 <p align="center">
@@ -13,6 +13,10 @@
 # 📦 Directus Extension Localazy Automation
 
 > Enhance your experience of [Directus Extension Localazy](https://github.com/localazy/directus-extension-localazy) by automating synchronization of your content whenever you make a change in Directus. No more manual uploading.
+
+## 🌐 About
+
+The Directus Automation Extension extends the base functionality of [Directus Extension Localazy](https://github.com/localazy/directus-extension-localazy) by automating the import and export of translatable Directus content into Localazy.
 
 ## ⚠️ Installation requirements
 
