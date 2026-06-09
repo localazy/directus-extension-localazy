@@ -38,11 +38,11 @@ The Directus user (Admin role required) whose identity webhook-triggered writes 
 A persisted row in `localazy_sync_log` capturing one Automated import or Automated export run end to end. Carries a session id (threaded through `appendEntry` calls), event type, status, initiator, initiator user, summary, items-processed counter, started/finished timestamps, and a JSON `entries` column of milestone records. Surfaced to admins on the Activity page. Retention: most recent 100 sessions.
 
 **Sync-log writer**:
-The module that owns persistence of a Sync-log session — creation, milestone appends (serialised per session), finalisation, and retention trim. Lives in `extensions/common/` and is composed with a transport adapter: an axios adapter on the Module side, an `ItemsService` adapter on the Sync-hook bundle side.
+The module that owns persistence of a Sync-log session — creation, milestone appends (serialised per session), finalisation, and retention trim. Lives in `packages/common/` and is composed with a transport adapter: an axios adapter on the Module side, an `ItemsService` adapter on the Sync-hook bundle side.
 _Avoid_: "log service", "audit logger"
 
 **Automated export pipeline**:
-The closed orchestration in `extensions/common/services/orchestrator/automated-export-pipeline.ts` that drives one Automated export call end-to-end: load Localazy context → master-toggle gate → load project → payment-status gate → resolve export languages → fetch content → dispatch to Localazy. Returns a discriminated outcome; logging and error tracking happen at the bundle edge. The varying step (what content to fetch) is injected as a strategy. Composed by the Sync-hook bundle with `ItemsService`-backed adapters.
+The closed orchestration in `packages/common/src/services/orchestrator/automated-export-pipeline.ts` that drives one Automated export call end-to-end: load Localazy context → master-toggle gate → load project → payment-status gate → resolve export languages → fetch content → dispatch to Localazy. Returns a discriminated outcome; logging and error tracking happen at the bundle edge. The varying step (what content to fetch) is injected as a strategy. Composed by the Sync-hook bundle with `ItemsService`-backed adapters.
 
 **Automated deprecation pipeline**:
 Sibling module to the Automated export pipeline, in the same directory. Owns deprecation orchestration: load context → master + deprecation toggle gate → load project → payment-status gate → fetch source-language import content → project Localazy key IDs from deleted Directus item IDs → call deprecate. Returns a discriminated outcome.

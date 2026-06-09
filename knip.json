@@ -6,11 +6,11 @@
     ".": {
       "ignoreDependencies": ["directus", "better-sqlite3"]
     },
-    "extensions/module": {
+    "packages/module": {
       "entry": ["src/index.ts"],
       "ignoreDependencies": ["sass"]
     },
-    "extensions/sync-hook": {
+    "packages/sync-hook": {
       "entry": ["src/hook/index.ts", "src/endpoint/index.ts"]
     }
   }

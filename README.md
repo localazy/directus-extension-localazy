@@ -5,7 +5,7 @@ Localazy extensions for [Directus](https://directus.io/):
 1. **Module** — adds a Localazy menu item and enables manual synchronization of content with Localazy.
 2. **Sync-hook** — extends the core functionality by automating content upload from Directus to Localazy.
 
-Refer to [Localazy Directus Extension](extensions/module/README.md) and [Localazy Directus Extension Automation](extensions/sync-hook/README.md) for details on each one.
+Refer to [Localazy Directus Extension](packages/module/README.md) and [Localazy Directus Extension Automation](packages/sync-hook/README.md) for details on each one.
 
 ## Contributing
 

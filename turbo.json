@@ -1,0 +1,21 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build:scripts": {
+      "outputs": ["src/config/config.json"],
+      "cache": true
+    },
+    "build": {
+      "dependsOn": ["^build:scripts", "^build"],
+      "outputs": ["dist/**"],
+      "cache": true
+    },
+    "dev": {
+      "dependsOn": ["^build:scripts"],
+      "persistent": true,
+      "interruptible": true,
+      "cache": false
+    }
+  }
+}

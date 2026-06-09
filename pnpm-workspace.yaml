@@ -1,7 +1,7 @@
 packages:
-  - extensions/common
-  - extensions/module
-  - extensions/sync-hook
+  - packages/common
+  - packages/module
+  - packages/sync-hook
 
 autoInstallPeers: true
 

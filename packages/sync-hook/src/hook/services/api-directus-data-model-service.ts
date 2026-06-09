@@ -1,0 +1,59 @@
+import { Field, Relation, SchemaOverview } from '@directus/types';
+import { DirectusDataModel } from '@localazy/directus-common';
+import { FieldsUtilsService } from '@localazy/directus-common';
+import type { FieldsServiceCtor } from '../types/directus-services';
+
+export class ApiDirectusDataModelService implements DirectusDataModel {
+  private FieldsService: FieldsServiceCtor;
+
+  private schema: SchemaOverview;
+
+  constructor(schema: SchemaOverview, FieldsService: FieldsServiceCtor) {
+    this.FieldsService = FieldsService;
+    this.schema = schema;
+  }
+
+  async getFieldsForCollection(collection: string): Promise<Field[]> {
+    const service = new this.FieldsService({ schema: this.schema, accountability: null });
+    return (await service.readAll(collection)) as Field[];
+  }
+
+  /** Copied from Directus internals */
+  getRelationsForField(collection: string, field: string): Relation[] {
+    const allRelations = this.schema.relations;
+
+    const relationsForField: Relation[] = this.getRelationsForCollection(collection).filter(
+      (relation: Relation) =>
+        (relation.collection === collection && relation.field === field) ||
+        (relation.related_collection === collection && relation.meta?.one_field === field),
+    );
+
+    if (relationsForField.length > 0) {
+      const firstRelationForField = relationsForField[0];
+      const isM2M = firstRelationForField?.meta?.junction_field !== null;
+
+      // If the relation matching the field has a junction field, it's a m2m. In that case,
+      // we also want to return the secondary relationship (from the jt to the related)
+      // so any ui elements (interfaces) can utilize the full relationship
+      if (isM2M) {
+        const secondaryRelation = allRelations.find(
+          (relation) =>
+            relation.collection === firstRelationForField?.collection && relation.field === firstRelationForField?.meta?.junction_field,
+        );
+
+        if (secondaryRelation) relationsForField.push(secondaryRelation);
+      }
+    }
+
+    return relationsForField;
+  }
+
+  private getRelationsForCollection(collection: string) {
+    return this.schema.relations.filter((relation) => relation.collection === collection || relation.related_collection === collection);
+  }
+
+  async getTranslationTypeFields(translatableCollection: string) {
+    const fields = await this.getFieldsForCollection(translatableCollection);
+    return fields.filter(FieldsUtilsService.isTranslationField);
+  }
+}

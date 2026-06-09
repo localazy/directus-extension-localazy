@@ -1,0 +1,56 @@
+{
+  "name": "@localazy/directus-extension-localazy",
+  "description": "The official Localazy module extension for Directus",
+  "icon": "translate",
+  "version": "2.0.0",
+  "keywords": [
+    "directus",
+    "directus-extension",
+    "directus-extension-module",
+    "localazy"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/localazy/directus-extension-localazy.git",
+    "directory": "packages/module"
+  },
+  "homepage": "https://github.com/localazy/directus-extension-localazy#readme",
+  "bugs": {
+    "url": "https://github.com/localazy/directus-extension-localazy/issues"
+  },
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "directus:extension": {
+    "type": "module",
+    "path": "dist/index.js",
+    "source": "src/index.ts",
+    "host": "^11.0.0"
+  },
+  "scripts": {
+    "build": "directus-extension build",
+    "dev": "directus-extension build --watch --no-minify"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@localazy/api-client": "^2.1.5",
+    "@localazy/generic-connector-client": "^0.4.0",
+    "@localazy/languages": "^2.0.0",
+    "axios": "^1.15.2",
+    "lodash": "^4.17.21",
+    "pinia": "^2.3.1"
+  },
+  "devDependencies": {
+    "@directus/extensions-sdk": "^17.1.4",
+    "@directus/types": "^15.0.0",
+    "@localazy/directus-common": "workspace:*",
+    "@types/lodash": "^4.14.195",
+    "sass": "^1.63.6",
+    "typescript": "^5.9.3",
+    "vue": "^3.5.0",
+    "vue-router": "^4.4.0"
+  }
+}
