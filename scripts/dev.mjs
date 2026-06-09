@@ -5,8 +5,8 @@ import { dirname, resolve } from 'node:path';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-const configPath = resolve(root, 'extensions/common/config/config.json');
-const productionConfigPath = resolve(root, 'extensions/common/config/config.production.json');
+const configPath = resolve(root, 'packages/common/src/config/config.json');
+const productionConfigPath = resolve(root, 'packages/common/src/config/config.production.json');
 if (!existsSync(configPath)) {
   copyFileSync(productionConfigPath, configPath);
 }
@@ -20,10 +20,10 @@ mkdirSync(uploadsDir, { recursive: true });
 mkdirSync(extensionsDir, { recursive: true });
 
 // Symlink only the published extensions into development/extensions so Directus
-// does not try to load extensions/common as an extension.
+// does not try to load packages/common as an extension.
 const symlinks = [
-  ['directus-extension-localazy', resolve(root, 'extensions/module')],
-  ['directus-extension-localazy-automation', resolve(root, 'extensions/sync-hook')],
+  ['directus-extension-localazy', resolve(root, 'packages/module')],
+  ['directus-extension-localazy-automation', resolve(root, 'packages/sync-hook')],
 ];
 for (const [name, target] of symlinks) {
   const linkPath = resolve(extensionsDir, name);
@@ -32,7 +32,7 @@ for (const [name, target] of symlinks) {
 }
 
 console.log('[dev] running initial extension build');
-const initBuild = spawnSync('npm', ['run', 'build:development'], { stdio: 'inherit', cwd: root });
+const initBuild = spawnSync('pnpm', ['run', 'build:development'], { stdio: 'inherit', cwd: root });
 if (initBuild.status !== 0) process.exit(initBuild.status ?? 1);
 
 const directusEnv = {
@@ -82,18 +82,8 @@ function spawnLong(label, cmd, args, env = directusEnv) {
   children.push(child);
 }
 
-spawnLong(
-  'module',
-  'npm',
-  ['run', 'build', '--workspace=@localazy/directus-extension-localazy', '--', '--no-minify', '--watch'],
-  process.env,
-);
-spawnLong(
-  'hook',
-  'npm',
-  ['run', 'build', '--workspace=@localazy/directus-extension-localazy-automation', '--', '--no-minify', '--watch'],
-  process.env,
-);
+spawnLong('module', 'pnpm', ['--filter=@localazy/directus-extension-localazy', 'run', 'dev'], process.env);
+spawnLong('hook', 'pnpm', ['--filter=@localazy/directus-extension-localazy-automation', 'run', 'dev'], process.env);
 
 console.log('[dev] starting Directus at http://localhost:8055');
 spawnLong('directus', 'npx', ['directus', 'start']);

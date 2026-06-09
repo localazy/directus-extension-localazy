@@ -1,0 +1,31 @@
+{
+  "name": "@localazy/directus-common",
+  "description": "Internal shared code for the Localazy Directus module + sync-hook extensions. Not published to npm.",
+  "version": "2.0.0",
+  "private": true,
+  "keywords": [],
+  "type": "module",
+  "exports": {
+    ".": "./src/main.ts"
+  },
+  "scripts": {
+    "build:scripts": "node ./scripts/set-config.mjs --mode=production",
+    "build:scripts:demo": "node ./scripts/set-config.mjs --mode=demo",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project=common"
+  },
+  "dependencies": {
+    "@localazy/api-client": "^2.1.5",
+    "@localazy/generic-connector-client": "^0.4.0",
+    "@localazy/languages": "^2.0.0",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "@directus/types": "^15.0.0",
+    "@types/lodash": "^4.17.7"
+  }
+}

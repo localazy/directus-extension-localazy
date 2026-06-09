@@ -137,6 +137,12 @@ dist
 # Build dir
 dist
 
+# Turborepo
+.turbo
+
+# Backups created by scripts/strip-workspace-devdeps.mjs during prepack
+package.json.prepack-backup
+
 # TypeDoc
 typedoc
 
@@ -144,5 +150,5 @@ development/data
 development/extensions
 development/uploads
 
-extensions/common/config/config.json
-extensions/common/config/config.development.json
+packages/common/src/config/config.json
+packages/common/src/config/config.development.json

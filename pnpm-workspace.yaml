@@ -1,0 +1,54 @@
+packages:
+  - packages/common
+  - packages/module
+  - packages/sync-hook
+
+autoInstallPeers: true
+
+strictPeerDependencies: false
+
+# Packages whose postinstall scripts are explicitly allowed to run.
+# Directus pulls many native deps as transitive; we only allow what's actually
+# used by the dev environment (SQLite, image transforms, password hashing).
+allowBuilds:
+  '@parcel/watcher': true
+  argon2: true
+  better-sqlite3: true
+  braintrust: false
+  core-js: true
+  esbuild: true
+  isolated-vm: true
+  oracledb: false
+  protobufjs: false
+  sharp: true
+  sqlite3: false
+  unrs-resolver: true
+  vue-demi: true
+
+overrides:
+  minimatch@>=9.0.0 <9.0.6: ^9.0.6
+  minimatch@>=9.0.0 <9.0.7: ^9.0.7
+  qs@>=6.11.1 <=6.15.1: ^6.15.2
+  uuid@<11.1.1: ^11.1.1
+  ws@>=8.0.0 <8.20.1: ^8.20.1
+  # Force a single Vue version across the dep graph. @directus/extensions-sdk@17.1.4
+  # pins to 3.5.24 exact; our module devDep says ^3.5.0. Without an override,
+  # pnpm resolves them separately and you get duplicate Ref symbols across
+  # version boundaries at typecheck time. Match the SDK's exact pin (3.5.24)
+  # to keep our Vue runtime identical to what Directus' admin bundles.
+  # Re-verify against the latest SDK whenever bumping.
+  vue: 3.5.24
+  # Force a single axios version across the dep graph. Under npm's flat
+  # node_modules, Directus' transitive axios (1.15.0) and our declared axios
+  # (^1.15.2) deduped to a single instance, so the AxiosInstance type was
+  # identical at both sites. Under pnpm's strict store, each consumer keeps
+  # its own axios — and the AxiosInstance types from different patch
+  # versions are nominally incompatible at TS-time. Pin to one to restore
+  # the dedupe behavior.
+  #
+  # Pinned to 1.15.2 — the patch version our own packages declared after the
+  # CVE bump (058e99f). @directus/api@35.2.0 and @directus/composables@11.4.1
+  # pin to 1.15.0 exact upstream; 1.15.2 is two patch releases ahead of that
+  # baseline so the AxiosInstance shape is identical, while keeping our CVE
+  # coverage. Re-verify against the latest Directus SDK whenever bumping.
+  axios: 1.15.2

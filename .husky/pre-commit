@@ -1,11 +1,17 @@
 # If nvm is available, source it and use the version pinned in .nvmrc.
 # ESLint 10's stylish formatter requires Node 22.18+ (util.styleText). Without
 # this, contributors whose globally-active Node is older hit "util.styleText is
-# not a function" the moment lint-staged runs eslint against staged files.
+# not a function" the moment eslint runs.
 NVM_DIR_PATH="${NVM_DIR:-$HOME/.nvm}"
 if [ -s "$NVM_DIR_PATH/nvm.sh" ]; then
   . "$NVM_DIR_PATH/nvm.sh"
   nvm use --silent >/dev/null 2>&1
 fi
 
-npx lint-staged
+pnpm check:fix
+
+# Re-stage any modifications check:fix applied so they land in the same
+# commit. Without this, autofixes show up as a post-commit uncommitted diff.
+# git add -u only stages tracked-file modifications, not new files — so the
+# hook can't sneak unrelated content into a commit.
+git add -u

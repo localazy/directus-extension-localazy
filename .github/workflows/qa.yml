@@ -14,19 +14,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          run_install: false
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
 
       - name: Install deps
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Set production config
-        run: npm run set-production-config
+        run: pnpm run set-production-config
 
       - name: Check (lint + format + typecheck + test)
-        run: npm run check
+        run: pnpm run check
 
       - name: Build (production)
-        run: npm run build
+        run: pnpm run build

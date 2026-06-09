@@ -1,0 +1,165 @@
+<template>
+  <div>
+    <div class="form grid">
+      <div class="half">
+        <p class="type-label">Source language synchronization</p>
+        <v-select v-model="localEdits.import_source_language" :items="importSourceLanguageOptions" />
+      </div>
+      <div class="half-right">
+        <p class="configuration-description note">
+          When enabled, the import process will update the source language values in Directus. <br />
+          You can choose either Directus or Localazy as the "Source of Truth" for modifying existing values to avoid conflicts.
+        </p>
+      </div>
+
+      <div class="half">
+        <p class="type-label">Export translations from Directus</p>
+        <v-select v-model="localEdits.upload_existing_translations" :items="uploadExistingTranslationsOptions" />
+      </div>
+      <div class="half-right">
+        <p class="configuration-description note">
+          Enable the option to export all translation values from Directus, including content in languages other than the source
+          language.<br />
+          It is recommended to turn this feature on only for the initial synchronization and then disable it to speed up the export process.
+        </p>
+      </div>
+
+      <div class="half">
+        <p class="type-label">Empty values</p>
+        <v-select v-model="localEdits.skip_empty_strings" :items="skipEmptyStringsOptions" />
+      </div>
+      <div class="half-right">
+        <p class="configuration-description note">
+          Choose whether to upload empty values. <br />
+          This is useful when <span class="bold">Source language synchronization</span> is turned on since this allows you to finalize the
+          source language content in Localazy.
+        </p>
+      </div>
+
+      <div class="half">
+        <p class="type-label">Synchronize Localazy languages</p>
+        <v-select v-model="localEdits.create_missing_languages_in_directus" :items="directusMissingLanguagesOptions" />
+      </div>
+      <div class="half-right">
+        <p class="configuration-description note">
+          Automatically create missing languages in Directus when importing translations from Localazy.
+        </p>
+      </div>
+
+      <LanguageMappingsEditor
+        v-model="localEdits.language_mappings"
+        v-model:valid="mappingsValid"
+        :language-collection="localEdits.language_collection"
+        :language-code-field="localEdits.language_code_field"
+      />
+    </div>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { ref } from 'vue';
+import { Item } from '@directus/types';
+import { Settings } from '@localazy/directus-common';
+import { CreateMissingLanguagesInDirectus } from '@localazy/directus-common';
+import LanguageMappingsEditor from './LanguageMappingsEditor.vue';
+
+const localEdits = defineModel<Settings>('edits', { required: true });
+const mappingsValid = defineModel<boolean>('mappingsValid', { default: true });
+
+defineProps({
+  collection: {
+    type: String,
+    required: true,
+  },
+});
+
+const importSourceLanguageOptions = ref<Item[]>([
+  {
+    text: 'Import source language from Localazy',
+    value: true,
+  },
+  {
+    text: "Don't import source language from Localazy",
+    value: false,
+  },
+]);
+
+const uploadExistingTranslationsOptions = ref<Item[]>([
+  {
+    text: 'Export translations from Directus',
+    value: true,
+  },
+  {
+    text: "Don't export translations from Directus",
+    value: false,
+  },
+]);
+
+const skipEmptyStringsOptions = ref<Item[]>([
+  {
+    text: "Don't upload empty values to Localazy",
+    value: true,
+  },
+  {
+    text: 'Upload empty values to Localazy',
+    value: false,
+  },
+]);
+
+const directusMissingLanguagesOptions = ref<Item[]>([
+  {
+    text: 'Create non-hidden missing languages in Directus',
+    value: CreateMissingLanguagesInDirectus.ONLY_NON_HIDDEN,
+  },
+  {
+    text: 'Create all missing languages in Directus',
+    value: CreateMissingLanguagesInDirectus.ALL,
+  },
+  {
+    text: "Don't create missing languages in Directus",
+    value: CreateMissingLanguagesInDirectus.NO,
+  },
+]);
+</script>
+
+<style lang="scss" scoped>
+@use '../../styles/mixins/form-grid' as *;
+.form {
+  @include form-grid;
+  max-width: 1300px;
+}
+
+.configuration-description {
+  margin-bottom: 40px;
+  @media (min-width: 960px) {
+    margin-top: 24px;
+    margin-bottom: 0;
+  }
+}
+
+.v-form .first-visible-field :deep(.v-divider) {
+  margin-top: 0;
+}
+
+.v-divider {
+  margin-top: 50px;
+  margin-bottom: 50px;
+  grid-column-start: 1;
+  grid-column-end: 3;
+}
+
+.bold {
+  font-weight: 500;
+}
+
+.note {
+  font-style: italic;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--theme--foreground);
+
+  & a {
+    text-decoration: underline;
+  }
+}
+</style>
