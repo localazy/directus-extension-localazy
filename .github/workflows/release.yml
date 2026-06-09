@@ -106,10 +106,10 @@ jobs:
         run: pnpm run build
 
       - name: Publish @localazy/directus-extension-localazy
-        run: pnpm --filter=@localazy/directus-extension-localazy publish --access public --no-git-checks
+        run: pnpm --filter=@localazy/directus-extension-localazy publish --no-git-checks
 
       - name: Publish @localazy/directus-extension-localazy-automation
-        run: pnpm --filter=@localazy/directus-extension-localazy-automation publish --access public --no-git-checks
+        run: pnpm --filter=@localazy/directus-extension-localazy-automation publish --no-git-checks
 
       - name: Generate token
         id: auth

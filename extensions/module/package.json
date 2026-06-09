@@ -31,6 +31,9 @@
   "scripts": {
     "build": "directus-extension build"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@localazy/api-client": "^2.1.5",
     "@localazy/generic-connector-client": "^0.4.0",
