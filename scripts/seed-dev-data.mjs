@@ -141,7 +141,12 @@ async function main() {
   await api(token, '/fields/articles_translations', 'POST', {
     field: 'languages_code',
     type: 'string',
-    meta: { interface: 'input' },
+    // Hidden from the per-translation form. Directus' translations interface
+    // determines the language by the row's position in the parent's
+    // translation list — the FK is not user-editable inline. Without
+    // hidden:true, the field tries to render the resolved language object
+    // as the value of a plain text input, surfacing "[object Object]".
+    meta: { interface: 'input', hidden: true },
     schema: { length: 16 },
   });
   await api(token, '/fields/articles_translations', 'POST', {
