@@ -38,7 +38,10 @@ async function main() {
   console.log('[seed] creating languages collection');
   await api(token, '/collections', 'POST', {
     collection: 'languages',
-    meta: { icon: 'translate' },
+    // display_template controls how a language relation renders in lists and
+    // in the translations interface. Without it, Directus falls back to the
+    // primary-key object and renders "[object Object]" for the language pill.
+    meta: { icon: 'translate', display_template: '{{name}} ({{code}})' },
     schema: {},
     fields: [
       {
