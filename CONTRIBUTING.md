@@ -4,7 +4,7 @@ Thanks for your interest in contributing to the Localazy Directus extension.
 
 ## Project layout
 
-This is an npm-workspaces monorepo with three packages under `extensions/`:
+This is a pnpm-workspaces monorepo with three packages under `extensions/`:
 
 | Path                    | Published as                                       | Purpose                                                                                                                                                                                                                                                                   |
 | ----------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -15,11 +15,12 @@ This is an npm-workspaces monorepo with three packages under `extensions/`:
 ## Prerequisites
 
 - Node 22 (see `.nvmrc`). With nvm: `nvm use`.
+- pnpm (resolved from the root `packageManager` field — enable via `corepack enable`).
 
 ## Install
 
 ```bash
-npm install
+pnpm install
 ```
 
 Workspaces handle the sub-packages — one install at the root.
@@ -27,7 +28,7 @@ Workspaces handle the sub-packages — one install at the root.
 ## Local development
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 This will:
@@ -47,7 +48,7 @@ These credentials are local-only — they're seeded by `scripts/dev.mjs` and liv
 
 ### Reset the local state
 
-To wipe the SQLite database, uploads, and the symlinked extensions layout, delete the data directory. The next `npm run dev` re-bootstraps from scratch:
+To wipe the SQLite database, uploads, and the symlinked extensions layout, delete the data directory. The next `pnpm dev` re-bootstraps from scratch:
 
 ```bash
 rm -rf development/data development/uploads development/extensions
@@ -57,35 +58,35 @@ rm -rf development/data development/uploads development/extensions
 
 ### Verification
 
-| Command                 | What it does                                                                       |
-| ----------------------- | ---------------------------------------------------------------------------------- |
-| `npm run check`         | Aggregate: `lint && format && typecheck && test`. The one command that mirrors CI. |
-| `npm run check:fix`     | Aggregate fix: `lint:fix && format:fix`.                                           |
-| `npm run lint`          | ESLint across the monorepo.                                                        |
-| `npm run lint:fix`      | Same, with autofix.                                                                |
-| `npm run format`        | Prettier check. Fails if anything isn't formatted.                                 |
-| `npm run format:fix`    | Prettier write.                                                                    |
-| `npm run typecheck`     | `vue-tsc --noEmit` — typechecks `.ts` and `.vue` files.                            |
-| `npm run test`          | Vitest run (one-shot).                                                             |
-| `npm run test:watch`    | Vitest in watch mode.                                                              |
-| `npm run test:coverage` | Vitest with v8 coverage (text + HTML at `coverage/` + lcov).                       |
-| `npm run knip`          | Detect unused files, dependencies, and exports. Local only — not gated in CI.      |
+| Command              | What it does                                                                       |
+| -------------------- | ---------------------------------------------------------------------------------- |
+| `pnpm check`         | Aggregate: `lint && format && typecheck && test`. The one command that mirrors CI. |
+| `pnpm check:fix`     | Aggregate fix: `lint:fix && format:fix`.                                           |
+| `pnpm lint`          | ESLint across the monorepo.                                                        |
+| `pnpm lint:fix`      | Same, with autofix.                                                                |
+| `pnpm format`        | Prettier check. Fails if anything isn't formatted.                                 |
+| `pnpm format:fix`    | Prettier write.                                                                    |
+| `pnpm typecheck`     | `vue-tsc --noEmit` — typechecks `.ts` and `.vue` files.                            |
+| `pnpm test`          | Vitest run (one-shot).                                                             |
+| `pnpm test:watch`    | Vitest in watch mode.                                                              |
+| `pnpm test:coverage` | Vitest with v8 coverage (text + HTML at `coverage/` + lcov).                       |
+| `pnpm knip`          | Detect unused files, dependencies, and exports. Local only — not gated in CI.      |
 
 ### Building
 
-| Command                     | What it does                                                            |
-| --------------------------- | ----------------------------------------------------------------------- |
-| `npm run build`             | Production build of both extensions (minified). What release publishes. |
-| `npm run build:development` | Non-minified build (faster, used by `dev`).                             |
+| Command                  | What it does                                                            |
+| ------------------------ | ----------------------------------------------------------------------- |
+| `pnpm build`             | Production build of both extensions (minified). What release publishes. |
+| `pnpm build:development` | Non-minified build (faster, used by `dev`).                             |
 
 ## Continuous integration
 
 `.github/workflows/qa.yml` runs on every PR:
 
-1. `npm run check` — lint, format, typecheck, tests
+1. `pnpm check` — lint, format, typecheck, tests
 2. Production build of both extensions
 
-If `npm run check` passes locally, CI should pass too.
+If `pnpm check` passes locally, CI should pass too.
 
 ## Useful references
 

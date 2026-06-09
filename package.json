@@ -11,21 +11,17 @@
   ],
   "type": "module",
   "private": true,
+  "packageManager": "pnpm@11.4.0",
   "engines": {
     "node": ">=22"
   },
-  "workspaces": [
-    "extensions/common",
-    "extensions/module",
-    "extensions/sync-hook"
-  ],
   "scripts": {
-    "build": "npm run build-scripts && npm run build:module && npm run build:hook",
-    "build:development": "npm run build:module:dev && npm run build:hook:dev",
-    "build:module": "npm run build --workspace=@localazy/directus-extension-localazy",
-    "build:hook": "npm run build --workspace=@localazy/directus-extension-localazy-automation",
-    "build:module:dev": "npm run build --workspace=@localazy/directus-extension-localazy -- --no-minify",
-    "build:hook:dev": "npm run build --workspace=@localazy/directus-extension-localazy-automation -- --no-minify",
+    "build": "pnpm run build-scripts && pnpm run build:module && pnpm run build:hook",
+    "build:development": "pnpm run build:module:dev && pnpm run build:hook:dev",
+    "build:module": "pnpm --filter=@localazy/directus-extension-localazy run build",
+    "build:hook": "pnpm --filter=@localazy/directus-extension-localazy-automation run build",
+    "build:module:dev": "pnpm --filter=@localazy/directus-extension-localazy run build --no-minify",
+    "build:hook:dev": "pnpm --filter=@localazy/directus-extension-localazy-automation run build --no-minify",
     "dev": "node ./scripts/dev.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -36,10 +32,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "knip": "knip",
-    "check": "npm run lint && npm run format && npm run typecheck && npm run test",
-    "check:fix": "npm run lint:fix && npm run format:fix",
-    "build-scripts": "npm run set-production-config && node ./scripts/copy-license.mjs",
-    "set-production-config": "npm run set-config -- --mode=production",
+    "check": "pnpm run lint && pnpm run format && pnpm run typecheck && pnpm run test",
+    "check:fix": "pnpm run lint:fix && pnpm run format:fix",
+    "build-scripts": "pnpm run set-production-config && node ./scripts/copy-license.mjs",
+    "set-production-config": "pnpm run set-config --mode=production",
     "set-config": "node ./scripts/set-config.mjs",
     "prepare": "husky"
   },

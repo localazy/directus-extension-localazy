@@ -15,7 +15,7 @@ A monorepo of two published Directus extensions plus one internal shared package
 ## Stack
 
 - **Node 22** (`.nvmrc`).
-- **npm workspaces** at the repo root.
+- **pnpm workspaces** (`pnpm-workspace.yaml`), pnpm `11.4.0` pinned via root `packageManager`. Strict isolation (no `shamefullyHoist`). `autoInstallPeers: true`. CVE overrides and a `vue` + `axios` version pin live in `pnpm-workspace.yaml`.
 - **ESLint 10** flat config (`eslint.config.js`) + `typescript-eslint@8` + `eslint-plugin-vue@10` flat presets + `eslint-config-prettier`. Per-workspace globals: browser for `module/` and `common/`, node for `sync-hook/`.
 - **Prettier 3** (`.prettierrc.json`). Single quotes, semicolons, trailing commas, `printWidth: 140` (matches the `vue/max-len` lint rule — don't change one without changing the other).
 - **TypeScript** `^5.9`. Typechecking uses `vue-tsc --noEmit` so `<script lang="ts">` inside `.vue` files is covered.
@@ -32,14 +32,15 @@ A monorepo of two published Directus extensions plus one internal shared package
   **The bundle is intentionally non-sandboxed** — Directus' sandboxed API extensions only get a restricted `directus:api` import (`log`, `sleep`, `request`); they cannot use `ItemsService` / `FieldsService`. Moving to sandbox would require rewriting the synchronisation services against the sandbox runtime, which is not currently feasible. The trade-off: marketplace installs require the host operator to set `MARKETPLACE_TRUST=all`.
 
 - **`extensions/common/` has no `src/` subdir** — its sources live directly under `api/`, `services/`, `utilities/`, `models/`, etc.
-- **Config is build-time-baked.** `extensions/common/config/config.json` is _generated_ by `scripts/set-config.mjs` from `config.production.json` (or `config.demo.json`). The generated file is gitignored. `npm run build` and `npm run dev` run `set-production-config` automatically. A missing-file error from `get-config.ts` means you need to run `npm run set-production-config`.
+- **Config is build-time-baked.** `extensions/common/config/config.json` is _generated_ by `scripts/set-config.mjs` from `config.production.json` (or `config.demo.json`). The generated file is gitignored. `pnpm run build` and `pnpm run dev` run `set-production-config` automatically. A missing-file error from `get-config.ts` means you need to run `pnpm run set-production-config`.
 
 ## Local development
 
 ```bash
 nvm use            # Node 22
-npm install        # workspace install at root
-npm run dev        # builds extensions, boots Directus on http://localhost:8055
+corepack enable    # so pnpm resolves to the version pinned in package.json's packageManager
+pnpm install       # workspace install at root
+pnpm dev           # builds extensions, boots Directus on http://localhost:8055
 ```
 
 Login: `admin@example.com` / `d1r3ctu5` (seeded once into the gitignored `development/data/data.db`).
@@ -60,28 +61,28 @@ rm -rf development/data development/uploads development/extensions
 
 ## Commands
 
-| Command                     | What it does                                                                        |
-| --------------------------- | ----------------------------------------------------------------------------------- |
-| `npm install`               | Install all workspaces. Run once after a clone or after pulling dependency changes. |
-| `npm run dev`               | Local dev loop — Directus + SQLite + watch builds.                                  |
-| `npm run lint`              | ESLint across the monorepo.                                                         |
-| `npm run lint:fix`          | Same, with autofix.                                                                 |
-| `npm run format`            | Prettier check (fails if anything isn't formatted).                                 |
-| `npm run format:fix`        | Prettier write.                                                                     |
-| `npm run typecheck`         | `vue-tsc --noEmit` — typechecks `.ts` and `.vue` files. Gated in CI.                |
-| `npm run test`              | Vitest run.                                                                         |
-| `npm run test:watch`        | Vitest in watch mode.                                                               |
-| `npm run test:coverage`     | Vitest with v8 coverage report (text + HTML at `coverage/` + lcov).                 |
-| `npm run check`             | Aggregate: `lint && format && typecheck && test`.                                   |
-| `npm run check:fix`         | Aggregate fix: `lint:fix && format:fix`.                                            |
-| `npm run knip`              | Detect unused files, deps, and exports. Local only (not gated in CI).               |
-| `npm run build`             | Minified production build of both extensions. This is what release publishes.       |
-| `npm run build:development` | Unminified build (faster, used by `dev`).                                           |
+| Command                  | What it does                                                                        |
+| ------------------------ | ----------------------------------------------------------------------------------- |
+| `pnpm install`           | Install all workspaces. Run once after a clone or after pulling dependency changes. |
+| `pnpm dev`               | Local dev loop — Directus + SQLite + watch builds.                                  |
+| `pnpm lint`              | ESLint across the monorepo.                                                         |
+| `pnpm lint:fix`          | Same, with autofix.                                                                 |
+| `pnpm format`            | Prettier check (fails if anything isn't formatted).                                 |
+| `pnpm format:fix`        | Prettier write.                                                                     |
+| `pnpm typecheck`         | `vue-tsc --noEmit` — typechecks `.ts` and `.vue` files. Gated in CI.                |
+| `pnpm test`              | Vitest run.                                                                         |
+| `pnpm test:watch`        | Vitest in watch mode.                                                               |
+| `pnpm test:coverage`     | Vitest with v8 coverage report (text + HTML at `coverage/` + lcov).                 |
+| `pnpm check`             | Aggregate: `lint && format && typecheck && test`.                                   |
+| `pnpm check:fix`         | Aggregate fix: `lint:fix && format:fix`.                                            |
+| `pnpm knip`              | Detect unused files, deps, and exports. Local only (not gated in CI).               |
+| `pnpm build`             | Minified production build of both extensions. This is what release publishes.       |
+| `pnpm build:development` | Unminified build (faster, used by `dev`).                                           |
 
-CI (`.github/workflows/qa.yml`) runs `npm run check` then a production build on every PR. Release (`.github/workflows/release.yml`) is triggered by pushes to `main` and uses `npx @localazy/workflow-scripts@latest` to drive a **lockstep release flow**: the root `package.json` version is the single source of truth, and both extensions publish together at that version. Two jobs gated by commit-message prefix:
+CI (`.github/workflows/qa.yml`) runs `pnpm run check` then a production build on every PR. Release (`.github/workflows/release.yml`) is triggered by pushes to `main` and uses `npx @localazy/workflow-scripts@latest` to drive a **lockstep release flow**: the root `package.json` version is the single source of truth, and both extensions publish together at that version. Two jobs gated by commit-message prefix:
 
 - Commit doesn't start with `🚀 release:` → `create-release-pr` opens a single PR bumping root version + updating root `CHANGELOG.md` based on conventional commits.
-- Commit starts with `🚀 release:` → sync both extensions' `version` field to root, build, `npm publish` both, then `create-git-tag` + `create-github-release`.
+- Commit starts with `🚀 release:` → sync both extensions' `version` field to root, build, `pnpm publish` both, then `create-git-tag` + `create-github-release`.
 
 The two extensions' `package.json` versions on `main` will lag behind root between releases — they are synced at publish time, so the value end users see on npm always matches root. Cosmetic mismatch only.
 

@@ -32,7 +32,7 @@ for (const [name, target] of symlinks) {
 }
 
 console.log('[dev] running initial extension build');
-const initBuild = spawnSync('npm', ['run', 'build:development'], { stdio: 'inherit', cwd: root });
+const initBuild = spawnSync('pnpm', ['run', 'build:development'], { stdio: 'inherit', cwd: root });
 if (initBuild.status !== 0) process.exit(initBuild.status ?? 1);
 
 const directusEnv = {
@@ -82,16 +82,11 @@ function spawnLong(label, cmd, args, env = directusEnv) {
   children.push(child);
 }
 
-spawnLong(
-  'module',
-  'npm',
-  ['run', 'build', '--workspace=@localazy/directus-extension-localazy', '--', '--no-minify', '--watch'],
-  process.env,
-);
+spawnLong('module', 'pnpm', ['--filter=@localazy/directus-extension-localazy', 'run', 'build', '--no-minify', '--watch'], process.env);
 spawnLong(
   'hook',
-  'npm',
-  ['run', 'build', '--workspace=@localazy/directus-extension-localazy-automation', '--', '--no-minify', '--watch'],
+  'pnpm',
+  ['--filter=@localazy/directus-extension-localazy-automation', 'run', 'build', '--no-minify', '--watch'],
   process.env,
 );
 
