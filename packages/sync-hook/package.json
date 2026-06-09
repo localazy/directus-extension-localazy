@@ -44,7 +44,15 @@
   },
   "scripts": {
     "build": "directus-extension build",
-    "dev": "directus-extension build --watch --no-minify"
+    "dev": "directus-extension build --watch --no-minify",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project=sync-hook",
+    "prepack": "node ../../scripts/strip-workspace-devdeps.mjs strip",
+    "postpack": "node ../../scripts/strip-workspace-devdeps.mjs restore"
   },
   "publishConfig": {
     "access": "public"

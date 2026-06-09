@@ -31,10 +31,12 @@ overrides:
   qs@>=6.11.1 <=6.15.1: ^6.15.2
   uuid@<11.1.1: ^11.1.1
   ws@>=8.0.0 <8.20.1: ^8.20.1
-  # Pin Vue to 3.5.24 — matches what was effectively pinned in the npm
-  # package-lock.json. Newer 3.5.x patches enforce stricter Ref symbol typing
-  # that surfaces pre-existing nullable-vs-non-nullable mismatches in our
-  # component code. Bump intentionally + fix the call sites in a follow-up.
+  # Force a single Vue version across the dep graph. @directus/extensions-sdk@17.1.4
+  # pins to 3.5.24 exact; our module devDep says ^3.5.0. Without an override,
+  # pnpm resolves them separately and you get duplicate Ref symbols across
+  # version boundaries at typecheck time. Match the SDK's exact pin (3.5.24)
+  # to keep our Vue runtime identical to what Directus' admin bundles.
+  # Re-verify against the latest SDK whenever bumping.
   vue: 3.5.24
   # Force a single axios version across the dep graph. Under npm's flat
   # node_modules, Directus' transitive axios (1.15.0) and our declared axios
