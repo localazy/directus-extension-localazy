@@ -38,7 +38,10 @@ async function main() {
   console.log('[seed] creating languages collection');
   await api(token, '/collections', 'POST', {
     collection: 'languages',
-    meta: { icon: 'translate' },
+    // display_template controls how a language relation renders in lists and
+    // in the translations interface. Without it, Directus falls back to the
+    // primary-key object and renders "[object Object]" for the language pill.
+    meta: { icon: 'translate', display_template: '{{name}} ({{code}})' },
     schema: {},
     fields: [
       {
@@ -138,7 +141,12 @@ async function main() {
   await api(token, '/fields/articles_translations', 'POST', {
     field: 'languages_code',
     type: 'string',
-    meta: { interface: 'input' },
+    // Hidden from the per-translation form. Directus' translations interface
+    // determines the language by the row's position in the parent's
+    // translation list — the FK is not user-editable inline. Without
+    // hidden:true, the field tries to render the resolved language object
+    // as the value of a plain text input, surfacing "[object Object]".
+    meta: { interface: 'input', hidden: true },
     schema: { length: 16 },
   });
   await api(token, '/fields/articles_translations', 'POST', {
@@ -227,6 +235,28 @@ async function main() {
       body: 'A second article you can use to test sync flows.',
     },
   ]);
+
+  // Pre-configure the articles collection's title + body as translatable so a
+  // fresh dev environment can drive Export / Import end-to-end without a manual
+  // Project Setup pass. Without this, the Articles checkbox on Import & Export
+  // is selectable but the Save action stays at 0 items, because the sync
+  // pipeline only walks fields listed in localazy_content_transfer_setup.
+  //
+  // The singleton row is created lazily by the module's installer-store on
+  // first boot. If we beat the module to it (race condition on a fresh start),
+  // log a warning and continue — the user can configure it manually via
+  // Project Setup. Either way the seed itself should not fail.
+  console.log('[seed] configuring articles fields as translatable');
+  try {
+    await api(token, '/items/localazy_content_transfer_setup', 'PATCH', {
+      enabled_fields: JSON.stringify([{ collection: 'articles', fields: ['title', 'body'] }]),
+    });
+  } catch (e) {
+    console.warn(
+      '[seed] could not configure translatable fields automatically — open the Localazy → Project Setup page once to initialise, then re-run the seed.',
+    );
+    console.warn('[seed] error:', e.message);
+  }
 
   console.log('[seed] done');
 }
