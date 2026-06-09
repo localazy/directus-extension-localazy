@@ -6,11 +6,11 @@ Context for AI assistants and human contributors working in this repo. Read this
 
 A monorepo of two published Directus extensions plus one internal shared package:
 
-| Path                    | npm name                                           | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| ----------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `extensions/module/`    | `@localazy/directus-extension-localazy`            | UI module — Vue 3 + Pinia, runs in the admin browser. Sandbox-compatible by nature; listable on Directus Marketplace without `MARKETPLACE_TRUST`.                                                                                                                                                                                                                                                                                                                                        |
-| `extensions/sync-hook/` | `@localazy/directus-extension-localazy-automation` | Server-side bundle (despite the historical directory name) — plain TypeScript, runs in the Directus Node process. Contains two children: a `hook` (`src/hook/`) that wires `ItemsService` + `FieldsService` callbacks and a small `endpoint` (`src/endpoint/`) that exposes `GET /localazy-automation/status` for module-side bundle-presence detection. Cannot be sandboxed. Marketplace install requires `MARKETPLACE_TRUST: 'all'`.                                                   |
-| `extensions/common/`    | `localazy-directus-common`                         | Internal shared TypeScript code (services, models, types). Not published. Both extensions import via relative paths — the module's sources at `src/<thing>` use `../../common/...`, sync-hook's bundle children at `src/{hook,endpoint}/<thing>` use `../../../../common/...`. Rollup inlines common's code into each extension's build output (`dist/index.js` for the module; `dist/api.js` for the sync-hook bundle, with `dist/app.js` empty because both children are server-side). |
+| Path                  | npm name                                           | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/module/`    | `@localazy/directus-extension-localazy`            | UI module — Vue 3 + Pinia, runs in the admin browser. Sandbox-compatible by nature; listable on Directus Marketplace without `MARKETPLACE_TRUST`.                                                                                                                                                                                                                                                                                                              |
+| `packages/sync-hook/` | `@localazy/directus-extension-localazy-automation` | Server-side bundle (despite the historical directory name) — plain TypeScript, runs in the Directus Node process. Contains two children: a `hook` (`src/hook/`) that wires `ItemsService` + `FieldsService` callbacks and a small `endpoint` (`src/endpoint/`) that exposes `GET /localazy-automation/status` for module-side bundle-presence detection. Cannot be sandboxed. Marketplace install requires `MARKETPLACE_TRUST: 'all'`.                         |
+| `packages/common/`    | `@localazy/directus-common`                        | Internal shared TypeScript code (services, models, types). Not published — declared as `workspace:*` in each extension's devDependencies. Single-barrel export from `src/main.ts` re-exports everything under `src/`; consumers import via `import { foo } from '@localazy/directus-common'`. Rollup inlines common's source into each extension's published `dist/index.js` (module) and `dist/api.js` (sync-hook) so end users get a self-contained tarball. |
 
 ## Stack
 
@@ -24,15 +24,16 @@ A monorepo of two published Directus extensions plus one internal shared package
 
 ## Architecture
 
-- **Module is Vue 3 + Pinia.** Source under `extensions/module/src/`. SFCs use `<script setup lang="ts">`. State in `stores/` (Pinia), composables in `composables/`, services in `services/`. Build output (`dist/index.js`) is what Directus loads at runtime.
+- **Module is Vue 3 + Pinia.** Source under `packages/module/src/`. SFCs use `<script setup lang="ts">`. State in `stores/` (Pinia), composables in `composables/`, services in `services/`. Build output (`dist/index.js`) is what Directus loads at runtime.
 - **Sync-hook is a Directus bundle** (`type: 'bundle'` in `package.json`) with two children:
   - `src/hook/index.ts` — the original hook code, `defineHook` registering `action()` callbacks for `settings.*`, `translations.*`, and `items.*` lifecycle events. Delegates to service classes under `src/hook/services/content-synchronization/` and `src/hook/services/`, which use Directus' `ItemsService` and the Localazy API client.
   - `src/endpoint/index.ts` — `defineEndpoint` exposing `GET /localazy-automation/status` (URL prefix derived from the endpoint child's `name` in `package.json`). The module-side Automation page pings this route to detect whether the bundle is installed and reachable.
 
   **The bundle is intentionally non-sandboxed** — Directus' sandboxed API extensions only get a restricted `directus:api` import (`log`, `sleep`, `request`); they cannot use `ItemsService` / `FieldsService`. Moving to sandbox would require rewriting the synchronisation services against the sandbox runtime, which is not currently feasible. The trade-off: marketplace installs require the host operator to set `MARKETPLACE_TRUST=all`.
 
-- **`extensions/common/` has no `src/` subdir** — its sources live directly under `api/`, `services/`, `utilities/`, `models/`, etc.
-- **Config is build-time-baked.** `extensions/common/config/config.json` is _generated_ by `scripts/set-config.mjs` from `config.production.json` (or `config.demo.json`). The generated file is gitignored. `pnpm run build` and `pnpm run dev` run `set-production-config` automatically. A missing-file error from `get-config.ts` means you need to run `pnpm run set-production-config`.
+- **Common is source-consumed.** `packages/common/package.json` exports `./src/main.ts` directly — no build step. Each extension's rollup picks up the `.ts` source and inlines it at publish time. The barrel re-exports every file in `src/` via `export * from './<path>';`.
+- **Config is build-time-baked.** `packages/common/src/config/config.json` is _generated_ by `packages/common/scripts/set-config.mjs` from `config.production.json` (or `config.demo.json`). The generated file is gitignored. Turbo's `build:scripts` task (owned by `@localazy/directus-common`) writes it before each extension's `build`; `pnpm run build` and `pnpm dev` chain it automatically. A missing-file error from `get-config.ts` means you need to run `pnpm run set-production-config`.
+- **Turborepo orchestrates build and dev.** `turbo.json` declares `build:scripts` (common's config bake), `build` (each extension), and `dev` (each extension's watch build). `^build:scripts` makes both extensions wait for common to bake its config before building. `dev` is `persistent + interruptible`. Cache lives in `.turbo/` (gitignored).
 
 ## Local development
 
@@ -47,9 +48,9 @@ Login: `admin@example.com` / `d1r3ctu5` (seeded once into the gitignored `develo
 
 What `scripts/dev.mjs` does:
 
-1. Ensures `extensions/common/config/config.json` exists.
+1. Ensures `packages/common/src/config/config.json` exists.
 2. Runs an initial unminified build of both extensions.
-3. Symlinks each extension into `development/extensions/<published-name>/` so `EXTENSIONS_PATH` is isolated from `extensions/common` (Directus would otherwise warn that `common/` lacks a `directus:extension` field).
+3. Symlinks each extension into `development/extensions/<published-name>/` so `EXTENSIONS_PATH` is isolated from `packages/common` (Directus would otherwise warn that `common/` lacks a `directus:extension` field).
 4. Bootstraps the SQLite DB if `data.db` doesn't exist yet.
 5. Starts watch builds (`directus-extension build --watch`) for both extensions in parallel with Directus, so saved edits land in the running admin without a manual restart.
 
@@ -90,7 +91,7 @@ The two extensions' `package.json` versions on `main` will lag behind root betwe
 
 - **Avoid `as any` and `as unknown` casts unless truly necessary.** Both bypass TypeScript's safety net and tend to mask real bugs. Prefer real types — even partial ones via `Partial<T>` / `Pick<T, K>` — or narrow the consumer's signature so the cast isn't needed. When a cast is unavoidable (mocking a complex third-party type in a test is the most common case), use a single targeted cast (`as TargetType`) rather than the `as unknown as TargetType` double-cast escape hatch, and keep its scope as small as possible.
 
-- **Never hard-code Localazy collection names.** Always import `LOCALAZY_COLLECTIONS` from `extensions/common/models/collections-data/collection-names.ts`. The literals look interchangeable but they are not:
+- **Never hard-code Localazy collection names.** Always import `LOCALAZY_COLLECTIONS` from `@localazy/directus-common` (defined in `packages/common/src/models/collections-data/collection-names.ts`). The literals look interchangeable but they are not:
   - `localazy_data` — UI grouping folder in `directus_collections`. **No backing table.** Reading it with `ItemsService.readByQuery()` throws `Cannot read properties of undefined (reading 'primary')` inside Directus' schema traversal — and if the caller doesn't `try/catch` it surfaces as an unhandled rejection that makes the HTTP request hang until the client times out.
   - `localazy_config_data` — the actual single-row collection storing the OAuth token + project id.
   - The other names (`localazy_settings`, `localazy_content_transfer_setup`, `localazy_sync_state`, `localazy_sync_log`) are real collections.
@@ -105,10 +106,10 @@ We support Directus 11, so the shapes below are the current truth. They are list
 
   `directus_users.role` (m2o) → `directus_roles.policies` (o2m to `directus_access`) → `directus_access.policy` (m2o to `directus_policies`) → `admin_access`.
 
-  To query users-who-are-admins, import the shared filter from `extensions/common/utilities/admin-users-filter.ts`:
+  To query users-who-are-admins, import the shared filter from `@localazy/directus-common` (defined in `packages/common/src/utilities/admin-users-filter.ts`):
 
   ```ts
-  import { ADMIN_USERS_FILTER } from '.../common/utilities/admin-users-filter';
+  import { ADMIN_USERS_FILTER } from '@localazy/directus-common';
   // ADMIN_USERS_FILTER === { role: { policies: { policy: { admin_access: { _eq: true } } } } }
   ```
 

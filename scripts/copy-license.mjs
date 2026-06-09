@@ -1,4 +1,4 @@
 import { copyFileSync } from 'node:fs';
 
-copyFileSync('./LICENSE', './extensions/module/LICENSE');
-copyFileSync('./LICENSE', './extensions/sync-hook/LICENSE');
+copyFileSync('./LICENSE', './packages/module/LICENSE');
+copyFileSync('./LICENSE', './packages/sync-hook/LICENSE');

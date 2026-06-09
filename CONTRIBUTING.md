@@ -4,13 +4,13 @@ Thanks for your interest in contributing to the Localazy Directus extension.
 
 ## Project layout
 
-This is a pnpm-workspaces monorepo with three packages under `extensions/`:
+This is a pnpm-workspaces monorepo with three packages under `packages/`:
 
-| Path                    | Published as                                       | Purpose                                                                                                                                                                                                                                                                   |
-| ----------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `extensions/module/`    | `@localazy/directus-extension-localazy`            | UI module (Vue 3 + Pinia). The Localazy admin pages — Overview, Import & Export, Project Setup, Additional Settings, About.                                                                                                                                               |
-| `extensions/sync-hook/` | `@localazy/directus-extension-localazy-automation` | Server-side bundle (plain TypeScript). Two children: a **hook** that automates content upload on Directus item / translation / settings changes, and an **endpoint** exposing `GET /localazy-automation/status` so the module can detect whether the bundle is installed. |
-| `extensions/common/`    | (internal)                                         | Shared TypeScript code — services, models, types — consumed by both extensions. Not published; Rollup inlines it into each extension's bundle.                                                                                                                            |
+| Path                  | Published as                                       | Purpose                                                                                                                                                                                                                                                                   |
+| --------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/module/`    | `@localazy/directus-extension-localazy`            | UI module (Vue 3 + Pinia). The Localazy admin pages — Overview, Import & Export, Project Setup, Additional Settings, About.                                                                                                                                               |
+| `packages/sync-hook/` | `@localazy/directus-extension-localazy-automation` | Server-side bundle (plain TypeScript). Two children: a **hook** that automates content upload on Directus item / translation / settings changes, and an **endpoint** exposing `GET /localazy-automation/status` so the module can detect whether the bundle is installed. |
+| `packages/common/`    | (internal)                                         | Shared TypeScript code — services, models, types — consumed by both extensions. Not published; Rollup inlines it into each extension's bundle.                                                                                                                            |
 
 ## Prerequisites
 

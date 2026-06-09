@@ -7,7 +7,15 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', 'development/**', 'extensions/common/config/config.json', 'scripts/**'],
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/.turbo/**',
+      'development/**',
+      'packages/common/src/config/config.json',
+      'scripts/**',
+      'packages/*/scripts/**',
+    ],
   },
 
   js.configs.recommended,
@@ -43,7 +51,7 @@ export default tseslint.config(
 
   // Module + common code runs in the admin browser context.
   {
-    files: ['extensions/module/**/*.{ts,vue}', 'extensions/common/**/*.ts'],
+    files: ['packages/module/**/*.{ts,vue}', 'packages/common/**/*.ts'],
     languageOptions: {
       globals: { ...globals.browser },
     },
@@ -51,7 +59,7 @@ export default tseslint.config(
 
   // Hook code runs in the Directus Node process.
   {
-    files: ['extensions/sync-hook/**/*.ts'],
+    files: ['packages/sync-hook/**/*.ts'],
     languageOptions: {
       globals: { ...globals.node },
     },
