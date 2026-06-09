@@ -30,7 +30,13 @@
   },
   "scripts": {
     "build": "directus-extension build",
-    "dev": "directus-extension build --watch --no-minify"
+    "dev": "directus-extension build --watch --no-minify",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run --project=module"
   },
   "publishConfig": {
     "access": "public"

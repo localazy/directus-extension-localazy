@@ -10,7 +10,13 @@
   },
   "scripts": {
     "build:scripts": "node ./scripts/set-config.mjs --mode=production",
-    "build:scripts:demo": "node ./scripts/set-config.mjs --mode=demo"
+    "build:scripts:demo": "node ./scripts/set-config.mjs --mode=demo",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project=common"
   },
   "dependencies": {
     "@localazy/api-client": "^2.1.5",

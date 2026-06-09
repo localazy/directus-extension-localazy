@@ -72,6 +72,13 @@ rm -rf development/data development/uploads development/extensions
 | `pnpm test:coverage` | Vitest with v8 coverage (text + HTML at `coverage/` + lcov).                       |
 | `pnpm knip`          | Detect unused files, dependencies, and exports. Local only — not gated in CI.      |
 
+`typecheck` and `test` run per-package under Turborepo — repeat invocations with no changes are near-instant via the cache. To focus on one workspace:
+
+```bash
+pnpm --filter=@localazy/directus-extension-localazy typecheck
+pnpm --filter=@localazy/directus-common test
+```
+
 ### Building
 
 | Command                  | What it does                                                            |
