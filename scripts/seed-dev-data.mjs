@@ -236,6 +236,28 @@ async function main() {
     },
   ]);
 
+  // Pre-configure the articles collection's title + body as translatable so a
+  // fresh dev environment can drive Export / Import end-to-end without a manual
+  // Project Setup pass. Without this, the Articles checkbox on Import & Export
+  // is selectable but the Save action stays at 0 items, because the sync
+  // pipeline only walks fields listed in localazy_content_transfer_setup.
+  //
+  // The singleton row is created lazily by the module's installer-store on
+  // first boot. If we beat the module to it (race condition on a fresh start),
+  // log a warning and continue — the user can configure it manually via
+  // Project Setup. Either way the seed itself should not fail.
+  console.log('[seed] configuring articles fields as translatable');
+  try {
+    await api(token, '/items/localazy_content_transfer_setup', 'PATCH', {
+      enabled_fields: JSON.stringify([{ collection: 'articles', fields: ['title', 'body'] }]),
+    });
+  } catch (e) {
+    console.warn(
+      '[seed] could not configure translatable fields automatically — open the Localazy → Project Setup page once to initialise, then re-run the seed.',
+    );
+    console.warn('[seed] error:', e.message);
+  }
+
   console.log('[seed] done');
 }
 
