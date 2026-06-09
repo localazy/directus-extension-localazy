@@ -43,4 +43,10 @@ overrides:
   # its own axios — and the AxiosInstance types from different patch
   # versions are nominally incompatible at TS-time. Pin to one to restore
   # the dedupe behavior.
-  axios: 1.17.0
+  #
+  # Pinned to 1.15.2 — the patch version our own packages declared after the
+  # CVE bump (058e99f). @directus/api@35.2.0 and @directus/composables@11.4.1
+  # pin to 1.15.0 exact upstream; 1.15.2 is two patch releases ahead of that
+  # baseline so the AxiosInstance shape is identical, while keeping our CVE
+  # coverage. Re-verify against the latest Directus SDK whenever bumping.
+  axios: 1.15.2
