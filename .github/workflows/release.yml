@@ -32,6 +32,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          run_install: false
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
@@ -53,7 +58,7 @@ jobs:
           GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Create Release PR
         run: npx @localazy/workflow-scripts@latest create-release-pr
@@ -71,6 +76,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          run_install: false
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
@@ -84,22 +94,22 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Sync extension versions to root
         run: |
           VERSION="${{ steps.package.outputs.version }}"
-          npm version "$VERSION" --no-git-tag-version --allow-same-version --workspace=@localazy/directus-extension-localazy
-          npm version "$VERSION" --no-git-tag-version --allow-same-version --workspace=@localazy/directus-extension-localazy-automation
+          pnpm --filter=@localazy/directus-extension-localazy exec npm version "$VERSION" --no-git-tag-version --allow-same-version
+          pnpm --filter=@localazy/directus-extension-localazy-automation exec npm version "$VERSION" --no-git-tag-version --allow-same-version
 
       - name: Build extensions
-        run: npm run build
+        run: pnpm run build
 
       - name: Publish @localazy/directus-extension-localazy
-        run: npm publish --access public --workspace=@localazy/directus-extension-localazy
+        run: pnpm --filter=@localazy/directus-extension-localazy publish --no-git-checks
 
       - name: Publish @localazy/directus-extension-localazy-automation
-        run: npm publish --access public --workspace=@localazy/directus-extension-localazy-automation
+        run: pnpm --filter=@localazy/directus-extension-localazy-automation publish --no-git-checks
 
       - name: Generate token
         id: auth

@@ -5,4 +5,5 @@ development/extensions/
 development/uploads/
 extensions/common/config/config.json
 package-lock.json
+pnpm-lock.yaml
 CHANGELOG.md
