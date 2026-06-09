@@ -228,7 +228,7 @@ export async function runIncrementalExport(
   // re-assign it before the return / throw).
   let writtenSinceStart = 0;
   let logStatus: ExportStatus = 'completed';
-  // eslint-disable-next-line no-useless-assignment
+
   let logSummary = '';
 
   try {
