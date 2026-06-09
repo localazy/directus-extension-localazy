@@ -36,7 +36,9 @@
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "typecheck": "vue-tsc --noEmit",
-    "test": "vitest run --project=module"
+    "test": "vitest run --project=module",
+    "prepack": "node ../../scripts/strip-workspace-devdeps.mjs strip",
+    "postpack": "node ../../scripts/strip-workspace-devdeps.mjs restore"
   },
   "publishConfig": {
     "access": "public"

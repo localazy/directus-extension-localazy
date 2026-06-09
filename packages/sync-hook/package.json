@@ -50,7 +50,9 @@
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --project=sync-hook"
+    "test": "vitest run --project=sync-hook",
+    "prepack": "node ../../scripts/strip-workspace-devdeps.mjs strip",
+    "postpack": "node ../../scripts/strip-workspace-devdeps.mjs restore"
   },
   "publishConfig": {
     "access": "public"

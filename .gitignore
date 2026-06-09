@@ -140,6 +140,9 @@ dist
 # Turborepo
 .turbo
 
+# Backups created by scripts/strip-workspace-devdeps.mjs during prepack
+package.json.prepack-backup
+
 # TypeDoc
 typedoc
 
