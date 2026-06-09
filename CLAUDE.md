@@ -15,7 +15,7 @@ A monorepo of two published Directus extensions plus one internal shared package
 ## Stack
 
 - **Node 22** (`.nvmrc`).
-- **npm workspaces** at the repo root. (Stay on npm — `localazy/release@v2` is npm-hardcoded; pnpm/Yarn would require forking that action.)
+- **npm workspaces** at the repo root.
 - **ESLint 10** flat config (`eslint.config.js`) + `typescript-eslint@8` + `eslint-plugin-vue@10` flat presets + `eslint-config-prettier`. Per-workspace globals: browser for `module/` and `common/`, node for `sync-hook/`.
 - **Prettier 3** (`.prettierrc.json`). Single quotes, semicolons, trailing commas, `printWidth: 140` (matches the `vue/max-len` lint rule — don't change one without changing the other).
 - **TypeScript** `^5.9`. Typechecking uses `vue-tsc --noEmit` so `<script lang="ts">` inside `.vue` files is covered.
@@ -78,7 +78,12 @@ rm -rf development/data development/uploads development/extensions
 | `npm run build`             | Minified production build of both extensions. This is what release publishes.       |
 | `npm run build:development` | Unminified build (faster, used by `dev`).                                           |
 
-CI (`.github/workflows/qa.yml`) runs `npm run check` then a production build on every PR. Release (`.github/workflows/release.yml`) is triggered by pushes to `main` and uses `localazy/release@v2` to bump versions, generate the changelog, build, and publish to npm.
+CI (`.github/workflows/qa.yml`) runs `npm run check` then a production build on every PR. Release (`.github/workflows/release.yml`) is triggered by pushes to `main` and uses `npx @localazy/workflow-scripts@latest` to drive a **lockstep release flow**: the root `package.json` version is the single source of truth, and both extensions publish together at that version. Two jobs gated by commit-message prefix:
+
+- Commit doesn't start with `🚀 release:` → `create-release-pr` opens a single PR bumping root version + updating root `CHANGELOG.md` based on conventional commits.
+- Commit starts with `🚀 release:` → sync both extensions' `version` field to root, build, `npm publish` both, then `create-git-tag` + `create-github-release`.
+
+The two extensions' `package.json` versions on `main` will lag behind root between releases — they are synced at publish time, so the value end users see on npm always matches root. Cosmetic mismatch only.
 
 ## Coding conventions
 
