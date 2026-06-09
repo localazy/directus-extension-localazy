@@ -21,7 +21,7 @@ allowBuilds:
   oracledb: false
   protobufjs: false
   sharp: true
-  sqlite3: false
+  sqlite3: true
   unrs-resolver: true
   vue-demi: true
 
