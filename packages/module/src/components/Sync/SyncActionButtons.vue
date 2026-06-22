@@ -19,7 +19,7 @@
       </div>
       <div class="sync-group">
         <v-button
-          v-tooltip="syncInProgress ? 'Localazy is syncing — try again in a moment' : null"
+          v-tooltip.bottom="syncInProgress ? 'Localazy is syncing — try again in a moment' : null"
           :disabled="disableDownloadButtons"
           secondary
           @click="$emit('download')"
