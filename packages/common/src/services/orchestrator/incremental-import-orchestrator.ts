@@ -5,7 +5,7 @@ import { DirectusLocalazyLanguage } from '../../models/directus-localazy-languag
 import { EnabledField } from '../../models/collections-data/content-transfer-setup';
 import { LocalazyData } from '../../models/collections-data/localazy-data';
 import { Settings } from '../../models/collections-data/settings';
-import { LockState, OrchestratorAdapters } from './ports';
+import { ErrorSink, LockState, OrchestratorAdapters } from './ports';
 import { LocalazyContentSummary, summarizeLocalazyContent } from './summarize-localazy-content';
 import { upsertFromLocalazyContent } from './upsert-localazy-content';
 import { WrittenTriple } from './written-triple';
@@ -283,8 +283,8 @@ async function runImportBody(
   // session row in addition to the existing module-side error store. The wrap
   // intentionally calls the wrapped sink first so existing observers see errors with
   // identical timing — only the log entry is new.
-  const wrappedErrorSink = (err: unknown) => {
-    onDirectusError(err);
+  const wrappedErrorSink: ErrorSink = (err, context) => {
+    onDirectusError(err, context);
     const message = err instanceof Error ? err.message : String(err);
     log.appendError(`Upsert error: ${message}`);
   };

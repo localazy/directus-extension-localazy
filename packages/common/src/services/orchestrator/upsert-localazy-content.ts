@@ -219,7 +219,10 @@ async function upsertItemsFromSingleCollection(input: UpsertItemsFromSingleColle
           onWritten(built.triples);
         }
       } catch (e: unknown) {
-        onDirectusError(e);
+        // Attach where it failed so the UI can deep-link: the PATCH targets the parent
+        // `collection` + `itemId`; languages come from the batch's write triples.
+        const languages = [...new Set(built.triples.map((t) => t.language))];
+        onDirectusError(e, { collection, itemId, languages });
         if (built.triples.length > 0 && onFailed) {
           onFailed(built.triples);
         }
