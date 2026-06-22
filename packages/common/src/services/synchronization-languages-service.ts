@@ -72,33 +72,41 @@ export class SynchronizationLanguagesService {
       localazyForm: DirectusLocalazyAdapter.transformDirectusToLocalazyLanguage(directusLanguage),
     }));
 
-    const localazyExpandedLanguages = localazyLanguages.map((localazyLanguage) => ({
+    // Localazy project languages with no backing row in the Directus languages collection.
+    // Same comparison the create step uses below, so "missing" and "created" stay in lockstep.
+    const localazyLanguagesNotInDirectus = localazyLanguages.filter(
+      (l) => !directusExpandedLangauges.some((directusLanguage) => directusLanguage.localazyForm === l.code),
+    );
+
+    // Of the missing languages, the subset we'll actually create in Directus. `NO` creates
+    // nothing; `ALL` creates every missing language.
+    // Note: `enabled` isn't on @localazy/api-client's Language type. At runtime this access
+    // is always undefined, so the `ONLY_NON_HIDDEN` branch is effectively ALL-only today —
+    // preserving the existing (already-inert) "filter by enabled" behaviour.
+    const localazyLanguagesToCreate =
+      settings.create_missing_languages_in_directus === CreateMissingLanguagesInDirectus.NO
+        ? []
+        : localazyLanguagesNotInDirectus.filter(
+            (l) =>
+              settings.create_missing_languages_in_directus === CreateMissingLanguagesInDirectus.ALL ||
+              (l as { enabled?: boolean }).enabled,
+          );
+    if (localazyLanguagesToCreate.length > 0) {
+      await this.createLanguages(settings, localazyLanguagesToCreate);
+    }
+
+    // Import only languages that have a Directus row: the ones already present, plus the
+    // ones we just created. A Localazy language that's missing from Directus and was NOT
+    // created is intentionally skipped — writing its translation rows would fail the
+    // `languages_code` foreign key (`Invalid foreign key "ja" …`). This is the
+    // "when the import doesn't create the missing language, skip it" behaviour, gated by
+    // the `create_missing_languages_in_directus` setting.
+    const createdExpandedLanguages: DirectusLocalazyLanguage[] = localazyLanguagesToCreate.map((localazyLanguage) => ({
       originalForm: localazyLanguage.code,
       directusForm: DirectusLocalazyAdapter.transformLocalazyToDirectusPreferedFormLanguage(localazyLanguage.code),
       localazyForm: localazyLanguage.code,
     }));
-    let importLanguages: DirectusLocalazyLanguage[] = [...directusExpandedLangauges];
-    localazyExpandedLanguages.forEach((localazyLanguage) => {
-      const languageExistsInDirectus = importLanguages.find((l) => l.originalForm === localazyLanguage.originalForm);
-      const localazyFormInDirectusExists = importLanguages.find((l) => l.localazyForm === localazyLanguage.originalForm);
-      if (!languageExistsInDirectus && !localazyFormInDirectusExists) {
-        importLanguages.push(localazyLanguage);
-      }
-    });
-
-    if (settings.create_missing_languages_in_directus !== CreateMissingLanguagesInDirectus.NO) {
-      const localazyLanguagesNotInDirectus = localazyLanguages
-        .filter((l) => !directusExpandedLangauges.some((directusLanguage) => directusLanguage.localazyForm === l.code))
-        // Note: `enabled` isn't on @localazy/api-client's Language type. At runtime this
-        // access is always undefined, so the filter effectively only lets languages through
-        // when create_missing_languages_in_directus === ALL. Preserving existing behavior;
-        // the underlying "filter by enabled" logic was already inert.
-        .filter(
-          (l) =>
-            settings.create_missing_languages_in_directus === CreateMissingLanguagesInDirectus.ALL || (l as { enabled?: boolean }).enabled,
-        );
-      await this.createLanguages(settings, localazyLanguagesNotInDirectus);
-    }
+    let importLanguages: DirectusLocalazyLanguage[] = [...directusExpandedLangauges, ...createdExpandedLanguages];
 
     if (!import_source_language) {
       importLanguages = importLanguages.filter(
