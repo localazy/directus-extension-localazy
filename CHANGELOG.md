@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.1.0 (2026-06-22)
+
+### 🔀 Merged Pull Requests
+- ✨ feat: harden import sync and improve Directus error reporting [#108](https://github.com/localazy/directus-extension-localazy/pull/108)
+
+### ✨ Features
+- terminate a stuck sync session from the Activity detail page (*[f94cae2](https://github.com/localazy/directus-extension-localazy/commit/f94cae22151a1ecb3394b8de16e752bf4483545a)*) (*[#108](https://github.com/localazy/directus-extension-localazy/pull/108)*)
+- aggregate Directus import errors into expandable rows with deep-links (*[8199322](https://github.com/localazy/directus-extension-localazy/commit/8199322822b6e20c63bd74ca0c8861e6c4dabdd4)*) (*[#108](https://github.com/localazy/directus-extension-localazy/pull/108)*)
+
+### 🐛 Bug Fixes
+- render action-button tooltips below the page header (*[3409a28](https://github.com/localazy/directus-extension-localazy/commit/3409a287407128ca0dcc22424ca76b18a01999e5)*) (*[#108](https://github.com/localazy/directus-extension-localazy/pull/108)*)
+- skip Localazy languages missing from Directus on import (*[e8f7045](https://github.com/localazy/directus-extension-localazy/commit/e8f704585f41cbeb59f90d316468317c2eb70619)*) (*[#108](https://github.com/localazy/directus-extension-localazy/pull/108)*)
+- stop the download cursor overflowing its column (*[910114b](https://github.com/localazy/directus-extension-localazy/commit/910114b5bf90986ef0bd7f02f684330d19d3a34c)*) (*[#108](https://github.com/localazy/directus-extension-localazy/pull/108)*)
+
+### ❤️ Contributors
+- [*Daniel Charvat*](https://github.com/elisiondan)
+
 ## 2.0.0 (2026-06-09)
 
 ### 🔀 Merged Pull Requests
