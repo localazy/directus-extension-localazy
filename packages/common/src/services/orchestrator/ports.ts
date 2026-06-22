@@ -91,8 +91,21 @@ export type ResolveLanguageFkField = (parentCollection: string, translationField
  * existing code routed to `useErrorsStore()`; lifting splits that responsibility — the
  * orchestrator hands errors back through this port, the module adapter relays them to the
  * Pinia errors store.
+ *
+ * The optional `context` carries *where* the error happened so the UI can deep-link to the
+ * record (see `DirectusErrorContext`). Widening is backward-compatible: existing one-arg
+ * sinks remain assignable and callers may still invoke with a single argument.
  */
-export type ErrorSink = (error: unknown) => void;
+export type DirectusErrorContext = {
+  /** Parent collection the failing PATCH targeted — used for a Directus item deep-link. */
+  collection?: string;
+  /** Parent item id the failing PATCH targeted. */
+  itemId?: string | number;
+  /** Languages whose translations were in the failed batch (from the write triples). */
+  languages?: string[];
+};
+
+export type ErrorSink = (error: unknown, context?: DirectusErrorContext) => void;
 
 /**
  * Snapshot of the advisory sync lock. Mirrors the persisted `localazy_sync_state` row

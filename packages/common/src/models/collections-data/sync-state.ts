@@ -1,15 +1,19 @@
 /**
- * Sync cursor data, indexed by (language, Localazy key id). The recorded number is the
- * `event` value of the most recently applied modification for that (language, key) pair.
+ * Download-sync cursor: a per-language high-water mark. The recorded number is the largest
+ * Localazy modification `event` we've confirmed-imported for that language.
  *
- * On the next download sync we skip any (language, key) whose stored event is `>=` the
- * one returned by the API — i.e. we only fetch translations modified since we last wrote
- * them. Cells with `undefined` storedEvent or `undefined` API event are always treated as
- * "needs sync" (safe mode), preserving correctness if the server ever omits the field.
+ * On the next download sync we fetch only keys whose `event` is greater than the language's
+ * watermark (Localazy's own `sinceEvent` / `maxEvent` incremental contract). A missing
+ * watermark, or a key with no `event`, is always treated as "needs sync" (safe mode).
+ *
+ * This replaced an earlier per-`(language, keyId)` map, which grew one entry per translated
+ * key × language and overflowed the `processed_keys` TEXT column on large projects. The
+ * watermark keeps the stored payload to a handful of numbers regardless of project size.
+ * See `utilities/sync-cursor.ts` for the failure-safe advance rule.
  */
 export type SyncCursor = {
-  /** `{ [lang]: { [localazyKeyId]: lastProcessedEventNumber } }` */
-  processed_keys: Record<string, Record<string, number>>;
+  /** `{ [lang]: highWaterEventNumber }` */
+  processed_keys: Record<string, number>;
 };
 
 /**
@@ -35,7 +39,7 @@ export type UploadCursor = {
  * upload cursor in `uploaded_hashes`.
  */
 export type SyncState = {
-  /** JSON-encoded `SyncCursor['processed_keys']`. Default `'{}'`. */
+  /** JSON-encoded `SyncCursor['processed_keys']` (per-language watermark map). Default `'{}'`. */
   processed_keys: string;
   /** JSON-encoded `UploadCursor['uploaded_hashes']`. Default `'{}'`. */
   uploaded_hashes: string;

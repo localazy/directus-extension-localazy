@@ -406,12 +406,12 @@ describe('runIncrementalImport — orchestrator', () => {
     expect(updateCalls).toHaveLength(1);
     expect(updateCalls[0]!.collection).toBe('posts');
 
-    // Cursor persisted at end with all three (lang, keyId, event) cells.
+    // Cursor persisted at end as a per-language high-water mark (max event seen per language).
     expect(cursor.persistCalls.length).toBeGreaterThanOrEqual(1);
     const final = cursor.diskCursor.processed_keys;
-    expect(final.fr).toEqual({ 'fr-1': 10 });
-    expect(final.de).toEqual({ 'de-1': 20 });
-    expect(final.es).toEqual({ 'es-1': 30 });
+    expect(final.fr).toBe(10);
+    expect(final.de).toBe(20);
+    expect(final.es).toBe(30);
 
     // Progress messages — FETCHING_TRANSLATIONS → CHANGES_SUMMARY → UPDATING_DIRECTUS_COLLECTION → IMPORT_FINISHED.
     const ids = messages.map((m) => m.id);
@@ -449,7 +449,7 @@ describe('runIncrementalImport — orchestrator', () => {
     // away. The orchestrator should ignore the stored cursor because the project id no
     // longer matches.
     const cursor = makeInMemoryCursorStore({
-      cursor: { processed_keys: { fr: { 'fr-1': 999 } } },
+      cursor: { processed_keys: { fr: 999 } },
       projectId: 'PROJ-OLD',
     });
     const content = buildCollectionContent('posts', [{ language: 'fr', itemId: '1', event: 5 }]);
@@ -469,7 +469,7 @@ describe('runIncrementalImport — orchestrator', () => {
 
   it('full-sync mode: starts from an empty cursor even when the disk cursor matches the current project', async () => {
     const cursor = makeInMemoryCursorStore({
-      cursor: { processed_keys: { fr: { 'fr-1': 999 } } },
+      cursor: { processed_keys: { fr: 999 } },
       projectId: 'PROJ-A',
     });
     const content = buildCollectionContent('posts', [{ language: 'fr', itemId: '1', event: 5 }]);
@@ -504,11 +504,10 @@ describe('runIncrementalImport — orchestrator', () => {
     expect(cursor.persistCalls).toHaveLength(0); // no cursor touch when the fetch never succeeded
   });
 
-  it('throttled flush: many keys trigger one mid-flow persist + a final persist', async () => {
-    // Build a payload that exceeds the throttle threshold (minimum 50). Use 150 keys
-    // spread across 150 items so each upsertItemFromLocalazyContent emits one triple
-    // per PATCH — the throttle should fire ~3 times (every 50 written triples) plus
-    // the final flush in `finally`.
+  it('single end-of-run persist: many keys collapse into one per-language watermark', async () => {
+    // 150 keys across 150 items, events 1..150. The watermark cursor persists exactly once
+    // (in `finally` — no mid-run throttled flush, since the watermark can only be finalised
+    // after all failures are known), and records a single number per language (the max event).
     const perLang: Array<{ language: string; itemId: string; event?: number }> = [];
     for (let i = 1; i <= 150; i += 1) {
       perLang.push({ language: 'fr', itemId: String(i), event: i });
@@ -526,17 +525,16 @@ describe('runIncrementalImport — orchestrator', () => {
 
     expect(result.status).toBe('completed');
     expect(result.itemsProcessed).toBe(150);
-    // Throttle threshold for 150 keys is max(50, ceil(150/10)) = 50. We expect at least
-    // 2 mid-flow flushes (at 50 and 100 keys written) plus 1 final flush => >= 3 total.
-    expect(cursor.persistCalls.length).toBeGreaterThanOrEqual(3);
-
-    // Final persisted cursor records all 150 (fr, key) cells.
-    expect(Object.keys(cursor.diskCursor.processed_keys.fr ?? {}).length).toBe(150);
+    // Exactly one persist (the final flush). No mid-run throttling.
+    expect(cursor.persistCalls).toHaveLength(1);
+    // The 150 keys collapse to a single per-language watermark = the max event.
+    expect(cursor.diskCursor.processed_keys.fr).toBe(150);
   });
 
-  it('error in upsert: the `finally` block still persists what was written before the failure', async () => {
-    // Build content for 3 items; fail the second PATCH. Items 1 (and ONLY item 1, since
-    // PATCH-then-mark gates `onWritten` on success) should land in the persisted cursor.
+  it('error in upsert: the watermark is held below the failed event so it retries next run', async () => {
+    // 3 items; fail the second PATCH (event 20). Succeeded events {10, 30}, failed {20}.
+    // The failure-safe watermark advances only to 10 (just below the earliest failure), so
+    // the next run re-fetches event > 10 — retrying the failed key 2 (and redundantly 3).
     const content = buildCollectionContent('posts', [
       { language: 'fr', itemId: '1', event: 10 },
       { language: 'fr', itemId: '2', event: 20 },
@@ -567,11 +565,8 @@ describe('runIncrementalImport — orchestrator', () => {
     expect(errors).toHaveLength(1);
     // Items 1 and 3 succeeded → 2 PATCHes recorded in `updateCalls`.
     expect(updateCalls.map((c) => c.itemId).sort()).toEqual(['1', '3']);
-    // Cursor reflects only the successful writes.
-    const fr = cursor.diskCursor.processed_keys.fr ?? {};
-    expect(fr['fr-1']).toBe(10);
-    expect(fr['fr-3']).toBe(30);
-    expect(fr['fr-2']).toBeUndefined();
+    // Watermark held at 10 (just below the failed event 20) so key 2 is retried next run.
+    expect(cursor.diskCursor.processed_keys.fr).toBe(10);
     // The final persist always runs in `finally`.
     expect(cursor.persistCalls.length).toBeGreaterThanOrEqual(1);
   });

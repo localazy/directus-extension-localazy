@@ -383,7 +383,7 @@ type BuildAdaptersInput = {
 export function buildOrchestratorAdapters(input: BuildAdaptersInput): OrchestratorAdapters {
   const directusApi = new DirectusModuleApi(input.api, input.collectionsStore);
   const { addDirectusError } = useErrorsStore();
-  const onDirectusError: ErrorSink = (e) => addDirectusError(e);
+  const onDirectusError: ErrorSink = (e, context) => addDirectusError(e, context);
 
   return {
     cursorStore: buildCursorStore(),

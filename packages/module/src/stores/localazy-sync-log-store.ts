@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { useApi } from '@directus/extensions-sdk';
 import { useLocalazyInstallerStore, LOCALAZY_COLLECTIONS } from './localazy-installer-store';
 import { useErrorsStore } from './errors-store';
+import { createSyncLogWriter, type SyncLogHttpClient } from '../services/sync-log-writer';
 import type { SyncLogSession } from '@localazy/directus-common';
 
 /**
@@ -78,6 +79,35 @@ export const useLocalazySyncLogStore = defineStore('localazySyncLog', () => {
     }
   }
 
+  /**
+   * Force a stuck `in_progress` session into the terminal `aborted` state. Appends a
+   * milestone entry recording the manual termination, then writes the terminal columns
+   * (`status` / `finished_at` / `summary` / `items_processed`) through the same deep
+   * writer the orchestrator uses on a natural finish — so retention trimming and the
+   * row's terminal shape stay identical to an organically-finished run.
+   *
+   * Deliberately does NOT touch the advisory sync lock in `localazy_sync_state`: the lock
+   * isn't id-linked to a log row, so releasing it is the caller's decision (see
+   * `ActivityDetail.vue`, which clears it only when a lock is actually held).
+   */
+  async function terminate(session: SyncLogSession, terminatedByUserId: string | null): Promise<void> {
+    // Same `api`→`SyncLogHttpClient` narrowing the orchestrator adapters use — `useApi()`'s
+    // axios shape is structurally compatible but not assignable without the bridge cast.
+    const writer = createSyncLogWriter({ api: api as unknown as SyncLogHttpClient, collectionName: LOCALAZY_COLLECTIONS.syncLog });
+    await writer.appendEntry(session.id, {
+      timestamp: new Date().toISOString(),
+      level: 'warn',
+      message: 'Session manually terminated by operator.',
+      ...(terminatedByUserId ? { data: { user: terminatedByUserId } } : {}),
+    });
+    await writer.finish(session.id, {
+      status: 'aborted',
+      summary: session.summary || 'Manually terminated by operator.',
+      itemsProcessed: session.items_processed,
+    });
+    await reload();
+  }
+
   // Mirror the singleton stores' pattern: first reload fires once the installer flips
   // `installed` to true. `immediate: true` covers the case where the installer was
   // already done by the time this store is first used.
@@ -89,5 +119,5 @@ export const useLocalazySyncLogStore = defineStore('localazySyncLog', () => {
     { immediate: true },
   );
 
-  return { sessions, loading, error, reload, clearAll, getById };
+  return { sessions, loading, error, reload, clearAll, getById, terminate };
 });

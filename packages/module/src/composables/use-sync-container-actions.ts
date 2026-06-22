@@ -11,6 +11,7 @@ import { useLocalazyConfigStore } from '../stores/localazy-config-store';
 import { useLocalazyTransferSetupStore } from '../stores/localazy-transfer-setup-store';
 import { useLocalazySyncLogStore } from '../stores/localazy-sync-log-store';
 import { useProgressTrackerStore } from '../stores/progress-tracker-store';
+import { useErrorsStore } from '../stores/errors-store';
 import { useDirectusLanguages } from './use-directus-languages';
 import { useCollectionsOrganizer } from './use-collections-organizer';
 import { useTranslatableCollections } from './use-translatable-collections';
@@ -47,6 +48,7 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
   const directusUserId = computed(() => userStore.currentUser?.id ?? '');
 
   const { addProgressMessage, resetProgressTracker } = useProgressTrackerStore();
+  const { resetDirectusErrors } = useErrorsStore();
   const localazyStore = useLocalazyStore();
   const { localazyUser, localazyProject } = storeToRefs(localazyStore);
 
@@ -111,6 +113,9 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
     // ran when the user explicitly closed the modal via the Done button, and any other
     // dismissal path (re-clicking Export, switching pages) left stale messages behind.
     resetProgressTracker();
+    // Same rationale for the Directus error notice — start each run with a clean slate so
+    // counts reflect this run, not an accumulation across every prior attempt.
+    resetDirectusErrors();
 
     // Pre-orchestrator progress lines. The orchestrator's first message is
     // `UPLOAD_CHANGES_SUMMARY` (or `UPLOAD_UP_TO_DATE`), which only lands once the cursor
@@ -171,6 +176,7 @@ export const useSyncContainerActions = (data: UseSyncContainerActions) => {
     // See the matching call in `onExport` — without this the tracker accumulates
     // messages across runs whenever the user dismisses the modal without clicking Done.
     resetProgressTracker();
+    resetDirectusErrors();
 
     // SYNC_MODE_HEADER and RETRIEVING_LANGUAGES go to the modal *before* the orchestrator
     // runs — same order users have always seen. The orchestrator (called once languages

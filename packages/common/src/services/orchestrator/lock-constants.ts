@@ -35,3 +35,29 @@ export const SYNC_LOCK_HARD_CEILING_MS = 2 * 60 * 60 * 1000;
  * own staleness check would already let a contender steal.
  */
 export const SYNC_LOCK_STUCK_HINT_MS = SYNC_LOCK_STALE_HEARTBEAT_MS;
+
+/**
+ * Shared "is this lock dead?" predicate, evaluated against a `localazy_sync_state` row.
+ * Mirrors the orchestrator's private `isLockStale` (which reads the internal `LockState`
+ * shape) but operates on the persisted `sync_*` column names so the UI surfaces — the
+ * Import button's disabled affordance and the Activity-detail terminate flow — classify a
+ * lock identically to the orchestrator's own steal check. There is one staleness rule for
+ * all three callers.
+ *
+ * Stale = `sync_started_at` older than the 2 h hard ceiling (zombie that keeps
+ * heartbeating but never finishes) OR `sync_last_heartbeat_at` older than the 5 min
+ * heartbeat window (dead worker / Directus restart). A null timestamp is never stale on
+ * its own — a lock acquired microseconds ago hasn't heartbeated yet. Callers gate this
+ * behind `sync_in_progress === true`.
+ */
+export function isSyncLockStale(state: { sync_started_at: string | null; sync_last_heartbeat_at: string | null }, now: number): boolean {
+  if (state.sync_started_at) {
+    const startedMs = Date.parse(state.sync_started_at);
+    if (Number.isFinite(startedMs) && now - startedMs > SYNC_LOCK_HARD_CEILING_MS) return true;
+  }
+  if (state.sync_last_heartbeat_at) {
+    const heartbeatMs = Date.parse(state.sync_last_heartbeat_at);
+    if (Number.isFinite(heartbeatMs) && now - heartbeatMs > SYNC_LOCK_STALE_HEARTBEAT_MS) return true;
+  }
+  return false;
+}

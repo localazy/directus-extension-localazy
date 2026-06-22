@@ -6,7 +6,7 @@
 
     <template #actions>
       <v-button
-        v-tooltip="!mappingsValid ? 'Fix invalid custom language mappings before saving' : null"
+        v-tooltip.bottom="!mappingsValid ? 'Fix invalid custom language mappings before saving' : null"
         class="panel-button"
         :disabled="!changesExist || !mappingsValid"
         :loading="hydrating || saving"
