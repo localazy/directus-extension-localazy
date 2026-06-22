@@ -200,7 +200,7 @@ describe('CursorStore adapter', () => {
 
   beforeEach(() => {
     fake = makeFakeItemsService({
-      localazy_sync_state: [{ id: 1, processed_keys: '{"en":{"k1":5}}', cursor_project_id: 'proj-1' }],
+      localazy_sync_state: [{ id: 1, processed_keys: '{"en":5}', cursor_project_id: 'proj-1' }],
     });
     logger = makeLogger();
   });
@@ -217,10 +217,10 @@ describe('CursorStore adapter', () => {
     const result = await adapters.cursorStore.load();
 
     expect(result.projectId).toBe('proj-1');
-    expect(result.cursor.processed_keys.en?.k1).toBe(5);
+    expect(result.cursor.processed_keys.en).toBe(5);
   });
 
-  it('persist() merges with on-disk cursor via max(event) and writes the project id', async () => {
+  it('persist() lets the in-memory watermark win per language, preserving untouched disk languages', async () => {
     const adapters = buildServerOrchestratorAdapters({
       ItemsService: fake.FakeService as ItemsServiceCtor,
       schema: { collections: {}, relations: [] },
@@ -229,13 +229,14 @@ describe('CursorStore adapter', () => {
       localazyProject: project,
     });
 
-    await adapters.cursorStore.persist({ processed_keys: { en: { k2: 7 }, de: { k1: 3 } } });
+    await adapters.cursorStore.persist({ processed_keys: { en: 7, de: 3 } });
 
     const row = fake.tables.get('localazy_sync_state')?.[0];
     const persisted = JSON.parse(row?.processed_keys as string);
-    // Merge: on-disk en.k1=5 preserved, in-memory en.k2=7 added, de.k1=3 added.
-    expect(persisted.en).toEqual({ k1: 5, k2: 7 });
-    expect(persisted.de).toEqual({ k1: 3 });
+    // Right-biased merge: in-memory en=7 overrides disk en=5, de=3 added. (No max() —
+    // a failure-held watermark below disk must not be restored.)
+    expect(persisted.en).toBe(7);
+    expect(persisted.de).toBe(3);
     expect(row?.cursor_project_id).toBe('proj-1');
   });
 

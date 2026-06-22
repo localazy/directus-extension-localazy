@@ -1,5 +1,5 @@
 import { Project } from '@localazy/api-client';
-import { createEmptyCursor, cursorMatchesProject, filterKeysByEventCursor, recordCursorEntry } from '../../utilities/sync-cursor';
+import { buildWatermarkCursor, createEmptyCursor, cursorMatchesProject, filterKeysByEventCursor } from '../../utilities/sync-cursor';
 import { SyncCursor } from '../../models/collections-data/sync-state';
 import { DirectusLocalazyLanguage } from '../../models/directus-localazy-language';
 import { EnabledField } from '../../models/collections-data/content-transfer-setup';
@@ -154,9 +154,20 @@ async function runImportBody(
   const { cursor: storedCursor, projectId: storedProjectId } = await cursorStore.load();
   const baseCursor: SyncCursor =
     mode === 'full' || !cursorMatchesProject(storedProjectId, localazyProject.id || '') ? createEmptyCursor() : storedCursor;
-  // The in-memory cursor tracks only what we successfully wrote this run.
-  // `cursorStore.persist` merges it with whatever's on disk before each save.
-  const inMemoryCursor: SyncCursor = createEmptyCursor();
+  // Per-language events seen this run, split by outcome. The new per-language watermark is
+  // computed from these at persist time (`buildWatermarkCursor`): a language's watermark
+  // advances only up to just-below its earliest FAILED event, so failed keys are re-fetched
+  // next run. Tracking events (not keys) keeps the persisted cursor a handful of numbers.
+  const succeededEventsByLang = new Map<string, number[]>();
+  const failedEventsByLang = new Map<string, number[]>();
+  const recordEvents = (target: Map<string, number[]>, triples: WrittenTriple[]) => {
+    triples.forEach((t) => {
+      if (t.event === undefined) return;
+      const bucket = target.get(t.language) ?? [];
+      bucket.push(t.event);
+      target.set(t.language, bucket);
+    });
+  };
 
   // Milestone log: "started" line. The wording mirrors the design's section 11d so the
   // Activity page reads coherently regardless of whether the run came from UI or webhook.
@@ -203,8 +214,9 @@ async function runImportBody(
     });
     log.appendInfo('Already up to date — no changes since last sync');
     // Still touch `last_sync_at` so the UX / debug field reflects the most recent
-    // successful run; merge-on-persist keeps the cursor itself unchanged.
-    await cursorStore.persist(inMemoryCursor);
+    // successful run; persisting the unchanged base watermark leaves the cursor itself
+    // untouched.
+    await cursorStore.persist(baseCursor);
     return {
       status: 'up-to-date',
       itemsProcessed: 0,
@@ -219,11 +231,11 @@ async function runImportBody(
     mode: 'upsert',
   });
 
-  // Throttled flush: persist every `flushEvery` keys completed (capped at 10% of
-  // total work, minimum 50). Final flush happens unconditionally below.
-  const totalKeys = summary.changes;
-  const flushEvery = Math.max(50, Math.ceil(totalKeys / 10));
-  let sinceLastFlush = 0;
+  // The watermark can only be finalised once we know every failure for the run (advancing
+  // it past a key that fails later would skip that key forever). So unlike the old per-key
+  // cursor, we do NOT flush mid-run — we persist once in the `finally` below. A crash
+  // mid-run simply means the next run re-fetches from the last persisted watermark, which
+  // is correct (just redundant work).
   let writtenSinceStart = 0;
 
   // Per-collection / translation-string counters — only tally cursor-confirmed writes so
@@ -244,8 +256,8 @@ async function runImportBody(
   let writesForTranslationStrings = 0;
 
   const onWritten = (triples: WrittenTriple[]) => {
+    recordEvents(succeededEventsByLang, triples);
     triples.forEach((t) => {
-      recordCursorEntry(inMemoryCursor, t.language, t.keyId, t.event);
       const collection = keyIdToCollection.get(t.keyId);
       if (collection) {
         writesPerCollection.set(collection, (writesPerCollection.get(collection) ?? 0) + 1);
@@ -255,17 +267,16 @@ async function runImportBody(
         writesForTranslationStrings += 1;
       }
     });
-    sinceLastFlush += triples.length;
     writtenSinceStart += triples.length;
     // Surface the running total so the lock heartbeat closure can persist it without
     // reaching into the orchestrator's private state.
     onItemsProcessed(writtenSinceStart);
-    if (sinceLastFlush >= flushEvery) {
-      sinceLastFlush = 0;
-      // Fire-and-forget: the next persist will reload the disk cursor anyway, and we
-      // do not want write progress to stall on a slow Directus PATCH.
-      void cursorStore.persist(inMemoryCursor);
-    }
+  };
+
+  // Failed writes don't advance the cursor; we record their events so the watermark stays
+  // below them and the keys are retried next run.
+  const onFailed = (triples: WrittenTriple[]) => {
+    recordEvents(failedEventsByLang, triples);
   };
 
   // Wrap the caller's error sink so we get per-error log entries on the persisted
@@ -291,9 +302,12 @@ async function runImportBody(
       progress,
       onDirectusError: wrappedErrorSink,
       onWritten,
+      onFailed,
     });
   } finally {
-    await cursorStore.persist(inMemoryCursor);
+    // Single end-of-run persist: fold this run's per-language successes/failures into the
+    // base watermark. Failed events hold their language's watermark below them.
+    await cursorStore.persist(buildWatermarkCursor(baseCursor, succeededEventsByLang, failedEventsByLang));
   }
 
   // Milestone log: per-collection counts. Emitted after the upsert step so the numbers

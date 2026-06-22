@@ -2,12 +2,19 @@ import { Key } from '@localazy/api-client';
 import { SyncCursor } from '../models/collections-data/sync-state';
 
 /**
- * Pure helpers around the download-sync cursor. The cursor is a per-(language, key id)
- * map storing the last `event` number we successfully wrote for that cell. Everything
- * here is intentionally side-effect-free and synchronous — the orchestration (loading
- * the singleton, persisting back) lives in the call site so this stays testable.
+ * Helpers around the download-sync cursor. The cursor is a per-language high-water mark:
+ * `{ [lang]: maxEvent }`, where `maxEvent` is the largest Localazy modification `event`
+ * we've confirmed-imported for that language. On the next sync we fetch only keys whose
+ * `event` is greater than the watermark.
  *
- * The shape mirrors the Strapi-plugin implementation: `{ [lang]: { [keyId]: event } }`.
+ * This mirrors Localazy's own incremental-sync contract (`listKeysSinceEvent` /
+ * `sinceEvent` / `maxEvent`): a single scalar per request, not a per-key map. The previous
+ * per-`(lang, keyId)` representation grew unbounded (one entry per translated key × every
+ * language) and overflowed the `processed_keys` TEXT column on large projects — the column
+ * stays `text`, but the watermark keeps its contents to a handful of numbers.
+ *
+ * Everything here is pure and synchronous; orchestration (loading the singleton, persisting
+ * back) lives at the call site.
  */
 
 export function createEmptyCursor(): SyncCursor {
@@ -15,27 +22,27 @@ export function createEmptyCursor(): SyncCursor {
 }
 
 /**
- * Parse a JSON-serialized `processed_keys` blob (the on-disk format used by the
- * `localazy_sync_state` singleton). Returns an empty cursor for any malformed input —
- * the cursor is best-effort cache, not authoritative state, so we never throw and
- * never let a corrupt row block sync. The worst case of an empty parse is "re-download
- * everything once", which is the desired fallback.
+ * Parse the JSON-encoded watermark map stored in `localazy_sync_state.processed_keys`.
+ * Returns an empty cursor for any malformed input — the cursor is best-effort cache, not
+ * authoritative state, so we never throw and never let a corrupt row block sync.
+ *
+ * Forward-migration: older installs stored a per-key map (`{ [lang]: { [keyId]: event } }`).
+ * Such a language's value is an object, not a number, so it's dropped here — that language
+ * simply re-syncs in full once, after which the compact watermark is written back. The
+ * worst case is "re-download that language's keys once", which is the safe fallback.
  */
 export function parseCursor(raw: string | null | undefined): SyncCursor {
   if (!raw) return createEmptyCursor();
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return createEmptyCursor();
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return createEmptyCursor();
     const processed: SyncCursor['processed_keys'] = {};
-    for (const [lang, perLang] of Object.entries(parsed as Record<string, unknown>)) {
-      if (!perLang || typeof perLang !== 'object') continue;
-      const cleaned: Record<string, number> = {};
-      for (const [keyId, event] of Object.entries(perLang as Record<string, unknown>)) {
-        if (typeof event === 'number' && Number.isFinite(event)) {
-          cleaned[keyId] = event;
-        }
+    for (const [lang, value] of Object.entries(parsed as Record<string, unknown>)) {
+      // Only a finite number is a valid watermark. Legacy per-key objects (or any other
+      // shape) are skipped, forcing a clean re-sync for that language.
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        processed[lang] = value;
       }
-      processed[lang] = cleaned;
     }
     return { processed_keys: processed };
   } catch {
@@ -49,9 +56,8 @@ export function serializeCursor(cursor: SyncCursor): string {
 
 /**
  * Returns true iff the cursor was last written against the same Localazy project we're
- * about to sync. Used at sync start to decide whether to treat the on-disk cursor as
- * authoritative or wipe it in memory. Empty `storedProjectId` is treated as "no recorded
- * project" — i.e. first sync — so the cursor is acceptable.
+ * about to sync. Empty `storedProjectId` is treated as "no recorded project" (first sync),
+ * so the cursor is acceptable.
  */
 export function cursorMatchesProject(storedProjectId: string, currentProjectId: string): boolean {
   if (!storedProjectId) return true;
@@ -59,79 +65,88 @@ export function cursorMatchesProject(storedProjectId: string, currentProjectId: 
 }
 
 /**
- * Filter keys for a single language down to those that need (re-)downloading according
- * to the cursor.
+ * Filter keys for a single language down to those that need (re-)downloading according to
+ * the per-language watermark.
  *
- * Rule (must match the Strapi plugin exactly):
- *   - If we have no cursor entry for `(lang, key.id)` → include.
- *   - If the server didn't return an `event` for the key → include (safe mode).
- *   - Otherwise include iff `key.event > storedEvent`.
+ * Rule:
+ *   - No watermark for the language (`undefined`) → include everything (first sync).
+ *   - Key has no `event` (server omitted it) → include (safe mode).
+ *   - Otherwise include iff `key.event > watermark`.
  *
- * The "include on undefined" rules protect us against either side of the sync getting
- * confused: if Localazy ever rolls out a backend that doesn't echo `event`, we degrade to
- * "always download" rather than "always skip".
+ * The "include on undefined" rules degrade to "always download" rather than "always skip"
+ * if either side ever stops echoing `event`.
  */
-export function filterKeysByEventCursor(keys: Key[], perLanguageCursor: Record<string, number> | undefined): Key[] {
-  if (!perLanguageCursor) return keys;
+export function filterKeysByEventCursor(keys: Key[], watermark: number | undefined): Key[] {
+  if (watermark === undefined) return keys;
   return keys.filter((k) => {
-    const stored = perLanguageCursor[k.id];
-    if (stored === undefined) return true;
     if (k.event === undefined) return true;
-    return k.event > stored;
+    return k.event > watermark;
   });
 }
 
 /**
- * Record one successfully-applied `(lang, keyId, event)` triple in the in-memory cursor.
- * Mutates `cursor` for performance — sync writes happen in a hot loop. If the cell
- * already holds a higher event (rare, but possible if a concurrent sync raced ahead),
- * keep the higher value.
+ * Failure-safe watermark advance for one language. Returns the largest event `E` such that
+ * every key with `event <= E` has been successfully imported — in a prior run (`prev`) or
+ * among this run's `succeededEvents` — while never reaching or passing the earliest
+ * `failedEvents`. Keeping the watermark below the first failure guarantees failed keys (and
+ * the few succeeded keys after them) are re-fetched next run, preserving exact retry without
+ * a per-key map.
+ *
+ * Returns `undefined` only when there was no prior watermark and nothing could be confirmed
+ * below the first failure — the caller then leaves that language uncursored (full re-sync).
  */
-export function recordCursorEntry(cursor: SyncCursor, lang: string, keyId: string, event: number | undefined): void {
-  if (event === undefined) return;
-  const bucket = cursor.processed_keys[lang] || (cursor.processed_keys[lang] = {});
-  const existing = bucket[keyId];
-  bucket[keyId] = existing === undefined ? event : Math.max(existing, event);
-}
-
-/**
- * Merge two cursors cell-by-cell, taking `max(event)` per `(lang, keyId)`. Used when
- * persisting the in-memory cursor: we re-read the on-disk cursor, merge so we don't
- * clobber concurrent writers, and write the result back. Pure — neither input is
- * mutated, the result is a fresh object.
- */
-export function mergeCursor(a: SyncCursor, b: SyncCursor): SyncCursor {
-  const result: SyncCursor['processed_keys'] = {};
-  const allLangs = new Set([...Object.keys(a.processed_keys), ...Object.keys(b.processed_keys)]);
-  for (const lang of allLangs) {
-    const left = a.processed_keys[lang] || {};
-    const right = b.processed_keys[lang] || {};
-    const allKeys = new Set([...Object.keys(left), ...Object.keys(right)]);
-    const merged: Record<string, number> = {};
-    for (const keyId of allKeys) {
-      const lv = left[keyId];
-      const rv = right[keyId];
-      if (lv === undefined) {
-        merged[keyId] = rv!;
-      } else if (rv === undefined) {
-        merged[keyId] = lv;
-      } else {
-        merged[keyId] = Math.max(lv, rv);
-      }
-    }
-    result[lang] = merged;
+export function advanceWatermark(prev: number | undefined, succeededEvents: number[], failedEvents: number[]): number | undefined {
+  let minFailed = Number.POSITIVE_INFINITY;
+  for (const e of failedEvents) {
+    if (e < minFailed) minFailed = e;
   }
-  return { processed_keys: result };
+  let result = prev;
+  for (const e of succeededEvents) {
+    if (e < minFailed && (result === undefined || e > result)) {
+      result = e;
+    }
+  }
+  return result;
 }
 
 /**
- * Count the total cells in a cursor (sum of per-language map sizes). Useful for
- * debugging / progress reporting, not for correctness.
+ * Build the new cursor from the base (loaded) watermark plus this run's per-language
+ * success/failure events. A language where nothing could be confirmed and that had no prior
+ * watermark is omitted entirely, so it re-syncs in full next time rather than silently
+ * advancing past unconfirmed keys.
+ */
+export function buildWatermarkCursor(
+  base: SyncCursor,
+  succeededByLang: Map<string, number[]>,
+  failedByLang: Map<string, number[]>,
+): SyncCursor {
+  const processed: SyncCursor['processed_keys'] = {};
+  const langs = new Set<string>([...Object.keys(base.processed_keys), ...succeededByLang.keys(), ...failedByLang.keys()]);
+  for (const lang of langs) {
+    const w = advanceWatermark(base.processed_keys[lang], succeededByLang.get(lang) ?? [], failedByLang.get(lang) ?? []);
+    if (w !== undefined) processed[lang] = w;
+  }
+  return { processed_keys: processed };
+}
+
+/**
+ * Per-language right-biased merge used by the persist adapters. The just-computed cursor
+ * (`inMemory`) wins; languages present only on disk (not touched this run) are preserved.
+ *
+ * We deliberately do NOT take `max(event)`: a run that hit a failure intentionally holds its
+ * watermark below the failing event, and a higher pre-failure value still on disk must not
+ * override it (that would skip the failed key forever). The advisory sync lock serialises
+ * runs, so `disk` is what the orchestrator loaded as its base and `inMemory` already folded
+ * it in via `advanceWatermark`. Pure — neither input is mutated.
+ */
+export function mergeCursor(disk: SyncCursor, inMemory: SyncCursor): SyncCursor {
+  return { processed_keys: { ...disk.processed_keys, ...inMemory.processed_keys } };
+}
+
+/**
+ * Number of languages carrying a watermark. Debug / inspection only — not used for
+ * correctness.
  */
 export function countCursorEntries(cursor: SyncCursor): number {
-  let total = 0;
-  for (const perLang of Object.values(cursor.processed_keys)) {
-    total += Object.keys(perLang).length;
-  }
-  return total;
+  return Object.keys(cursor.processed_keys).length;
 }

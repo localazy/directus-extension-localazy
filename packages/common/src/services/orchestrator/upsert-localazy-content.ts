@@ -89,18 +89,33 @@ function madeUpdateChanges(updateTranslationFields: Set<string>, payload: Transl
   );
 }
 
-type UpsertItemFromLocalazyContentInput = {
-  collection: string;
+type BuildItemUpsertInput = {
   itemsInCollection: Item[];
   itemId: string | number;
   translations: LocalazyItemsInLanguage[];
   translationFieldFkMap: Map<string, string>;
   languageCodeField: string;
-  directusApi: DirectusApi;
 };
 
-async function upsertItemFromLocalazyContent(input: UpsertItemFromLocalazyContentInput): Promise<WrittenTriple[]> {
-  const { itemsInCollection, itemId, translations, collection, translationFieldFkMap, languageCodeField, directusApi } = input;
+type BuiltItemUpsert = {
+  /**
+   * Every `(lang, keyId, event)` triple this item's translations contribute. Reported to
+   * the caller's `onWritten` after the PATCH resolves, or `onFailed` if it throws — so the
+   * cursor can advance on success and hold (retry) on failure. PATCH-then-mark.
+   */
+  triples: WrittenTriple[];
+  payload: TranslationPayload;
+  /** False for an idempotent no-op (local row already matches) — skip the PATCH, still mark written. */
+  shouldWrite: boolean;
+};
+
+/**
+ * Pure builder — computes the translation payload + the contributing triples for one item.
+ * Deliberately does NO I/O so the caller owns the PATCH (and can route the triples to
+ * `onWritten` vs `onFailed` depending on the outcome).
+ */
+function buildItemUpsert(input: BuildItemUpsertInput): BuiltItemUpsert {
+  const { itemsInCollection, itemId, translations, translationFieldFkMap, languageCodeField } = input;
   // Stringify both sides — `+id` returns NaN for UUID primary keys, and NaN === NaN is
   // false, so the strict numeric equality used previously silently failed for any
   // installation with UUID-keyed collections.
@@ -108,13 +123,10 @@ async function upsertItemFromLocalazyContent(input: UpsertItemFromLocalazyConten
   let payload: TranslationPayload = {};
   const updateTranslationFields: Set<string> = new Set();
   let somethingToCreate = false;
-  // Track every `(lang, keyId, event)` triple that contributed to this PATCH. We only
-  // hand the list back to the caller after the PATCH resolves (PATCH-then-mark) — so a
-  // failed write never produces a cursor advance that would skip the same key next time.
   const triples: WrittenTriple[] = [];
 
   if (!collectionItem) {
-    return [];
+    return { triples, payload, shouldWrite: false };
   }
   translations.forEach((translation) => {
     translation.items.forEach((item) => {
@@ -141,14 +153,7 @@ async function upsertItemFromLocalazyContent(input: UpsertItemFromLocalazyConten
     });
   });
   const someUpdateChanges = madeUpdateChanges(updateTranslationFields, payload, collectionItem);
-  if (someUpdateChanges || somethingToCreate) {
-    await directusApi.updateDirectusItem(collection, itemId, payload);
-    return triples;
-  }
-  // Nothing was sent to Directus (idempotent no-op) — still advance the cursor since
-  // the local row already matches the remote translation, otherwise we'd refetch it
-  // again every sync.
-  return triples;
+  return { triples, payload, shouldWrite: someUpdateChanges || somethingToCreate };
 }
 
 type UpsertItemsFromSingleCollectionInput = {
@@ -160,10 +165,11 @@ type UpsertItemsFromSingleCollectionInput = {
   progress: ProgressSink;
   onDirectusError: ErrorSink;
   onWritten?: (triples: WrittenTriple[]) => void;
+  onFailed?: (triples: WrittenTriple[]) => void;
 };
 
 async function upsertItemsFromSingleCollection(input: UpsertItemsFromSingleCollectionInput) {
-  const { collection, content, settings, directusApi, resolveLanguageFkField, progress, onDirectusError, onWritten } = input;
+  const { collection, content, settings, directusApi, resolveLanguageFkField, progress, onDirectusError, onWritten, onFailed } = input;
 
   try {
     // Build a map of translation field -> FK column for the language relation, and ask
@@ -195,23 +201,28 @@ async function upsertItemsFromSingleCollection(input: UpsertItemsFromSingleColle
         mode: 'upsert',
       });
 
+      const built = buildItemUpsert({
+        itemsInCollection,
+        itemId,
+        translations,
+        translationFieldFkMap,
+        languageCodeField: settings.language_code_field,
+      });
       try {
-        const triples = await upsertItemFromLocalazyContent({
-          collection,
-          itemsInCollection,
-          itemId,
-          translations,
-          translationFieldFkMap,
-          languageCodeField: settings.language_code_field,
-          directusApi,
-        });
-        // PATCH-then-mark: only invoke the cursor sink after the write resolves. If the
-        // PATCH threw, we land in the catch below and `onWritten` is never called.
-        if (triples.length > 0 && onWritten) {
-          onWritten(triples);
+        if (built.shouldWrite) {
+          await directusApi.updateDirectusItem(collection, itemId, built.payload);
+        }
+        // PATCH-then-mark: only advance the cursor after the write resolves (or for an
+        // idempotent no-op, where the local row already matches). A thrown PATCH skips
+        // this and routes the same triples to `onFailed` so they're retried next run.
+        if (built.triples.length > 0 && onWritten) {
+          onWritten(built.triples);
         }
       } catch (e: unknown) {
         onDirectusError(e);
+        if (built.triples.length > 0 && onFailed) {
+          onFailed(built.triples);
+        }
         progress({
           id: UpsertProgressIds.UPDATING_DIRECTUS_COLLECTION_ERROR,
           message: `Error updating ${collection} collection (${index + 1}/${entries.length})`,
@@ -237,6 +248,7 @@ type UpsertTranslationStringsInput = {
   progress: ProgressSink;
   onDirectusError: ErrorSink;
   onWritten?: (triples: WrittenTriple[]) => void;
+  onFailed?: (triples: WrittenTriple[]) => void;
 };
 
 /**
@@ -245,7 +257,7 @@ type UpsertTranslationStringsInput = {
  * actual Directus side (legacy translations collection vs dedicated `localazy_translation_strings`).
  */
 async function upsertTranslationStrings(input: UpsertTranslationStringsInput): Promise<void> {
-  const { data, directusApi, progress, onDirectusError, onWritten } = input;
+  const { data, directusApi, progress, onDirectusError, onWritten, onFailed } = input;
   if (data.length === 0) {
     return;
   }
@@ -256,26 +268,26 @@ async function upsertTranslationStrings(input: UpsertTranslationStringsInput): P
     mode: 'upsert',
   });
 
+  // Build the triples up front so they're available on both branches: advance the cursor
+  // via `onWritten` on success, hold it via `onFailed` on failure (PATCH-then-mark).
+  const triples: WrittenTriple[] = [];
+  data.forEach((block) => {
+    Object.entries(block.localazyKeys).forEach(([language, localazyKey]) => {
+      triples.push({ language, keyId: localazyKey.id, event: localazyKey.event });
+    });
+  });
+
   try {
     const translationStringsService = new TranslationStringsService(directusApi);
     await translationStringsService.upsertTranslationStrings(data);
-    if (onWritten) {
-      const triples: WrittenTriple[] = [];
-      data.forEach((block) => {
-        Object.entries(block.localazyKeys).forEach(([language, localazyKey]) => {
-          triples.push({
-            language,
-            keyId: localazyKey.id,
-            event: localazyKey.event,
-          });
-        });
-      });
-      if (triples.length > 0) {
-        onWritten(triples);
-      }
+    if (triples.length > 0 && onWritten) {
+      onWritten(triples);
     }
   } catch (e: unknown) {
     onDirectusError(e);
+    if (triples.length > 0 && onFailed) {
+      onFailed(triples);
+    }
   }
 }
 
@@ -293,6 +305,12 @@ export type UpsertFromLocalazyContentInput = {
    * key, to keep the callback overhead off the hot loop.
    */
   onWritten?: (triples: WrittenTriple[]) => void;
+  /**
+   * Invoked once per item/translation-string batch whose write FAILED, with the same
+   * triples `onWritten` would have received on success. The orchestrator uses the failed
+   * events to hold the per-language watermark below them so the keys are retried next run.
+   */
+  onFailed?: (triples: WrittenTriple[]) => void;
 };
 
 /**
@@ -301,7 +319,7 @@ export type UpsertFromLocalazyContentInput = {
  * 150 ms delay between tasks (matches the original module-side behaviour).
  */
 export async function upsertFromLocalazyContent(input: UpsertFromLocalazyContentInput): Promise<void> {
-  const { contentItems, settings, directusApi, resolveLanguageFkField, progress, onDirectusError, onWritten } = input;
+  const { contentItems, settings, directusApi, resolveLanguageFkField, progress, onDirectusError, onWritten, onFailed } = input;
   const { add, execute } = createAsyncQueue();
   contentItems.collections.forEach((content, collection) => {
     add(async () =>
@@ -314,6 +332,7 @@ export async function upsertFromLocalazyContent(input: UpsertFromLocalazyContent
         progress,
         onDirectusError,
         onWritten,
+        onFailed,
       }),
     );
   });
@@ -324,6 +343,7 @@ export async function upsertFromLocalazyContent(input: UpsertFromLocalazyContent
       progress,
       onDirectusError,
       onWritten,
+      onFailed,
     }),
   );
 

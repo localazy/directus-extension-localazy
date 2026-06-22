@@ -6,7 +6,8 @@ import {
   serializeCursor,
   cursorMatchesProject,
   filterKeysByEventCursor,
-  recordCursorEntry,
+  advanceWatermark,
+  buildWatermarkCursor,
   mergeCursor,
   countCursorEntries,
 } from './sync-cursor';
@@ -26,192 +27,178 @@ describe('createEmptyCursor', () => {
 });
 
 describe('parseCursor', () => {
-  it('returns empty cursor for null / undefined / empty string', () => {
+  it('returns an empty cursor for null/undefined/empty input', () => {
     expect(parseCursor(null)).toEqual({ processed_keys: {} });
     expect(parseCursor(undefined)).toEqual({ processed_keys: {} });
     expect(parseCursor('')).toEqual({ processed_keys: {} });
   });
 
-  it('parses a well-formed JSON map', () => {
-    const raw = JSON.stringify({ en: { k1: 10, k2: 20 }, fr: { k1: 5 } });
-    expect(parseCursor(raw)).toEqual({ processed_keys: { en: { k1: 10, k2: 20 }, fr: { k1: 5 } } });
+  it('parses a per-language watermark map', () => {
+    expect(parseCursor('{"en":10,"fr":5}')).toEqual({ processed_keys: { en: 10, fr: 5 } });
   });
 
-  it('returns empty cursor for malformed JSON', () => {
+  it('parses negative watermarks (Localazy events are large negatives)', () => {
+    expect(parseCursor('{"ar":-6481606696963903000}')).toEqual({ processed_keys: { ar: -6481606696963903000 } });
+  });
+
+  it('returns empty on malformed JSON', () => {
     expect(parseCursor('{not-json')).toEqual({ processed_keys: {} });
   });
 
-  it('returns empty cursor for non-object JSON (array / string / number)', () => {
+  it('returns empty for non-object JSON', () => {
     expect(parseCursor('[1,2,3]')).toEqual({ processed_keys: {} });
     expect(parseCursor('"hello"')).toEqual({ processed_keys: {} });
     expect(parseCursor('42')).toEqual({ processed_keys: {} });
   });
 
-  it('drops non-numeric event values silently', () => {
-    const raw = JSON.stringify({ en: { k1: 10, k2: 'oops', k3: null, k4: 7 } });
-    expect(parseCursor(raw)).toEqual({ processed_keys: { en: { k1: 10, k4: 7 } } });
+  it('drops non-number values, keeping only valid numeric watermarks', () => {
+    expect(parseCursor('{"en":10,"fr":"oops","de":null}')).toEqual({ processed_keys: { en: 10 } });
   });
 
-  it('drops non-object per-language buckets', () => {
-    const raw = JSON.stringify({ en: { k1: 10 }, fr: 'broken', de: null });
-    expect(parseCursor(raw)).toEqual({ processed_keys: { en: { k1: 10 } } });
-  });
-
-  it('drops Infinity / NaN as non-finite numbers', () => {
-    // JSON.stringify would normally turn these to null, so build the object manually.
-    const raw = '{"en":{"k1":10,"k2":null}}';
-    expect(parseCursor(raw)).toEqual({ processed_keys: { en: { k1: 10 } } });
+  it('forward-migrates a legacy per-key map by dropping it (language re-syncs)', () => {
+    // Old shape: { lang: { keyId: event } }. The object value is not a number, so the
+    // language is dropped and will be re-synced once into a compact watermark.
+    expect(parseCursor('{"en":{"k1":10,"k2":20},"fr":7}')).toEqual({ processed_keys: { fr: 7 } });
   });
 });
 
 describe('serializeCursor', () => {
-  it('serializes the processed_keys map to JSON', () => {
-    expect(serializeCursor({ processed_keys: { en: { k1: 10 } } })).toBe('{"en":{"k1":10}}');
+  it('serializes the watermark map to JSON', () => {
+    expect(serializeCursor({ processed_keys: { en: 10, fr: 5 } })).toBe('{"en":10,"fr":5}');
   });
 
-  it('serializes empty cursor to empty object string', () => {
+  it('serializes an empty cursor to {}', () => {
     expect(serializeCursor(createEmptyCursor())).toBe('{}');
   });
 
   it('round-trips through parseCursor', () => {
-    const original = { processed_keys: { en: { k1: 10, k2: 20 }, fr: { k3: 5 } } };
+    const original = { processed_keys: { en: 20, fr: 5 } };
     expect(parseCursor(serializeCursor(original))).toEqual(original);
   });
 });
 
 describe('cursorMatchesProject', () => {
-  it('returns true when stored project id is empty (first sync)', () => {
-    expect(cursorMatchesProject('', 'abc')).toBe(true);
+  it('treats an empty stored project id as a match (first sync)', () => {
+    expect(cursorMatchesProject('', 'proj-1')).toBe(true);
   });
-
-  it('returns true when stored matches current', () => {
-    expect(cursorMatchesProject('abc', 'abc')).toBe(true);
-  });
-
-  it('returns false when stored differs from current', () => {
-    expect(cursorMatchesProject('abc', 'def')).toBe(false);
+  it('matches identical ids and rejects different ones', () => {
+    expect(cursorMatchesProject('proj-1', 'proj-1')).toBe(true);
+    expect(cursorMatchesProject('proj-1', 'proj-2')).toBe(false);
   });
 });
 
 describe('filterKeysByEventCursor', () => {
-  it('returns all keys when the cursor is undefined (no prior sync for this language)', () => {
+  it('includes all keys when there is no watermark for the language', () => {
     const keys = [makeKey('k1', 10), makeKey('k2', 20)];
     expect(filterKeysByEventCursor(keys, undefined)).toEqual(keys);
   });
 
-  it('returns all keys when the per-language cursor is empty', () => {
-    const keys = [makeKey('k1', 10), makeKey('k2', 20)];
-    expect(filterKeysByEventCursor(keys, {})).toEqual(keys);
-  });
-
-  it('skips keys whose event equals the stored event', () => {
+  it('includes only keys with event greater than the watermark', () => {
     const k1 = makeKey('k1', 10);
     const k2 = makeKey('k2', 20);
-    expect(filterKeysByEventCursor([k1, k2], { k1: 10, k2: 15 })).toEqual([k2]);
+    expect(filterKeysByEventCursor([k1, k2], 15)).toEqual([k2]);
   });
 
-  it('skips keys whose event is less than the stored event', () => {
-    const k1 = makeKey('k1', 5);
-    expect(filterKeysByEventCursor([k1], { k1: 10 })).toEqual([]);
-  });
-
-  it('includes keys whose event is greater than the stored event', () => {
-    const k1 = makeKey('k1', 11);
-    expect(filterKeysByEventCursor([k1], { k1: 10 })).toEqual([k1]);
-  });
-
-  it('includes keys with undefined event (safe mode for server without event support)', () => {
-    const k1 = makeKey('k1');
-    expect(filterKeysByEventCursor([k1], { k1: 999 })).toEqual([k1]);
-  });
-
-  it('includes keys not present in the cursor (first time we see them)', () => {
+  it('excludes a key whose event equals the watermark', () => {
     const k1 = makeKey('k1', 10);
-    const k2 = makeKey('k2', 20);
-    expect(filterKeysByEventCursor([k1, k2], { k1: 10 })).toEqual([k2]);
+    expect(filterKeysByEventCursor([k1], 10)).toEqual([]);
+  });
+
+  it('includes a key with no event (safe mode), even below the watermark', () => {
+    const k1 = makeKey('k1'); // no event
+    expect(filterKeysByEventCursor([k1], 999)).toEqual([k1]);
+  });
+
+  it('works with negative event/watermark values', () => {
+    const older = makeKey('o', -6481606864199203000);
+    const newer = makeKey('n', -6481606696963903000);
+    expect(filterKeysByEventCursor([older, newer], -6481606800000000000)).toEqual([newer]);
   });
 });
 
-describe('recordCursorEntry', () => {
-  it('creates a new per-language bucket if one does not exist', () => {
-    const cursor = createEmptyCursor();
-    recordCursorEntry(cursor, 'en', 'k1', 10);
-    expect(cursor.processed_keys).toEqual({ en: { k1: 10 } });
+describe('advanceWatermark', () => {
+  it('advances to the max succeeded event when nothing failed', () => {
+    expect(advanceWatermark(undefined, [10, 30, 20], [])).toBe(30);
+    expect(advanceWatermark(5, [10, 30, 20], [])).toBe(30);
   });
 
-  it('records into an existing bucket without disturbing other cells', () => {
-    const cursor = { processed_keys: { en: { k1: 5 } } };
-    recordCursorEntry(cursor, 'en', 'k2', 7);
-    expect(cursor.processed_keys).toEqual({ en: { k1: 5, k2: 7 } });
+  it('never moves backwards below the prior watermark', () => {
+    expect(advanceWatermark(100, [10, 20], [])).toBe(100);
   });
 
-  it('keeps the higher event when an entry already exists', () => {
-    const cursor = { processed_keys: { en: { k1: 10 } } };
-    recordCursorEntry(cursor, 'en', 'k1', 5);
-    expect(cursor.processed_keys.en).toEqual({ k1: 10 });
+  it('holds the watermark just below the earliest failed event so failures retry', () => {
+    // succeeded {10, 30}, failed {20}. Only events < 20 are safe → 10.
+    expect(advanceWatermark(undefined, [10, 30], [20])).toBe(10);
   });
 
-  it('upgrades the entry when called with a higher event', () => {
-    const cursor = { processed_keys: { en: { k1: 10 } } };
-    recordCursorEntry(cursor, 'en', 'k1', 20);
-    expect(cursor.processed_keys.en).toEqual({ k1: 20 });
+  it('keeps the prior watermark when every key this run failed', () => {
+    expect(advanceWatermark(40, [], [50, 60])).toBe(40);
   });
 
-  it('is a no-op when event is undefined', () => {
-    const cursor = { processed_keys: { en: { k1: 10 } } };
-    recordCursorEntry(cursor, 'en', 'k1', undefined);
-    expect(cursor.processed_keys.en).toEqual({ k1: 10 });
+  it('returns undefined when there is no prior watermark and nothing is confirmable', () => {
+    // The earliest fetched event failed; nothing below it succeeded.
+    expect(advanceWatermark(undefined, [30], [10, 20])).toBeUndefined();
+  });
+});
+
+describe('buildWatermarkCursor', () => {
+  it('advances per language from the base using successes and failures', () => {
+    const base = { processed_keys: { en: 5, fr: 100 } };
+    const succeeded = new Map<string, number[]>([
+      ['en', [10, 20]],
+      ['de', [7]],
+    ]);
+    const failed = new Map<string, number[]>([['fr', [110]]]);
+    expect(buildWatermarkCursor(base, succeeded, failed)).toEqual({
+      processed_keys: { en: 20, de: 7, fr: 100 },
+    });
   });
 
-  it('does not create a language bucket when event is undefined', () => {
-    const cursor = createEmptyCursor();
-    recordCursorEntry(cursor, 'fr', 'k1', undefined);
-    expect(cursor.processed_keys).toEqual({});
+  it('preserves base languages untouched this run', () => {
+    const base = { processed_keys: { en: 5, es: 9 } };
+    expect(buildWatermarkCursor(base, new Map([['en', [12]]]), new Map())).toEqual({
+      processed_keys: { en: 12, es: 9 },
+    });
+  });
+
+  it('omits a language with no prior watermark whose earliest key failed', () => {
+    const base = { processed_keys: {} };
+    const succeeded = new Map<string, number[]>([['fr', [30]]]);
+    const failed = new Map<string, number[]>([['fr', [10, 20]]]);
+    expect(buildWatermarkCursor(base, succeeded, failed)).toEqual({ processed_keys: {} });
   });
 });
 
 describe('mergeCursor', () => {
-  it('returns identity-equivalent of either cursor when the other is empty', () => {
-    const a = { processed_keys: { en: { k1: 10 } } };
-    const empty = createEmptyCursor();
-    expect(mergeCursor(a, empty)).toEqual(a);
-    expect(mergeCursor(empty, a)).toEqual(a);
+  it('keeps disk languages not touched by the in-memory cursor', () => {
+    const disk = { processed_keys: { en: 10, de: 3 } };
+    const inMemory = { processed_keys: { en: 20 } };
+    expect(mergeCursor(disk, inMemory)).toEqual({ processed_keys: { en: 20, de: 3 } });
   });
 
-  it('combines disjoint languages', () => {
-    const a = { processed_keys: { en: { k1: 10 } } };
-    const b = { processed_keys: { fr: { k2: 20 } } };
-    expect(mergeCursor(a, b)).toEqual({ processed_keys: { en: { k1: 10 }, fr: { k2: 20 } } });
+  it('lets the in-memory value win even when lower than disk (failure-safe)', () => {
+    // A run that hit a failure holds its watermark below disk's pre-failure value; the
+    // merge must not restore the higher disk value.
+    const disk = { processed_keys: { en: 100 } };
+    const inMemory = { processed_keys: { en: 49 } };
+    expect(mergeCursor(disk, inMemory)).toEqual({ processed_keys: { en: 49 } });
   });
 
-  it('combines disjoint keys within the same language', () => {
-    const a = { processed_keys: { en: { k1: 10 } } };
-    const b = { processed_keys: { en: { k2: 20 } } };
-    expect(mergeCursor(a, b)).toEqual({ processed_keys: { en: { k1: 10, k2: 20 } } });
-  });
-
-  it('takes max for overlapping cells', () => {
-    const a = { processed_keys: { en: { k1: 10, k2: 30 } } };
-    const b = { processed_keys: { en: { k1: 20, k2: 25 } } };
-    expect(mergeCursor(a, b)).toEqual({ processed_keys: { en: { k1: 20, k2: 30 } } });
-  });
-
-  it('does not mutate the inputs', () => {
-    const a = { processed_keys: { en: { k1: 10 } } };
-    const b = { processed_keys: { en: { k1: 20 } } };
-    mergeCursor(a, b);
-    expect(a).toEqual({ processed_keys: { en: { k1: 10 } } });
-    expect(b).toEqual({ processed_keys: { en: { k1: 20 } } });
+  it('does not mutate its inputs', () => {
+    const disk = { processed_keys: { en: 10 } };
+    const inMemory = { processed_keys: { en: 20 } };
+    mergeCursor(disk, inMemory);
+    expect(disk).toEqual({ processed_keys: { en: 10 } });
+    expect(inMemory).toEqual({ processed_keys: { en: 20 } });
   });
 });
 
 describe('countCursorEntries', () => {
-  it('returns 0 for empty cursor', () => {
+  it('returns 0 for an empty cursor', () => {
     expect(countCursorEntries(createEmptyCursor())).toBe(0);
   });
 
-  it('sums per-language map sizes', () => {
-    const cursor = { processed_keys: { en: { k1: 1, k2: 2 }, fr: { k3: 3 } } };
-    expect(countCursorEntries(cursor)).toBe(3);
+  it('counts the number of languages with a watermark', () => {
+    expect(countCursorEntries({ processed_keys: { en: 1, fr: 2, de: 3 } })).toBe(3);
   });
 });
