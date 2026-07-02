@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.2.0 (2026-07-02)
+
+### 🔀 Merged Pull Requests
+- ✨ feat: support Directus 12 [#110](https://github.com/localazy/directus-extension-localazy/pull/110)
+
+### ✨ Features
+- support Directus 12 (*[bb8483d](https://github.com/localazy/directus-extension-localazy/commit/bb8483d15173f4cc75e9c4e241177329fb479e27)*) (*[#110](https://github.com/localazy/directus-extension-localazy/pull/110)*)
+
+### ❤️ Contributors
+- [*Daniel Charvat*](https://github.com/elisiondan)
+
 ## 2.1.0 (2026-06-22)
 
 ### 🔀 Merged Pull Requests
