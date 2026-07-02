@@ -275,9 +275,17 @@ onBeforeMount(() => {
 </script>
 
 <style lang="scss" scoped>
+@use './styles/mixins/private-view' as *;
+
+@include private-view-header;
+
 .panel {
+  /*
+   * Unlike the other pages, Activity's first child (the retention note) has no top
+   * margin of its own, so it would sit flush against the header bar. Keep the panel's
+   * top padding here to give the content the same breathing room as the side padding.
+   */
   padding: var(--content-padding);
-  padding-top: 0;
   padding-bottom: var(--content-padding-bottom);
 }
 

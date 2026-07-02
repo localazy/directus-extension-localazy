@@ -9,9 +9,9 @@
  * GitHub-hosted README for the server-side bundle. The Automation page surfaces this link
  * when the bundle isn't installed in the host Directus instance so the operator has a
  * clear next step. Update this when the README path moves (a bundling refactor could
- * relocate it under `extensions/sync-hook/src/...`).
+ * relocate it under `packages/sync-hook/src/...`).
  */
-export const BUNDLE_README_URL = 'https://github.com/localazy/directus-extension-localazy/blob/main/extensions/sync-hook/README.md';
+export const BUNDLE_README_URL = 'https://github.com/localazy/directus-extension-localazy/blob/main/packages/sync-hook/README.md';
 
 /**
  * Endpoint child name on the server-side bundle. Directus mounts endpoint children under

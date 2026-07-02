@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://localazy.com">
-    <img src="./assets/logo.svg" width="285" height="50" alt="Localazy" >
+    <img src="https://raw.githubusercontent.com/localazy/directus-extension-localazy/main/packages/module/assets/logo.svg" width="285" height="50" alt="Localazy" >
   </a>
 </p>
 <p align="center">
@@ -14,7 +14,7 @@
 
 > Turn translation of your Directus project into a seamless experience.
 
-![](./assets/banner.png)
+![Directus Extension Localazy](https://raw.githubusercontent.com/localazy/directus-extension-localazy/main/packages/module/assets/banner.png)
 
 ## 🌐 About
 
@@ -22,15 +22,15 @@ The Directus localization extension by Localazy allows you to synchronize your c
 
 ## 📄 Prerequisites
 
-- Directus 11+ (see compatibility table below).
+- Directus 11 or 12 (see compatibility table below).
 - [Your project is set up for translations](https://docs.directus.io/guides/headless-cms/content-translations.html)
 
 ## 🧭 Compatibility
 
-| Extension version | Directus   | Notes                                                                                                      |
-| ----------------- | ---------- | ---------------------------------------------------------------------------------------------------------- |
-| `2.x`             | `^11.0.0`  | Current.                                                                                                   |
-| `1.x`             | `^10.10.0` | Frozen. Pin with `npm install @localazy/directus-extension-localazy@^1` if you can't upgrade Directus yet. |
+| Extension version | Directus               | Notes                                                                                                      |
+| ----------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `2.x`             | `^11.0.0 \|\| ^12.0.0` | Current. Supports Directus 11 and 12.                                                                      |
+| `1.x`             | `^10.10.0`             | Frozen. Pin with `npm install @localazy/directus-extension-localazy@^1` if you can't upgrade Directus yet. |
 
 ## 🔧 Install
 
@@ -58,7 +58,7 @@ npm install @localazy/directus-extension-localazy
 
 ## Automatically Upload Content
 
-To automatically synchronize your content from Directus to Localazy, see [Directus Extension Localazy Automation](https://github.com/localazy/directus-extension-localazy/blob/main/extensions/sync-hook)
+To automatically synchronize your content from Directus to Localazy, see [Directus Extension Localazy Automation](https://github.com/localazy/directus-extension-localazy/blob/main/packages/sync-hook)
 
 ## 🛟 Support
 

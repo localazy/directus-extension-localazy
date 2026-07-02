@@ -14,6 +14,7 @@ A monorepo of two published Directus extensions plus one internal shared package
 
 ## Stack
 
+- **Directus 12** target. Both extensions declare `host: ^11.0.0 || ^12.0.0` and build against `@directus/extensions-sdk@^18` + `@directus/types@^16`; local dev runs `directus@^12` (root devDependency). These were on the v11 line (`sdk@^17` / `types@^15`) before the v12 upgrade — keep the `extensions-sdk` and `types` versions in lockstep across `module`, `sync-hook`, and `common`, matched to the host major. A local dev DB bootstrapped on an older major needs `directus database migrate:latest` before `pnpm dev` will boot.
 - **Node 22** (`.nvmrc`).
 - **pnpm workspaces** (`pnpm-workspace.yaml`), pnpm `11.4.0` pinned via root `packageManager`. Strict isolation (no `shamefullyHoist`). `autoInstallPeers: true`. CVE overrides and a `vue` + `axios` version pin live in `pnpm-workspace.yaml`.
 - **ESLint 10** flat config (`eslint.config.js`) + `typescript-eslint@8` + `eslint-plugin-vue@10` flat presets + `eslint-config-prettier`. Per-workspace globals: browser for `module/` and `common/`, node for `sync-hook/`.
@@ -98,9 +99,9 @@ The two extensions' `package.json` versions on `main` will lag behind root betwe
 
   A duplicated local `LOCALAZY_COLLECTIONS` block in `endpoint/index.ts` once mislabeled the folder as the data collection and silently hung the webhook handler for every delivery. Don't reintroduce a per-file copy of these names.
 
-## Directus 10 shapes redefined in Directus 11
+## Directus version gotchas (shapes & APIs restructured across majors)
 
-We support Directus 11, so the shapes below are the current truth. They are listed here because the Directus 10 shapes still live in older guides, blog posts, and the SDK's training-data fingerprint — code-completion and AI assistants will happily reach for them. When you touch system-collection fields, verify the relocation first.
+We support Directus 11 and 12, so the shapes below are the current truth. They are listed here because the older shapes still live in guides, blog posts, and the SDK's training-data fingerprint — code-completion and AI assistants will happily reach for them. When you touch system-collection fields or private-view slots, verify the current shape first.
 
 - **`admin_access` and `app_access` moved from `directus_roles` to `directus_policies`.** Directus 11 added a policy layer between users/roles and permissions. There is no `directus_users.admin_access` column. The traversal is:
 
@@ -115,4 +116,6 @@ We support Directus 11, so the shapes below are the current truth. They are list
 
   Reading `directus_users` with `fields: ['admin_access']` makes `ItemsService.readOne()` throw — when the caller's `catch` clause maps that to "user missing" you get the symptom "webhook fails on every delivery because the configured user no longer exists" even though the user is still right there. The webhook gate hit exactly this trap (see `endpoint/index.ts` `lookupWebhookUser`).
 
-Add new entries here when you find another Directus 10 shape that Directus 11 has restructured.
+- **`private-view`'s `#headline` slot renders inline in Directus 12.** In v11 the `#headline` breadcrumb sat on its own line above the title. Directus 12 rewrote `header-bar` and forwards `#headline` into the title's `title:prepend` slot — a gapless flex row — so `<v-breadcrumb>` ends up directly abutting the page title ("LocalazyProject setup"), and `#actions` is now vertically centred (which exposed stale top margins on header buttons). Every module page uses `#headline`; the fix is the shared `styles/mixins/private-view.scss` mixin (`@include private-view-header`), included in each page's **scoped** style so it only targets our own slot content, never core Directus screens. The slot still works and emits no deprecation warning in 12.1.1, but Directus is clearly phasing the old slot system — prefer `title:prepend` / `title-outer:prepend` for new headers.
+
+Add new entries here when you find another shape or API that a newer Directus major has restructured.
