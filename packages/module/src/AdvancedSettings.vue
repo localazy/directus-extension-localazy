@@ -189,6 +189,9 @@ async function onSaveChanges() {
 
 <style lang="scss" scoped>
 @use './styles/mixins/page' as *;
+@use './styles/mixins/private-view' as *;
+
+@include private-view-header;
 
 .page {
   @include page;
@@ -198,10 +201,6 @@ async function onSaveChanges() {
   padding: var(--content-padding);
   padding-top: 0;
   padding-bottom: var(--content-padding-bottom);
-}
-
-.panel-button {
-  margin-top: 20px;
 }
 
 .errors-notice {

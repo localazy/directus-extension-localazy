@@ -26,7 +26,7 @@
     "type": "module",
     "path": "dist/index.js",
     "source": "src/index.ts",
-    "host": "^11.0.0"
+    "host": "^11.0.0 || ^12.0.0"
   },
   "scripts": {
     "build": "directus-extension build",
@@ -52,8 +52,8 @@
     "pinia": "^2.3.1"
   },
   "devDependencies": {
-    "@directus/extensions-sdk": "^17.1.4",
-    "@directus/types": "^15.0.0",
+    "@directus/extensions-sdk": "^18.0.1",
+    "@directus/types": "^16.0.0",
     "@localazy/directus-common": "workspace:*",
     "@types/lodash": "^4.14.195",
     "sass": "^1.63.6",

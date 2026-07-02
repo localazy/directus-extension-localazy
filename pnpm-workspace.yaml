@@ -52,3 +52,25 @@ overrides:
   # baseline so the AxiosInstance shape is identical, while keeping our CVE
   # coverage. Re-verify against the latest Directus SDK whenever bumping.
   axios: 1.15.2
+
+minimumReleaseAgeExclude:
+  - '@directus/api@37.0.1'
+  - '@directus/app@16.2.1'
+  - '@directus/composables@11.5.1'
+  - '@directus/env@6.1.0'
+  - '@directus/extensions-registry@4.0.1'
+  - '@directus/extensions-sdk@18.0.1'
+  - '@directus/extensions@4.0.1'
+  - '@directus/memory@4.0.1'
+  - '@directus/pressure@4.0.1'
+  - '@directus/specs@15.0.0'
+  - '@directus/storage-driver-azure@13.0.1'
+  - '@directus/storage-driver-cloudinary@13.0.1'
+  - '@directus/storage-driver-gcs@13.0.1'
+  - '@directus/storage-driver-s3@13.0.1'
+  - '@directus/storage-driver-supabase@4.0.1'
+  - '@directus/system-data@4.5.1'
+  - '@directus/themes@2.0.1'
+  - '@directus/utils@13.5.1'
+  - '@directus/validation@3.0.1'
+  - directus@12.1.1

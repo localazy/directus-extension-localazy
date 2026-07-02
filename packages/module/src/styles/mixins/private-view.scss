@@ -1,0 +1,13 @@
+// Directus 12's `header-bar` renders the private-view `#headline` slot inline as the
+// first child of the `.title` flex row — a gapless row — so our "Localazy" breadcrumb
+// ends up directly abutting the page title ("LocalazyProject setup"). Under Directus 11
+// the same slot rendered on its own line above the title, so no gap was needed.
+//
+// This lives in each page's *scoped* <style>, so the selector only matches our own slot
+// content (which carries the page's scope id) and never leaks onto core Directus screens.
+@mixin private-view-header {
+  // Restore the space between the breadcrumb and the page title.
+  .v-breadcrumb {
+    margin-inline-end: 0.5rem;
+  }
+}

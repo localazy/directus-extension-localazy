@@ -176,6 +176,10 @@ onBeforeMount(async () => {
 </script>
 
 <style lang="scss" scoped>
+@use './styles/mixins/private-view' as *;
+
+@include private-view-header;
+
 .panel {
   padding: var(--content-padding);
   padding-top: 0;

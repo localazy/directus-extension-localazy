@@ -323,6 +323,10 @@ function deselectAll() {
 
 <style lang="scss" scoped>
 @use './styles/mixins/page' as *;
+@use './styles/mixins/private-view' as *;
+
+@include private-view-header;
+
 .page {
   @include page;
 }

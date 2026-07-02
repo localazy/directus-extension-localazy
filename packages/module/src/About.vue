@@ -67,7 +67,7 @@
       </p>
       <p>
         Learn more in the
-        <a href="https://github.com/localazy/directus-extension-localazy/blob/main/extensions/sync-hook/README.md" target="_blank"
+        <a href="https://github.com/localazy/directus-extension-localazy/blob/main/packages/sync-hook/README.md" target="_blank"
           >automation bundle README</a
         >.
       </p>
@@ -120,6 +120,9 @@ import Navigation from './components/Navigation.vue';
 
 <style lang="scss" scoped>
 @use './styles/mixins/page' as *;
+@use './styles/mixins/private-view' as *;
+
+@include private-view-header;
 
 .page {
   @include page;

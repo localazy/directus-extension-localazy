@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://localazy.com">
-    <img src="./assets/logo.svg" width="285" height="50" alt="Localazy" >
+    <img src="https://raw.githubusercontent.com/localazy/directus-extension-localazy/main/packages/sync-hook/assets/logo.svg" width="285" height="50" alt="Localazy" >
   </a>
 </p>
 <p align="center">
@@ -34,15 +34,15 @@ If you prefer to install manually (via `npm install`), this flag is **not** requ
 
 ## 📄 Prerequisites
 
-- Installed & enabled [Directus Extension Localazy](https://github.com/localazy/directus-extension-localazy/tree/main/extensions/module).
-- Directus 11+ (see compatibility table below).
+- Installed & enabled [Directus Extension Localazy](https://github.com/localazy/directus-extension-localazy/tree/main/packages/module).
+- Directus 11 or 12 (see compatibility table below).
 
 ## 🧭 Compatibility
 
-| Extension version | Directus   | Notes                                                                                                                 |
-| ----------------- | ---------- | --------------------------------------------------------------------------------------------------------------------- |
-| `2.x`             | `^11.0.0`  | Current.                                                                                                              |
-| `1.x`             | `^10.10.0` | Frozen. Pin with `npm install @localazy/directus-extension-localazy-automation@^1` if you can't upgrade Directus yet. |
+| Extension version | Directus               | Notes                                                                                                                 |
+| ----------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `2.x`             | `^11.0.0 \|\| ^12.0.0` | Current. Supports Directus 11 and 12.                                                                                 |
+| `1.x`             | `^10.10.0`             | Frozen. Pin with `npm install @localazy/directus-extension-localazy-automation@^1` if you can't upgrade Directus yet. |
 
 ## 🔧 Install
 
