@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.2.1 (2026-07-10)
+
+### 🔀 Merged Pull Requests
+- 📝 docs: remove flaky shields.io badge from extension READMEs [#112](https://github.com/localazy/directus-extension-localazy/pull/112)
+
+### 📚 Documentation
+- remove flaky shields.io badge from extension READMEs (*[a39083b](https://github.com/localazy/directus-extension-localazy/commit/a39083bbe09bd5d5a585c651891a8cd18cc9e90c)*) (*[#112](https://github.com/localazy/directus-extension-localazy/pull/112)*)
+
+### ❤️ Contributors
+- [*Daniel Charvat*](https://github.com/elisiondan)
+
 ## 2.2.0 (2026-07-02)
 
 ### 🔀 Merged Pull Requests
