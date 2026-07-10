@@ -3,12 +3,6 @@
     <img src="https://raw.githubusercontent.com/localazy/directus-extension-localazy/main/packages/sync-hook/assets/logo.svg" width="285" height="50" alt="Localazy" >
   </a>
 </p>
-<p align="center">
-  <a href="https://npmjs.com/package/@localazy/directus-extension-localazy"><img src="https://img.shields.io/badge/@localazy-directus--extension--localazy-066fef?style=for-the-badge" height="22" alt="@localazy/directus-extension-localazy"></a>
-  <!-- <a href="https://npmjs.com/package/@localazy/directus-extension-localazy"><img src="https://img.shields.io/npm/v/@localazy/directus-extension-localazy
-?style=for-the-badge&label=version&color=066fef" height="22" alt="npm"></a> -->
-  <br>
-</p>
 
 # 📦 Directus Extension Localazy Automation
 
